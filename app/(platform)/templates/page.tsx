@@ -1,0 +1,936 @@
+"use client";
+
+import { useState, useMemo, useEffect } from "react";
+import { useTheme } from "@/lib/theme/theme-provider";
+import { useLocale } from "@/lib/i18n/locale-provider";
+import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-media-query";
+import { Button, Card, CardHeader, Badge, TabBar, SearchInput, Modal, Pagination } from "@/components/ui";
+import { Icon } from "@/components/icons/icon";
+import { ProgressBar } from "@/components/charts/progress-bar";
+import { getStatusColor } from "@/lib/utils/status-color";
+import type { Template } from "@/data/templates";
+import { useTemplates, useTemplateStats } from "@/lib/api/hooks";
+import api from "@/lib/api/client";
+import { COLORS } from "@/lib/constants/colors";
+import { FONT_FAMILY } from "@/lib/constants/font";
+import { GRADIENT } from "@/lib/constants/colors";
+
+function templateStatusColor(status: string): string {
+  if (status === "approved") return COLORS.ok;
+  if (status === "pending") return COLORS.warn;
+  if (status === "rejected") return COLORS.err;
+  return "#555764";
+}
+
+export default function TemplatesPage() {
+  const { colors: C } = useTheme();
+  const { t, isAr, lang } = useLocale();
+  const { showToast } = useToast();
+  const isMobile = useIsMobile();
+
+  const [search, setSearch] = useState("");
+  const [serverSearch, setServerSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [activeTab, setActiveTab] = useState("all");
+  const [selected, setSelected] = useState<Template | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [previewLang, setPreviewLang] = useState<"ar" | "en">("ar");
+  const [newTemplate, setNewTemplate] = useState({
+    name: "",
+    category: "utility" as string,
+    language: "ar" as string,
+    header: "",
+    body: "",
+    body_ar: "",
+    footer: "",
+    buttons: [] as { text: string; type: string }[],
+  });
+
+  const PAGE_SIZE = 50;
+
+  // Fetch from API, fall back to mock data
+  const { data: apiResponse, isLoading, mutate } = useTemplates({
+    status: activeTab === "all" ? undefined : activeTab,
+    search: serverSearch || undefined,
+    page,
+  });
+  // Extract data and pagination meta
+  const apiTemplates = apiResponse?.data || apiResponse;
+  const paginationMeta = apiResponse?.meta || apiResponse?.pagination || null;
+  const paginationTotalCount = paginationMeta?.total || (Array.isArray(apiTemplates) ? apiTemplates.length : 0);
+  const totalPages = paginationMeta?.last_page || Math.ceil(paginationTotalCount / PAGE_SIZE) || 1;
+
+  // Map API fields: cat = category, ln = language, st = status
+  const pageTemplates: Template[] = useMemo(() => {
+    const list = Array.isArray(apiTemplates) ? apiTemplates : [];
+    return list.map((t: any) => ({
+      ...t,
+      cat: t.cat || t.category || "",
+      ln: t.ln || t.language || "",
+      st: t.st || t.status || "",
+      uses: t.uses ?? 0,
+      open: t.open ?? 0,
+      click: t.click ?? 0,
+      sent: t.sent ?? 0,
+      delivered: t.delivered ?? 0,
+      read: t.read ?? 0,
+      replied: t.replied ?? 0,
+      aiScore: t.aiScore ?? t.ai_score ?? 0,
+      aiTips: t.aiTips ?? t.ai_tips ?? [],
+      buttons: t.buttons ?? [],
+      vars: t.vars ?? [],
+      header: t.header ?? "",
+      footer: t.footer ?? "",
+      body: t.body ?? "",
+    }));
+  }, [apiTemplates]);
+
+  // Local search filter (instant, within current page)
+  const templates: Template[] = useMemo(() => {
+    if (!search.trim() || serverSearch === search) return pageTemplates;
+    const q = search.trim().toLowerCase();
+    return pageTemplates.filter(tmpl =>
+      tmpl.name.toLowerCase().includes(q)
+    );
+  }, [pageTemplates, search, serverSearch]);
+
+  // When tab changes, reset to page 1
+  useEffect(() => { setPage(1); }, [activeTab]);
+
+  // Search: Enter key triggers server search
+  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      setServerSearch(search);
+      setPage(1);
+    }
+  };
+
+  const tabs = [
+    { key: "all", label: isAr ? "\u0627\u0644\u0643\u0644" : "All" },
+    { key: "marketing", label: t("mkt") },
+    { key: "utility", label: t("util") },
+    { key: "auth", label: t("authn") },
+  ];
+
+  const filtered = useMemo(() => {
+    return templates.filter((tmpl) => {
+      const matchTab =
+        activeTab === "all" ||
+        tmpl.cat === activeTab ||
+        (activeTab === "auth" && tmpl.cat === "authentication");
+      return matchTab;
+    });
+  }, [templates, activeTab]);
+
+  // Stats from API, fall back to computed
+  const { data: apiStats } = useTemplateStats();
+  const totalCount = templates.length;
+  const approvedCount = templates.filter((t) => t.st === "approved").length;
+  const pendingCount = templates.filter((t) => t.st === "pending").length;
+  const rejectedCount = templates.filter((t) => t.st === "rejected").length;
+
+  const stats = useMemo(() => {
+    const total = apiStats?.total ?? totalCount;
+    const approved = apiStats?.approved ?? approvedCount;
+    const pending = apiStats?.pending ?? pendingCount;
+    const rejected = apiStats?.rejected ?? rejectedCount;
+    return [
+      { label: isAr ? "\u0627\u0644\u0625\u062C\u0645\u0627\u0644\u064A" : "Total", value: total, color: C.pri, icon: "file" },
+      { label: t("approved"), value: approved, color: COLORS.ok, icon: "check" },
+      { label: t("pending"), value: pending, color: COLORS.warn, icon: "timer" },
+      { label: t("rejected"), value: rejected, color: COLORS.err, icon: "x" },
+    ];
+  }, [apiStats, totalCount, approvedCount, pendingCount, rejectedCount, isAr, C.pri, t]);
+
+  const categoryLabel = (cat: string) => {
+    if (cat === "marketing") return t("mkt");
+    if (cat === "utility") return t("util");
+    if (cat === "authentication") return t("authn");
+    return cat;
+  };
+
+  const categoryColor = (cat: string) => {
+    if (cat === "marketing") return C.sec;
+    if (cat === "utility") return C.info;
+    if (cat === "authentication") return COLORS.ai;
+    return C.t2;
+  };
+
+  // ---------- Detail View ----------
+  if (selected) {
+    const tmpl = selected;
+    const sColor = templateStatusColor(tmpl.st);
+    const deliveryRate = tmpl.sent > 0 ? Math.round((tmpl.delivered / tmpl.sent) * 100) : 0;
+    const readRate = tmpl.sent > 0 ? Math.round((tmpl.read / tmpl.sent) * 100) : 0;
+    const replyRate = tmpl.sent > 0 ? Math.round((tmpl.replied / tmpl.sent) * 100) : 0;
+
+    const perfStats = [
+      { label: isAr ? "\u0645\u0631\u0633\u0644\u0629" : "Sent", value: tmpl.sent.toLocaleString(), color: C.pri },
+      { label: isAr ? "\u0645\u0633\u0644\u0651\u0645\u0629" : "Delivered", value: tmpl.delivered.toLocaleString(), pct: deliveryRate, color: COLORS.ok },
+      { label: isAr ? "\u0645\u0642\u0631\u0648\u0621\u0629" : "Read", value: tmpl.read.toLocaleString(), pct: readRate, color: C.info },
+      { label: isAr ? "\u0631\u062F\u0648\u062F" : "Replied", value: tmpl.replied.toLocaleString(), pct: replyRate, color: COLORS.ai },
+    ];
+
+    const aiScoreColor =
+      tmpl.aiScore >= 80 ? COLORS.ok : tmpl.aiScore >= 60 ? COLORS.warn : COLORS.err;
+
+    // Build WhatsApp preview body with highlighted variables
+    const highlightVars = (text: string) => {
+      const parts = text.split(/(\{\{[^}]+\}\})/g);
+      return parts.map((p, i) =>
+        /\{\{[^}]+\}\}/.test(p) ? (
+          <span key={i} style={{ borderRadius: 4, padding: "0 3px", fontWeight: 600, background: `${C.pri}30`, color: C.pri }}>
+            {p}
+          </span>
+        ) : (
+          <span key={i}>{p}</span>
+        )
+      );
+    };
+
+    return (
+      <div style={{ padding: "0 24px 24px", fontFamily: FONT_FAMILY, direction: isAr ? "rtl" : "ltr" }}>
+        {/* Back button */}
+        <button
+          onClick={() => setSelected(null)}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            background: "transparent",
+            border: "none",
+            color: C.pri,
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: "pointer",
+            marginBottom: 20,
+            padding: 0,
+            fontFamily: FONT_FAMILY,
+          }}
+        >
+          <span style={{ display: "inline-block", transform: isAr ? "rotate(180deg)" : "none" }}><Icon name="send" size={14} /></span>
+          {t("back")}
+        </button>
+
+        {/* Template info header */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
+          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: C.txt }}>{tmpl.name}</h2>
+          <Badge color={categoryColor(tmpl.cat)}>{categoryLabel(tmpl.cat)}</Badge>
+          <Badge color={sColor}>{tmpl.st === "approved" ? t("approved") : tmpl.st === "pending" ? t("pending") : t("rejected")}</Badge>
+          <span style={{ fontSize: 12, color: C.t2 }}>{tmpl.ln}</span>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "340px 1fr", gap: 20 }}>
+          {/* WhatsApp Phone Mockup */}
+          <div>
+            <Card style={{ padding: 0, overflow: "hidden" }}>
+              {/* Phone top bar */}
+              <div style={{ background: "#075E54", padding: "14px 16px", display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#128C7E", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
+                  <Icon name="phone" size={14} />
+                </div>
+                <div>
+                  <div style={{ color: "#fff", fontSize: 13, fontWeight: 600 }}>CORBIT</div>
+                  <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 10 }}>
+                    {isAr ? "\u0645\u062A\u0635\u0644" : "Online"}
+                  </div>
+                </div>
+              </div>
+
+              {/* Chat background */}
+              <div style={{ background: "#ECE5DD", padding: "20px 14px", minHeight: 320, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+                {/* Message bubble */}
+                <div style={{ background: "#DCF8C6", borderRadius: "12px 12px 12px 0", padding: "8px 12px", maxWidth: "88%", boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }}>
+                  {/* Header */}
+                  {tmpl.header && (
+                    <div style={{ fontWeight: 700, fontSize: 13, color: "#1A1A1A", marginBottom: 4 }}>
+                      {highlightVars(tmpl.header)}
+                    </div>
+                  )}
+                  {/* Body */}
+                  <div style={{ fontSize: 12.5, color: "#303030", lineHeight: 1.5 }}>
+                    {highlightVars(tmpl.body)}
+                  </div>
+                  {/* Footer */}
+                  {tmpl.footer && (
+                    <div style={{ fontSize: 11, color: "#8B8B8B", marginTop: 6 }}>
+                      {tmpl.footer}
+                    </div>
+                  )}
+                  {/* Timestamp */}
+                  <div style={{ fontSize: 10, color: "#8B8B8B", textAlign: "right", marginTop: 4 }}>
+                    12:00 PM
+                  </div>
+                </div>
+
+                {/* Buttons */}
+                {tmpl.buttons.length > 0 && (
+                  <div style={{ marginTop: 4, maxWidth: "88%" }}>
+                    {tmpl.buttons.map((btn, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          background: "#fff",
+                          padding: "8px 12px",
+                          textAlign: "center",
+                          color: "#00A5F4",
+                          fontSize: 12.5,
+                          fontWeight: 600,
+                          borderTop: "1px solid #E8E8E8",
+                          borderRadius: i === tmpl.buttons.length - 1 ? "0 0 8px 8px" : 0,
+                        }}
+                      >
+                        {btn.text}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Phone bottom bar */}
+              <div style={{ background: "#F0F0F0", padding: "10px 14px", display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ flex: 1, background: "#fff", borderRadius: 20, padding: "8px 14px", fontSize: 12, color: "#999" }}>
+                  {isAr ? "\u0627\u0643\u062A\u0628 \u0631\u0633\u0627\u0644\u0629..." : "Type a message..."}
+                </div>
+                <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#128C7E", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
+                  <Icon name="send" size={14} />
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Right column - Performance & AI */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {/* Performance Stats */}
+            <Card style={{ padding: 20 }}>
+              <h3 style={{ margin: "0 0 16px", fontSize: 14.5, fontWeight: 600, color: C.txt }}>
+                {isAr ? "\u0627\u0644\u0623\u062F\u0627\u0621" : "Performance"}
+              </h3>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 14 }}>
+                {perfStats.map((s, i) => (
+                  <div
+                    key={i}
+                    style={{ padding: 14, borderRadius: 12, textAlign: "center", background: `${s.color}10` }}
+                  >
+                    <div style={{ fontSize: 11, color: C.t2, marginBottom: 4 }}>{s.label}</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: s.color }}>{s.value}</div>
+                    {s.pct !== undefined && (
+                      <div style={{ fontSize: 11, color: C.t2, marginTop: 2 }}>{s.pct}%</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            {/* AI Score */}
+            <Card style={{ padding: 20 }}>
+              <h3 style={{ margin: "0 0 16px", fontSize: 14.5, fontWeight: 600, color: C.txt }}>
+                {isAr ? "\u062A\u0642\u064A\u064A\u0645 \u0627\u0644\u0630\u0643\u0627\u0621 \u0627\u0644\u0627\u0635\u0637\u0646\u0627\u0639\u064A" : "AI Score"}
+              </h3>
+              <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 16 }}>
+                {/* Score circle */}
+                <div
+                  style={{
+                    width: 72,
+                    height: 72,
+                    borderRadius: "50%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                    background: `${aiScoreColor}15`,
+                    border: `3px solid ${aiScoreColor}`,
+                  }}
+                >
+                  <span style={{ fontSize: 22, fontWeight: 700, color: aiScoreColor }}>
+                    {tmpl.aiScore}
+                  </span>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, color: C.txt }}>
+                    {tmpl.aiScore >= 80
+                      ? isAr ? "\u0645\u0645\u062A\u0627\u0632" : "Excellent"
+                      : tmpl.aiScore >= 60
+                        ? isAr ? "\u062C\u064A\u062F" : "Good"
+                        : isAr ? "\u064A\u062D\u062A\u0627\u062C \u062A\u062D\u0633\u064A\u0646" : "Needs Improvement"}
+                  </div>
+                  <ProgressBar value={tmpl.aiScore} color={aiScoreColor} />
+                </div>
+              </div>
+
+              {/* AI Tips */}
+              {tmpl.aiTips.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: C.t2, marginBottom: 8 }}>
+                    {isAr ? "\u0627\u0642\u062A\u0631\u0627\u062D\u0627\u062A \u0627\u0644\u062A\u062D\u0633\u064A\u0646" : "Improvement Tips"}
+                  </div>
+                  {tmpl.aiTips.map((tip, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: 8,
+                        padding: "8px 12px",
+                        borderRadius: 8,
+                        background: `${COLORS.ai}1A`,
+                        fontSize: 12,
+                        color: C.txt,
+                        marginBottom: i < tmpl.aiTips.length - 1 ? 6 : 0,
+                      }}
+                    >
+                      <Icon name="zap" size={13} />
+                      <span>{tip}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            {/* Template Meta */}
+            <Card style={{ padding: 20 }}>
+              <h3 style={{ margin: "0 0 12px", fontSize: 14.5, fontWeight: 600, color: C.txt }}>
+                {isAr ? "\u062A\u0641\u0627\u0635\u064A\u0644 \u0627\u0644\u0642\u0627\u0644\u0628" : "Template Details"}
+              </h3>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, fontSize: 12 }}>
+                {[
+                  [t("cat"), categoryLabel(tmpl.cat)],
+                  [t("lng"), tmpl.ln],
+                  [t("status"), tmpl.st === "approved" ? t("approved") : tmpl.st === "pending" ? t("pending") : t("rejected")],
+                  [isAr ? "\u0627\u0644\u0627\u0633\u062A\u062E\u062F\u0627\u0645\u0627\u062A" : "Uses", tmpl.uses.toLocaleString()],
+                  [isAr ? "\u0645\u0639\u062F\u0644 \u0627\u0644\u0641\u062A\u062D" : "Open Rate", `${tmpl.open}%`],
+                  [isAr ? "\u0645\u0639\u062F\u0644 \u0627\u0644\u0646\u0642\u0631" : "Click Rate", `${tmpl.click}%`],
+                ].map(([label, value], i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${C.brdL}` }}>
+                    <span style={{ color: C.t2 }}>{label}</span>
+                    <span style={{ fontWeight: 600, color: C.txt }}>{value}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ---------- List View ----------
+  return (
+    <div style={{ padding: "0 24px 24px", fontFamily: FONT_FAMILY, direction: isAr ? "rtl" : "ltr" }}>
+      {/* Page Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+        <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: C.txt }}>{t("templates")}</h2>
+        <Button primary onClick={() => { setNewTemplate({ name: "", category: "utility", language: "ar", header: "", body: "", body_ar: "", footer: "", buttons: [] }); setPreviewLang("ar"); setShowCreateModal(true); }}>
+          <Icon name="file" size={14} />
+          {t("createTmpl")}
+        </Button>
+      </div>
+
+      {/* Stats Cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 20 }}>
+        {(stats as any[]).map((s: any, i: number) => (
+          <Card key={i} style={{ padding: "18px 20px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 10,
+                  background: `${s.color}15`,
+                  color: s.color,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Icon name={s.icon} size={18} />
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: C.t2 }}>{s.label}</div>
+                <div style={{ fontSize: 24, fontWeight: 700, color: C.txt }}>{s.value}</div>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Filter Bar */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+        <TabBar tabs={tabs} active={activeTab} onChange={setActiveTab} />
+        <div style={{ flex: 1, minWidth: 180, maxWidth: 320 }}>
+          <SearchInput value={search} onChange={setSearch} onKeyDown={handleSearchKeyDown} placeholder={isAr ? "بحث بالاسم... (Enter للبحث)" : "Search by name... (Enter to search)"} />
+        </div>
+      </div>
+
+      {/* Template Grid */}
+      {isLoading ? (
+        <Card style={{ padding: 48 }}>
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: 200 }}>
+            <div style={{ textAlign: "center", color: C.t2 }}>
+              <Icon name="timer" size={32} />
+              <p style={{ marginTop: 12, fontSize: 14 }}>{isAr ? "\u062C\u0627\u0631\u064D \u0627\u0644\u062A\u062D\u0645\u064A\u0644..." : "Loading..."}</p>
+            </div>
+          </div>
+        </Card>
+      ) : (
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(320px, 1fr))", gap: 14 }}>
+        {filtered.map((tmpl) => {
+          const sColor = templateStatusColor(tmpl.st);
+          return (
+            <Card
+              key={tmpl.id}
+              onClick={() => setSelected(tmpl)}
+              style={{ padding: 0, cursor: "pointer", transition: "box-shadow 0.15s" }}
+            >
+              {/* Card top */}
+              <div style={{ padding: "16px 20px 12px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14.5, fontWeight: 600, marginBottom: 6, color: C.txt }}>{tmpl.name}</div>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      <Badge color={categoryColor(tmpl.cat)}>{categoryLabel(tmpl.cat)}</Badge>
+                      <Badge color={sColor}>
+                        {tmpl.st === "approved" ? t("approved") : tmpl.st === "pending" ? t("pending") : t("rejected")}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ fontSize: 11.5, color: C.t2, marginTop: 4 }}>
+                  {t("lng")}: {tmpl.ln}
+                </div>
+              </div>
+
+              {/* Card metrics */}
+              <div style={{ padding: "10px 20px 14px", borderTop: `1px solid ${C.brdL}`, display: "flex", justifyContent: "space-between", fontSize: 11.5 }}>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ color: C.t2 }}>{isAr ? "\u0627\u0633\u062A\u062E\u062F\u0627\u0645" : "Uses"}</div>
+                  <div style={{ fontWeight: 700, marginTop: 2, color: C.txt }}>{tmpl.uses.toLocaleString()}</div>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ color: C.t2 }}>{isAr ? "\u0641\u062A\u062D" : "Open"}</div>
+                  <div style={{ fontWeight: 700, marginTop: 2, color: COLORS.ok }}>{tmpl.open}%</div>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ color: C.t2 }}>{isAr ? "\u0646\u0642\u0631" : "Click"}</div>
+                  <div style={{ fontWeight: 700, marginTop: 2, color: COLORS.info }}>{tmpl.click}%</div>
+                </div>
+              </div>
+            </Card>
+          );
+        })}
+
+        {filtered.length === 0 && (
+          <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: 48, color: C.t2, fontSize: 14 }}>
+            {isAr ? "\u0644\u0627 \u062A\u0648\u062C\u062F \u0642\u0648\u0627\u0644\u0628" : "No templates found"}
+          </div>
+        )}
+      </div>
+      )}
+
+      {/* Pagination */}
+      <Pagination page={page} totalPages={totalPages} totalItems={paginationTotalCount} onPageChange={setPage} />
+
+      {/* ── Create Template Modal ── */}
+      <Modal
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        title={isAr ? "إنشاء قالب" : "Create Template"}
+        wide
+        submitLabel={isAr ? "إنشاء القالب" : "Create Template"}
+        onSubmit={() => {
+          if (!newTemplate.name.trim()) {
+            showToast(isAr ? "يرجى إدخال اسم القالب" : "Please enter template name");
+            return;
+          }
+          const ln = newTemplate.language;
+          const needsBody = ln === "en" || ln === "ar+en";
+          const needsBodyAr = ln === "ar" || ln === "ar+en";
+          if (needsBody && !newTemplate.body.trim()) {
+            showToast(isAr ? "يرجى إدخال نص القالب بالإنجليزية" : "Please enter English body");
+            return;
+          }
+          if (needsBodyAr && !newTemplate.body_ar.trim()) {
+            showToast(isAr ? "يرجى إدخال نص القالب بالعربية" : "Please enter Arabic body");
+            return;
+          }
+          if (newTemplate.body.length > 1024 || newTemplate.body_ar.length > 1024) {
+            showToast(isAr ? "النص يتجاوز 1024 حرف" : "Body exceeds 1024 characters");
+            return;
+          }
+          const payload: Record<string, any> = {
+            name: newTemplate.name,
+            category: newTemplate.category,
+            language: newTemplate.language,
+          };
+          if (ln === "ar") {
+            payload.body = newTemplate.body_ar;
+          } else if (ln === "en") {
+            payload.body = newTemplate.body;
+          } else {
+            payload.body = newTemplate.body;
+            payload.body_ar = newTemplate.body_ar;
+          }
+          if (newTemplate.header.trim()) payload.header = newTemplate.header;
+          if (newTemplate.footer.trim()) payload.footer = newTemplate.footer;
+          if (newTemplate.buttons.length > 0) payload.buttons = newTemplate.buttons;
+          api.post("/templates", payload).then(() => {
+            showToast(isAr ? "تم إنشاء القالب بنجاح" : "Template created successfully");
+            setShowCreateModal(false);
+            setNewTemplate({ name: "", category: "utility", language: "ar", header: "", body: "", body_ar: "", footer: "", buttons: [] });
+            mutate();
+          }).catch(() => {
+            showToast(isAr ? "حدث خطأ" : "Error occurred");
+          });
+        }}
+      >
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 340px", gap: 24 }}>
+          {/* Left: Form Fields */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 14, maxHeight: "65vh", overflowY: "auto", paddingInlineEnd: 8 }}>
+
+            {/* Template Name */}
+            <div>
+              <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 6 }}>
+                {isAr ? "اسم القالب" : "Template Name"} <span style={{ color: COLORS.err }}>*</span>
+              </label>
+              <input
+                value={newTemplate.name}
+                onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })}
+                placeholder={isAr ? "مثال: رسالة ترحيب" : "e.g. Welcome Message"}
+                style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none", boxSizing: "border-box" }}
+              />
+            </div>
+
+            {/* Category & Language Row */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div>
+                <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 6 }}>
+                  {isAr ? "الفئة" : "Category"} <span style={{ color: COLORS.err }}>*</span>
+                </label>
+                <select
+                  value={newTemplate.category}
+                  onChange={(e) => setNewTemplate({ ...newTemplate, category: e.target.value })}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none", cursor: "pointer", boxSizing: "border-box" }}
+                >
+                  <option value="utility">{isAr ? "خدمي" : "Utility"} (خدمي)</option>
+                  <option value="marketing">{isAr ? "تسويقي" : "Marketing"} (تسويقي)</option>
+                  <option value="authentication">{isAr ? "مصادقة" : "Authentication"} (مصادقة)</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 6 }}>
+                  {isAr ? "اللغة" : "Language"} <span style={{ color: COLORS.err }}>*</span>
+                </label>
+                <select
+                  value={newTemplate.language}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setNewTemplate({ ...newTemplate, language: val });
+                    if (val === "ar") setPreviewLang("ar");
+                    else if (val === "en") setPreviewLang("en");
+                    else setPreviewLang("ar");
+                  }}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none", cursor: "pointer", boxSizing: "border-box" }}
+                >
+                  <option value="ar">{isAr ? "عربي" : "Arabic"} (عربي)</option>
+                  <option value="en">English</option>
+                  <option value="ar+en">{isAr ? "عربي + English" : "Arabic + English"} (عربي + English)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Header (optional) */}
+            <div>
+              <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 6 }}>
+                {isAr ? "العنوان (اختياري)" : "Header (optional)"}
+              </label>
+              <input
+                value={newTemplate.header}
+                onChange={(e) => setNewTemplate({ ...newTemplate, header: e.target.value })}
+                placeholder={newTemplate.language === "ar" ? (isAr ? "مثال: أهلاً وسهلاً!" : "e.g. أهلاً وسهلاً!") : newTemplate.language === "en" ? "e.g. Welcome!" : (isAr ? "العنوان" : "Header text")}
+                dir={newTemplate.language === "ar" ? "rtl" : "ltr"}
+                style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none", boxSizing: "border-box" }}
+              />
+            </div>
+
+            {/* ── Arabic Body ── */}
+            {(newTemplate.language === "ar" || newTemplate.language === "ar+en") && (
+              <div>
+                {newTemplate.language === "ar+en" && (
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.pri, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ width: 18, height: 18, borderRadius: "50%", background: `${C.pri}18`, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: C.pri }}>ع</span>
+                    {isAr ? "النص العربي" : "Arabic Body"}
+                  </div>
+                )}
+                <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 6 }}>
+                  {newTemplate.language === "ar+en" ? (isAr ? "نص القالب (عربي)" : "Body (Arabic)") : (isAr ? "نص القالب" : "Body")} <span style={{ color: COLORS.err }}>*</span>
+                  <span style={{ fontWeight: 400, fontSize: 11, color: C.t3, marginInlineStart: 6 }}>
+                    {isAr ? "استخدم {{1}} {{2}} للمتغيرات" : "Use {{1}} {{2}} for variables"}
+                  </span>
+                </label>
+                <textarea
+                  value={newTemplate.body_ar}
+                  onChange={(e) => {
+                    if (e.target.value.length <= 1024) setNewTemplate({ ...newTemplate, body_ar: e.target.value });
+                  }}
+                  placeholder={isAr ? "مرحباً {{1}}! شكراً لانضمامك لمتجرنا..." : "مرحباً {{1}}! شكراً لانضمامك..."}
+                  rows={4}
+                  dir="rtl"
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none", resize: "vertical", lineHeight: 1.6, boxSizing: "border-box" }}
+                />
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 11 }}>
+                  <span style={{ color: newTemplate.body_ar.length > 950 ? COLORS.err : C.t3 }}>{newTemplate.body_ar.length} / 1024</span>
+                  <span style={{ color: C.t3, display: "flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ background: `${C.pri}20`, color: C.pri, borderRadius: 4, padding: "1px 5px", fontWeight: 600, fontSize: 10 }}>
+                      {(newTemplate.body_ar.match(/\{\{\d+\}\}/g) || []).length}
+                    </span>
+                    {isAr ? "متغيرات" : "variables"}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* ── English Body ── */}
+            {(newTemplate.language === "en" || newTemplate.language === "ar+en") && (
+              <div>
+                {newTemplate.language === "ar+en" && (
+                  <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.info, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ width: 18, height: 18, borderRadius: "50%", background: `${COLORS.info}18`, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: COLORS.info }}>En</span>
+                    {isAr ? "النص الإنجليزي" : "English Body"}
+                  </div>
+                )}
+                <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 6 }}>
+                  {newTemplate.language === "ar+en" ? (isAr ? "نص القالب (إنجليزي)" : "Body (English)") : (isAr ? "نص القالب" : "Body")} <span style={{ color: COLORS.err }}>*</span>
+                  <span style={{ fontWeight: 400, fontSize: 11, color: C.t3, marginInlineStart: 6 }}>
+                    Use {"{{1}}"} {"{{2}}"} for variables
+                  </span>
+                </label>
+                <textarea
+                  value={newTemplate.body}
+                  onChange={(e) => {
+                    if (e.target.value.length <= 1024) setNewTemplate({ ...newTemplate, body: e.target.value });
+                  }}
+                  placeholder="Hi {{1}}! Thanks for joining our store..."
+                  rows={4}
+                  dir="ltr"
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none", resize: "vertical", lineHeight: 1.6, boxSizing: "border-box" }}
+                />
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 11 }}>
+                  <span style={{ color: newTemplate.body.length > 950 ? COLORS.err : C.t3 }}>{newTemplate.body.length} / 1024</span>
+                  <span style={{ color: C.t3, display: "flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ background: `${C.pri}20`, color: C.pri, borderRadius: 4, padding: "1px 5px", fontWeight: 600, fontSize: 10 }}>
+                      {(newTemplate.body.match(/\{\{\d+\}\}/g) || []).length}
+                    </span>
+                    variables
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Footer (optional) */}
+            <div>
+              <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 6 }}>
+                {isAr ? "التذييل (اختياري)" : "Footer (optional)"}
+              </label>
+              <input
+                value={newTemplate.footer}
+                onChange={(e) => setNewTemplate({ ...newTemplate, footer: e.target.value })}
+                placeholder={isAr ? "مثال: كوربت - شريك أعمالك" : "e.g. CORBIT - Your Business Partner"}
+                dir={newTemplate.language === "ar" ? "rtl" : "ltr"}
+                style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none", boxSizing: "border-box" }}
+              />
+            </div>
+
+            {/* Buttons (max 3) */}
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <label style={{ fontSize: 12.5, fontWeight: 600, color: C.t2 }}>
+                  {isAr ? "الأزرار" : "Buttons"} <span style={{ fontWeight: 400, fontSize: 11, color: C.t3 }}>({isAr ? "حد أقصى 3" : "max 3"})</span>
+                </label>
+                {newTemplate.buttons.length < 3 && (
+                  <button
+                    onClick={() => setNewTemplate({ ...newTemplate, buttons: [...newTemplate.buttons, { text: "", type: "url" }] })}
+                    style={{ background: "transparent", border: "none", color: C.pri, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: FONT_FAMILY, display: "flex", alignItems: "center", gap: 4 }}
+                  >
+                    + {isAr ? "إضافة زر" : "Add Button"}
+                  </button>
+                )}
+              </div>
+              {newTemplate.buttons.map((btn, i) => (
+                <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
+                  <input
+                    value={btn.text}
+                    onChange={(e) => {
+                      const btns = [...newTemplate.buttons];
+                      btns[i] = { ...btns[i], text: e.target.value };
+                      setNewTemplate({ ...newTemplate, buttons: btns });
+                    }}
+                    placeholder={isAr ? "نص الزر" : "Button text"}
+                    style={{
+                      flex: 1,
+                      padding: "8px 12px",
+                      borderRadius: 8,
+                      border: `1px solid ${C.brd}`,
+                      background: C.inp,
+                      color: C.txt,
+                      fontSize: 12.5,
+                      fontFamily: FONT_FAMILY,
+                      outline: "none",
+                    }}
+                  />
+                  <select
+                    value={btn.type}
+                    onChange={(e) => {
+                      const btns = [...newTemplate.buttons];
+                      btns[i] = { ...btns[i], type: e.target.value };
+                      setNewTemplate({ ...newTemplate, buttons: btns });
+                    }}
+                    style={{
+                      padding: "8px 10px",
+                      borderRadius: 8,
+                      border: `1px solid ${C.brd}`,
+                      background: C.inp,
+                      color: C.txt,
+                      fontSize: 12,
+                      fontFamily: FONT_FAMILY,
+                      outline: "none",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <option value="url">URL</option>
+                    <option value="phone">{isAr ? "هاتف" : "Phone"}</option>
+                    <option value="quick_reply">{isAr ? "رد سريع" : "Quick Reply"}</option>
+                  </select>
+                  <button
+                    onClick={() => {
+                      const btns = newTemplate.buttons.filter((_, idx) => idx !== i);
+                      setNewTemplate({ ...newTemplate, buttons: btns });
+                    }}
+                    style={{ background: "transparent", border: "none", color: COLORS.err, cursor: "pointer", padding: 4, flexShrink: 0 }}
+                  >
+                    <Icon name="x" size={14} />
+                  </button>
+                </div>
+              ))}
+              {newTemplate.buttons.length === 0 && (
+                <div style={{ fontSize: 11.5, color: C.t3, padding: "8px 0" }}>
+                  {isAr ? "لم تتم إضافة أزرار بعد" : "No buttons added yet"}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right: Live WhatsApp Preview */}
+          <div>
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 10, textAlign: "center" }}>
+              {isAr ? "معاينة واتساب" : "WhatsApp Preview"}
+            </div>
+            {/* Language Toggle for Preview */}
+            {newTemplate.language === "ar+en" && (
+              <div style={{ display: "flex", justifyContent: "center", gap: 4, marginBottom: 8 }}>
+                <button
+                  onClick={() => setPreviewLang("ar")}
+                  style={{
+                    padding: "5px 18px", borderRadius: 8, fontSize: 11.5, fontWeight: 600, cursor: "pointer", fontFamily: FONT_FAMILY, border: "none", transition: "all 0.15s",
+                    background: previewLang === "ar" ? C.pri : C.inp, color: previewLang === "ar" ? "#fff" : C.t2,
+                  }}
+                >
+                  عربي
+                </button>
+                <button
+                  onClick={() => setPreviewLang("en")}
+                  style={{
+                    padding: "5px 18px", borderRadius: 8, fontSize: 11.5, fontWeight: 600, cursor: "pointer", fontFamily: FONT_FAMILY, border: "none", transition: "all 0.15s",
+                    background: previewLang === "en" ? C.pri : C.inp, color: previewLang === "en" ? "#fff" : C.t2,
+                  }}
+                >
+                  English
+                </button>
+              </div>
+            )}
+            {(() => {
+              const pLang = newTemplate.language === "ar" ? "ar" : newTemplate.language === "en" ? "en" : previewLang;
+              const pBody = pLang === "ar" ? newTemplate.body_ar : newTemplate.body;
+              const pHeader = newTemplate.header;
+              const pFooter = newTemplate.footer;
+              const isRtl = pLang === "ar";
+              const highlightPreviewVars = (text: string) => {
+                const parts = text.split(/(\{\{\d+\}\})/g);
+                return parts.map((p, idx) =>
+                  /\{\{\d+\}\}/.test(p) ? (
+                    <span key={idx} style={{ background: "#B6F5D0", borderRadius: 3, padding: "1px 4px", fontWeight: 600, color: "#075E54" }}>{p}</span>
+                  ) : (
+                    <span key={idx}>{p}</span>
+                  )
+                );
+              };
+              return (
+            <div style={{ borderRadius: 20, background: "#ECE5DD", overflow: "hidden", border: "6px solid #222" }}>
+              {/* WA Header bar */}
+              <div style={{ background: "#075E54", padding: "10px 14px", display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#128C7E", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 700 }}>C</div>
+                <div>
+                  <div style={{ color: "#fff", fontSize: 12, fontWeight: 600 }}>CORBIT</div>
+                  <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 9 }}>{pLang === "ar" ? "متصل" : "Online"}</div>
+                </div>
+              </div>
+
+              {/* Chat area */}
+              <div style={{ padding: "16px 12px", minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+                {pBody ? (
+                  <>
+                    <div style={{ background: "#DCF8C6", borderRadius: "10px 10px 10px 0", padding: "8px 10px", maxWidth: "92%", boxShadow: "0 1px 2px rgba(0,0,0,0.08)", direction: isRtl ? "rtl" : "ltr", textAlign: isRtl ? "right" : "left" }}>
+                      {pHeader && (
+                        <div style={{ fontWeight: 700, fontSize: 12, color: "#1A1A1A", marginBottom: 3 }}>{pHeader}</div>
+                      )}
+                      <div style={{ fontSize: 11.5, color: "#303030", lineHeight: 1.5, whiteSpace: "pre-line" }}>
+                        {highlightPreviewVars(pBody)}
+                      </div>
+                      {pFooter && (
+                        <div style={{ fontSize: 9.5, color: "#8B8B8B", marginTop: 4 }}>{pFooter}</div>
+                      )}
+                      <div style={{ fontSize: 9, color: "#8B8B8B", textAlign: isRtl ? "left" : "right", marginTop: 3 }}>12:00 PM</div>
+                    </div>
+                    {newTemplate.buttons.length > 0 && (
+                      <div style={{ maxWidth: "92%", marginTop: 3 }}>
+                        {newTemplate.buttons.map((btn, bi) => (
+                          <div key={bi} style={{
+                            background: "#fff", padding: "7px 10px", textAlign: "center", color: "#00A5F4", fontSize: 11.5, fontWeight: 600,
+                            borderTop: "1px solid #E8E8E8",
+                            borderRadius: bi === newTemplate.buttons.length - 1 ? "0 0 8px 8px" : 0,
+                            display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                          }}>
+                            {btn.type === "url" && <span style={{ fontSize: 10 }}>🔗</span>}
+                            {btn.type === "phone" && <span style={{ fontSize: 10 }}>📞</span>}
+                            {btn.type === "quick_reply" && <span style={{ fontSize: 10 }}>↩️</span>}
+                            {btn.text || (isAr ? "نص الزر" : "Button text")}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div style={{ textAlign: "center", color: "#999", fontSize: 12, padding: 20 }}>
+                    {isAr ? "ابدأ بكتابة نص القالب لرؤية المعاينة" : "Start typing to see preview"}
+                  </div>
+                )}
+              </div>
+
+              {/* WA Bottom bar */}
+              <div style={{ background: "#F0F0F0", padding: "8px 10px", display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ flex: 1, background: "#fff", borderRadius: 16, padding: "6px 12px", fontSize: 11, color: "#999" }}>
+                  {pLang === "ar" ? "اكتب رسالة..." : "Type a message..."}
+                </div>
+                <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#128C7E", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
+                  <Icon name="send" size={12} />
+                </div>
+              </div>
+            </div>
+              );
+            })()}
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+}

@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx prisma:*)",
+      "Bash(npx tsc:*)",
+      "Bash(composer create-project:*)",
+      "Bash(composer require:*)",
+      "Bash(c:/xampp/mysql/bin/mysql -u root -e \"CREATE DATABASE IF NOT EXISTS corbit CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\")",
+      "Bash(c:/xampp/mysql/bin/mysql.exe -u root -e \"CREATE DATABASE IF NOT EXISTS corbit CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\")",
+      "Bash(php artisan:*)",
+      "Bash(curl -s http://localhost:8000/api/auth/login -X POST -H \"Content-Type: application/json\" -H \"Accept: application/json\" -d '{\"\"email\"\":\"\"admin@corbit.sa\"\",\"\"password\"\":\"\"password123\"\"}')",
+      "Bash(TOKEN=\"1|iWEpFdEiIznWUMJunZtw6XskE9luqE48bg5VuxXuc1508c98\" __NEW_LINE_7857af65cf1184f8__ echo \"=== Dashboard ===\" curl -s http://localhost:8000/api/dashboard/stats -H \"Authorization: Bearer $TOKEN\" -H \"Accept: application/json\")",
+      "Read(//c/xampp/htdocs/corbit-platform/**)",
+      "Bash(TOKEN=\"1|iWEpFdEiIznWUMJunZtw6XskE9luqE48bg5VuxXuc1508c98\" curl -s http://localhost:8000/api/dashboard/stats -H \"Authorization: Bearer $TOKEN\" -H \"Accept: application/json\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({k:v for k,v in d.get\\(''''data'''',{}\\).items\\(\\) if k != ''''recentConversations''''}, indent=2, ensure_ascii=False\\)\\)\")",
+      "Bash(curl -s http://localhost:8000/api/dashboard/stats -H 'Authorization: Bearer $TOKEN' -H 'Accept: application/json')"
+    ],
+    "additionalDirectories": [
+      "c:\\xampp\\htdocs\\corbit-backend"
+    ]
+  }
+}
