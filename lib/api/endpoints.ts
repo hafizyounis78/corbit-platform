@@ -116,8 +116,8 @@ export const API = {
   BILLING: {
     OVERVIEW: '/billing/overview',
     PLANS: '/billing/plans',
-    UPGRADE: '/billing/upgrade',
-    DOWNGRADE: '/billing/downgrade',
+    UPGRADE: '/billing/plans/upgrade',
+    DOWNGRADE: '/billing/plans/downgrade',
     USAGE: '/billing/usage',
     TOP_UP: '/billing/top-up',
     TRANSACTIONS: '/billing/transactions',

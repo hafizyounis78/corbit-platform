@@ -93,7 +93,7 @@ export default function BillingPage() {
   const handleUpgradePlan = async (planId: number) => {
     setUpgradeLoading(planId);
     try {
-      await api.post('/billing/upgrade', { planId });
+      await api.post('/billing/plans/upgrade', { planId });
       showToast(ar ? "تم ترقية الخطة بنجاح" : "Plan upgraded successfully");
       mutateOverview();
       mutatePlans();
