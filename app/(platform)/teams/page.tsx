@@ -88,8 +88,9 @@ export default function TeamsPage() {
       showToast(ar ? "تم إضافة العضو بنجاح" : "Member added successfully");
       setShowAddMember(false);
       mutate();
-    } catch (e) {
-      showToast(ar ? "حدث خطأ أثناء الإضافة" : "Error adding member");
+    } catch (e: any) {
+      const msg = e?.response?.data?.message;
+      showToast(msg || (ar ? "حدث خطأ أثناء الإضافة" : "Error adding member"));
     } finally {
       setAddMemberLoading(false);
     }
