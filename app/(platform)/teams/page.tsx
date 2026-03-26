@@ -90,7 +90,14 @@ export default function TeamsPage() {
       mutate();
     } catch (e: any) {
       const msg = e?.response?.data?.message;
-      showToast(msg || (ar ? "حدث خطأ أثناء الإضافة" : "Error adding member"));
+      const errorMap: Record<string, string> = {
+        'The email has already been taken.': 'البريد الإلكتروني مستخدم بالفعل',
+        'The email field is required.': 'حقل البريد الإلكتروني مطلوب',
+        'The name field is required.': 'حقل الاسم مطلوب',
+        'The email field must be a valid email address.': 'البريد الإلكتروني غير صالح',
+      };
+      const displayMsg = ar && msg ? (errorMap[msg] || msg) : msg;
+      showToast(displayMsg || (ar ? "حدث خطأ أثناء الإضافة" : "Error adding member"));
     } finally {
       setAddMemberLoading(false);
     }
