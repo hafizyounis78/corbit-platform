@@ -45,23 +45,25 @@ export default function BillingPage() {
   useEffect(() => { setTxnPage(1); }, [tab]);
 
   // Overview data from API only
-  const overview = apiOverview || {
-    wallet: "0",
-    curPlan: "",
-    planPrice: "0",
-    waConv: "0/0",
-    waPercent: "0%",
-    aiCredits: "0/0",
-    aiPercent: "0%",
-    costBreakdown: [],
-    dailyWa: [],
-    dailyAi: [],
-    waUsed: "0",
+  const raw = apiOverview || {};
+  const overview = {
+    wallet: raw.wallet ?? "0",
+    curPlan: ar ? (raw.currentPlan?.nameAr || raw.currentPlan?.name || "") : (raw.currentPlan?.name || ""),
+    planPrice: raw.currentPlan?.price ?? "0",
+    waConv: raw.usage ? `${raw.usage.conversations}` : "0",
+    waPercent: "",
+    aiCredits: raw.usage ? `${raw.usage.aiCredits}` : "0",
+    aiPercent: "",
+    costBreakdown: raw.costBreakdown || [],
+    dailyWa: raw.dailyWa || [],
+    dailyAi: raw.dailyAi || [],
+    waUsed: raw.usage?.conversations ?? "0",
     waTotal: "0",
     waRemaining: "0",
-    aiUsed: "0",
+    aiUsed: raw.usage?.aiCredits ?? "0",
     aiTotal: "0",
     aiRemaining: "0",
+    monthCost: raw.monthCost ?? "0",
   };
 
   const tabs = [
