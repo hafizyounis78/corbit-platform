@@ -38,9 +38,14 @@ export default function AnalyticsPage() {
   const hourlyData = Array.isArray(apiData?.hourlyData) ? apiData.hourlyData : [];
   const agents = Array.isArray(apiData?.agents) ? apiData.agents : [];
 
-  // For conversations and ai tabs
-  const convMetrics = apiData?.convMetrics ?? null;
-  const satTrend = apiData?.satTrend ?? null;
+  // For conversations and ai tabs - map API response to expected format
+  const convMetrics = apiData?.total !== undefined ? [
+    [ar ? "إجمالي" : "Total", String(apiData.total ?? 0), C.pri],
+    [ar ? "مفتوحة" : "Open", String(apiData.open ?? 0), C.warn],
+    [ar ? "محلولة" : "Resolved", String(apiData.resolved ?? 0), C.ok],
+    [ar ? "متوسط الرسائل" : "Avg Messages", String(apiData.avgPerDay ?? 0), C.info],
+  ] : null;
+  const satTrend = apiData?.trend ? apiData.trend.map((t: any) => t.value ?? 0) : null;
   const aiPerformance = apiData?.aiPerformance ?? null;
   const aiStats = apiData?.aiStats ?? null;
 
