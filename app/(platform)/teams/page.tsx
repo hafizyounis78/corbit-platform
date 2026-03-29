@@ -23,6 +23,9 @@ export default function TeamsPage() {
   const [showAddMember, setShowAddMember] = useState(false);
   const [addMemberLoading, setAddMemberLoading] = useState(false);
   const [newMember, setNewMember] = useState({ name: "", email: "", role: "agent", team_id: "", skills: [] as string[], schedule: { sun: true, mon: true, tue: true, wed: true, thu: true, fri: false, sat: false } as Record<string, boolean>, startTime: "09:00", endTime: "17:00" });
+  const [showEditMember, setShowEditMember] = useState(false);
+  const [editMemberLoading, setEditMemberLoading] = useState(false);
+  const [editMember, setEditMember] = useState<any>(null);
 
   // Fetch from API
   const { data: apiData, isLoading, mutate } = useTeams();
@@ -103,6 +106,47 @@ export default function TeamsPage() {
     }
   };
 
+  const openEditMember = (m: any) => {
+    setEditMember({
+      id: m.id,
+      name: m.name,
+      email: m.email,
+      role: m.role,
+      team_id: teams.find((t: any) => t.name === m.team)?.id || "",
+      skills: m.skills || [],
+    });
+    setShowEditMember(true);
+  };
+
+  const handleEditMember = async () => {
+    if (!editMember) return;
+    setEditMemberLoading(true);
+    try {
+      await api.patch(`/teams/members/${editMember.id}`, {
+        name: editMember.name,
+        email: editMember.email,
+        role: editMember.role,
+        ...(editMember.team_id ? { team_id: editMember.team_id } : { team_id: null }),
+        skills: editMember.skills,
+      });
+      showToast(ar ? "تم تحديث العضو بنجاح" : "Member updated successfully");
+      setShowEditMember(false);
+      mutate();
+    } catch (e: any) {
+      const msg = e?.response?.data?.message;
+      showToast(msg || (ar ? "حدث خطأ أثناء التحديث" : "Error updating member"));
+    } finally {
+      setEditMemberLoading(false);
+    }
+  };
+
+  const toggleEditSkill = (key: string) => {
+    setEditMember((prev: any) => ({
+      ...prev,
+      skills: prev.skills.includes(key) ? prev.skills.filter((s: string) => s !== key) : [...prev.skills, key],
+    }));
+  };
+
   const handleToggleRouting = async (ruleKey: string) => {
     setRoutingRules(prev => prev.map(r =>
       r.key === ruleKey ? { ...r, on: !r.on } : r
@@ -157,7 +201,7 @@ export default function TeamsPage() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr>
-                  {[t("name"), t("team"), ar ? "الدور" : "Role", t("status"), t("conv"), t("frt"), t("csat"), ar ? "الحمل" : "Load"].map((h, i) => (
+                  {[t("name"), t("team"), ar ? "الدور" : "Role", t("status"), t("conv"), t("frt"), t("csat"), ar ? "الحمل" : "Load", ""].map((h, i) => (
                     <th key={i} style={{ padding: "10px 14px", textAlign: "inherit", fontSize: 11.5, fontWeight: 600, color: C.t2, borderBottom: `1px solid ${C.brd}`, whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
@@ -184,6 +228,11 @@ export default function TeamsPage() {
                     <td style={{ padding: "12px 14px" }}>{m.stats.frt}</td>
                     <td style={{ padding: "12px 14px" }}><span style={{ fontWeight: 600, color: m.stats.csat >= 95 ? C.ok : C.warn }}>{m.stats.csat}%</span></td>
                     <td style={{ padding: "12px 14px", width: 100 }}><ProgressBar value={m.stats.load} color={m.stats.load > 70 ? C.err : m.stats.load > 50 ? C.warn : C.ok} /></td>
+                    <td style={{ padding: "12px 14px" }}>
+                      <button onClick={() => openEditMember(m)} style={{ background: "none", border: "none", cursor: "pointer", color: C.t2, padding: 4, borderRadius: 6 }} title={ar ? "تعديل" : "Edit"}>
+                        <Icon name="pencil" size={16} />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -275,6 +324,68 @@ export default function TeamsPage() {
           </div>
         </Card>
       )}
+
+      {/* ── Edit Member Modal ── */}
+      {editMember && <Modal
+        open={showEditMember}
+        onClose={() => { if (!editMemberLoading) setShowEditMember(false); }}
+        title={ar ? "تعديل العضو" : "Edit Member"}
+        wide
+        submitLabel={ar ? "حفظ التعديلات" : "Save Changes"}
+        onSubmit={handleEditMember}
+        submitLoading={editMemberLoading}
+        submitDisabled={editMemberLoading || !editMember.name?.trim() || !editMember.email?.trim()}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Name */}
+          <div>
+            <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 6 }}>{ar ? "الاسم الكامل" : "Full Name"} <span style={{ color: C.err }}>*</span></label>
+            <input value={editMember.name} onChange={(e) => setEditMember({ ...editMember, name: e.target.value })} style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none", boxSizing: "border-box" }} />
+          </div>
+          {/* Email */}
+          <div>
+            <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 6 }}>{ar ? "البريد الإلكتروني" : "Email"} <span style={{ color: C.err }}>*</span></label>
+            <input type="email" value={editMember.email} onChange={(e) => setEditMember({ ...editMember, email: e.target.value })} dir="ltr" style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none", boxSizing: "border-box" }} />
+          </div>
+          {/* Role & Team */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 6 }}>{ar ? "الدور" : "Role"}</label>
+              <select value={editMember.role} onChange={(e) => setEditMember({ ...editMember, role: e.target.value })} style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none", cursor: "pointer", boxSizing: "border-box" }}>
+                <option value="admin">{ar ? "مدير" : "Admin"}</option>
+                <option value="supervisor">{ar ? "مشرف" : "Supervisor"}</option>
+                <option value="agent">{ar ? "وكيل" : "Agent"}</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 6 }}>{ar ? "الفريق" : "Team"}</label>
+              <select value={editMember.team_id} onChange={(e) => setEditMember({ ...editMember, team_id: e.target.value })} style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none", cursor: "pointer", boxSizing: "border-box" }}>
+                <option value="">{ar ? "-- بدون فريق --" : "-- No team --"}</option>
+                {teams.map((tm: any) => <option key={tm.id} value={tm.id}>{tm.name}</option>)}
+              </select>
+            </div>
+          </div>
+          {/* Skills */}
+          <div>
+            <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 8 }}>{ar ? "المهارات" : "Skills"}</label>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {SKILL_OPTIONS.map((sk) => {
+                const selected = editMember.skills.includes(sk.key);
+                return (
+                  <button key={sk.key} type="button" onClick={() => toggleEditSkill(sk.key)} style={{
+                    padding: "8px 16px", borderRadius: 20, cursor: "pointer", fontFamily: FONT_FAMILY, fontSize: 12.5, fontWeight: 600,
+                    border: `2px solid ${selected ? C.pri : C.brd}`,
+                    background: selected ? `${C.pri}15` : "transparent",
+                    color: selected ? C.pri : C.t3,
+                  }}>
+                    {selected ? "✓ " : ""}{sk.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </Modal>}
 
       {/* ── Add Member Modal ── */}
       <Modal
