@@ -36,7 +36,16 @@ export default function AnalyticsPage() {
   }));
   const categories = Array.isArray(apiData?.categories) ? apiData.categories : [];
   const hourlyData = Array.isArray(apiData?.hourlyData) ? apiData.hourlyData : [];
-  const agents = Array.isArray(apiData?.agents) ? apiData.agents : [];
+  // Map agent fields from API format to frontend format
+  const agents = (Array.isArray(apiData) ? apiData : []).map((a: any) => ({
+    name: a.name,
+    st: a.status ?? "offline",
+    convos: a.conversations ?? 0,
+    frt: a.frt ?? "0m",
+    res: a.resTime ?? "0m",
+    csat: a.csat ?? 0,
+    load: a.load ?? 0,
+  }));
 
   // For conversations and ai tabs - map API response to expected format
   const convMetrics = apiData?.total !== undefined ? [
@@ -46,8 +55,19 @@ export default function AnalyticsPage() {
     [ar ? "متوسط الرسائل" : "Avg Messages", String(apiData.avgPerDay ?? 0), C.info],
   ] : null;
   const satTrend = apiData?.trend ? apiData.trend.map((t: any) => t.value ?? 0) : null;
-  const aiPerformance = apiData?.aiPerformance ?? null;
-  const aiStats = apiData?.aiStats ?? null;
+  // Map AI data from API format
+  const aiTotal = (apiData?.accepted ?? 0) + (apiData?.modified ?? 0) + (apiData?.rejected ?? 0);
+  const aiPerformance = aiTotal > 0 ? [
+    { value: Math.round((apiData.accepted / aiTotal) * 100), color: C.ok },
+    { value: Math.round((apiData.modified / aiTotal) * 100), color: C.warn },
+    { value: Math.round((apiData.rejected / aiTotal) * 100), color: C.err },
+  ] : null;
+  const aiStats = apiData?.totalActions !== undefined ? [
+    [ar ? "اقتراحات اليوم" : "Today's Suggestions", String(apiData.totalActions ?? 0)],
+    [ar ? "الدقة" : "Accuracy", aiTotal > 0 ? Math.round((apiData.accepted / aiTotal) * 100) + "%" : "0%"],
+    [ar ? "وقت التوفير" : "Time Saved", apiData.timeSaved ?? "0h"],
+    [ar ? "رصيد متبقي" : "Credits Left", String(apiData.creditsLeft ?? 0)],
+  ] : null;
 
   const tabs = [
     { key: "overview", label: t("overview") },
