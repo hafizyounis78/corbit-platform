@@ -723,7 +723,7 @@ export default function ContactsPage() {
         {messageContact && (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {/* Contact info */}
-            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: 14, borderRadius: 12, background: C.srf, border: `1px solid ${C.brd}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: 14, borderRadius: 12, background: C.card, border: `1px solid ${C.brd}` }}>
               <Avatar name={messageContact.name} size={40} />
               <div>
                 <div style={{ fontWeight: 600, fontSize: 14, color: C.txt }}>{messageContact.name}</div>
