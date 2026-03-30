@@ -11,8 +11,10 @@ import { Button, Avatar, Badge, Toggle } from "@/components/ui";
 import { Icon } from "@/components/icons/icon";
 import { getStatusColor, getPriorityColor } from "@/lib/utils/status-color";
 import type { Conversation, ChatMessage } from "@/data/conversations";
-import { useConversations, useMessages } from "@/lib/api/hooks";
+import { useConversations, useMessages, useWindowStatus } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
+import { COLORS } from "@/lib/constants/colors";
+import { TemplatePicker } from "@/components/shared/template-picker";
 
 const QUICK_REPLIES_AR = ["شكراً لتواصلك!", "سأتحقق وأعود لك", "هل تحتاج مساعدة أخرى؟", "تم إرسال التفاصيل"];
 const QUICK_REPLIES_EN = ["Thanks for reaching out!", "Let me check and get back to you", "Anything else I can help with?", "Details sent"];
@@ -109,6 +111,12 @@ export default function InboxPage() {
   // API: fetch messages for selected conversation
   const { data: apiMessagesRaw, isLoading: messagesLoading, mutate: mutateMessages } = useMessages(selectedId);
 
+  // API: check 24h window status
+  const { data: windowData } = useWindowStatus(selectedId);
+  const windowOpen = (selected as any)?.windowOpen ?? windowData?.windowOpen ?? true;
+  const [showInboxTemplatePicker, setShowInboxTemplatePicker] = useState(false);
+  const [sendingInboxTemplate, setSendingInboxTemplate] = useState(false);
+
   const rawMsgs = Array.isArray(apiMessagesRaw)
     ? apiMessagesRaw
     : apiMessagesRaw?.items || apiMessagesRaw?.data || [];
@@ -180,6 +188,11 @@ export default function InboxPage() {
   async function handleSend() {
     const text = inputText.trim();
     if (!text) return;
+    // Block free text if window is closed
+    if (!windowOpen) {
+      showToast(isAr ? "نافذة المحادثة مغلقة (24 ساعة). استخدم قالب معتمد." : "24h window closed. Use an approved template.");
+      return;
+    }
     const now = new Date();
     const time = now.toLocaleTimeString(isAr ? "ar-SA" : "en-US", { hour: "numeric", minute: "2-digit" });
     const newMsg: ChatMessage = { from: "agent", text, time };
@@ -190,9 +203,11 @@ export default function InboxPage() {
     // Send to API
     if (selectedId) {
       try {
-        await api.post(`/conversations/${selectedId}/messages`, { content: text, messageType: "agent" });
+        await api.post(`/conversations/${selectedId}/messages`, { content: text, messageType: "text" });
         mutateMessages();
-      } catch (e) {
+      } catch (e: any) {
+        const msg = e?.response?.data?.message;
+        if (msg) showToast(msg);
         console.error(e);
       }
     }
@@ -532,7 +547,22 @@ export default function InboxPage() {
               <button onClick={toggleAi} style={{ padding: "6px 14px", borderRadius: 8, background: AI_COLOR, color: "#fff", border: "none", fontFamily: FONT_FAMILY, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{isAr ? "استلام" : "Take Over"}</button>
             </div>
           )}
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 10, opacity: isAiOn ? 0.4 : 1, pointerEvents: isAiOn ? "none" : "auto" }}>
+          {/* Window closed banner */}
+          {!windowOpen && !isAiOn && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderRadius: 12, background: dk ? "#1a1a10" : "#FFF8E8", border: "1px solid " + (dk ? "#3D3520" : "#F0E0B0"), marginBottom: 10 }}>
+              <Icon name="timer" size={16} />
+              <span style={{ fontSize: 12.5, color: C.t2, flex: 1 }}>
+                {isAr ? "نافذة المحادثة مغلقة (24 ساعة). يمكنك فقط إرسال قالب معتمد." : "24h conversation window is closed. You can only send an approved template."}
+              </span>
+              <button
+                onClick={() => setShowInboxTemplatePicker(true)}
+                style={{ padding: "6px 14px", borderRadius: 8, background: COLORS.wa, color: "#fff", border: "none", fontFamily: FONT_FAMILY, fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}
+              >
+                {isAr ? "إرسال قالب" : "Send Template"}
+              </button>
+            </div>
+          )}
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 10, opacity: (isAiOn || !windowOpen) ? 0.4 : 1, pointerEvents: (isAiOn || !windowOpen) ? "none" : "auto" }}>
             <div style={{ display: "flex", gap: 6, paddingBottom: 4 }}>
               <button style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: C.inp, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.t2 }}>
                 <Icon name="clip" size={16} />
@@ -574,6 +604,28 @@ export default function InboxPage() {
             </button>
           </div>
         </div>
+        {/* Inbox Template Picker */}
+        <TemplatePicker
+          open={showInboxTemplatePicker}
+          onClose={() => setShowInboxTemplatePicker(false)}
+          contactName={selected?.name}
+          sending={sendingInboxTemplate}
+          onSend={(templateId, variables) => {
+            if (!selectedId) return;
+            setSendingInboxTemplate(true);
+            api.post(`/conversations/${selectedId}/messages`, { messageType: "template", templateId, templateVariables: variables })
+              .then(() => {
+                showToast(isAr ? "تم إرسال القالب ✓" : "Template sent ✓");
+                setShowInboxTemplatePicker(false);
+                mutateMessages();
+              })
+              .catch((err: any) => {
+                const msg = err?.response?.data?.message;
+                showToast(msg || (isAr ? "فشل إرسال القالب" : "Failed to send template"));
+              })
+              .finally(() => setSendingInboxTemplate(false));
+          }}
+        />
       </div>
     );
   }

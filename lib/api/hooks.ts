@@ -57,6 +57,10 @@ export function useMessages(conversationId: string | null) {
   return useApi(conversationId ? `/conversations/${conversationId}/messages` : null, [conversationId]);
 }
 
+export function useWindowStatus(conversationId: string | null) {
+  return useApi(conversationId ? `/conversations/${conversationId}/window-status` : null, [conversationId]);
+}
+
 // ─── Campaigns ────────────────────────────────────────────
 export function useCampaigns(params?: { status?: string; search?: string; page?: number }) {
   const qs = new URLSearchParams();
