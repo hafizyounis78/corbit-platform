@@ -52,6 +52,8 @@ export default function ContactsPage() {
   const [newContact, setNewContact] = useState({ name: "", phone: "", email: "", city: "", tags: "" });
   const [showSegmentModal, setShowSegmentModal] = useState(false);
   const [newSegment, setNewSegment] = useState({ name: "", status: "all", tags: [] as string[], scoreMin: 0, scoreMax: 100, cityFilter: "", orderMin: 0 });
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editContact, setEditContact] = useState<any>(null);
   const [showImportModal, setShowImportModal] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importLoading, setImportLoading] = useState(false);
@@ -213,7 +215,7 @@ export default function ContactsPage() {
     // Action
     <button
       key={`act-${c.id}`}
-      onClick={() => showToast(isAr ? `\u0639\u0631\u0636 ${c.name}` : `View ${c.name}`)}
+      onClick={() => { setEditContact({ id: c.id, name: c.name, phone: c.ph, email: c.email, city: c.city, tags: c.tags.join(", ") }); setShowEditModal(true); }}
       style={{ background: "transparent", border: "none", cursor: "pointer", color: C.t2, padding: 4 }}
     >
       <Icon name="pencil" size={14} />
@@ -463,7 +465,7 @@ export default function ContactsPage() {
           if (!newContact.phone.trim()) { showToast(isAr ? "يرجى إدخال الرقم" : "Please enter phone"); return; }
           api.post("/contacts", {
             name: newContact.name,
-            ph: newContact.phone,
+            phone: newContact.phone,
             email: newContact.email,
             city: newContact.city,
             tags: newContact.tags ? newContact.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
@@ -471,9 +473,9 @@ export default function ContactsPage() {
             showToast(isAr ? "تم إضافة جهة الاتصال ✓" : "Contact added ✓");
             setShowAddModal(false);
             mutate();
-          }).catch(() => {
-            showToast(isAr ? "تم إضافة جهة الاتصال ✓" : "Contact added ✓");
-            setShowAddModal(false);
+          }).catch((err) => {
+            const msg = err?.response?.data?.message;
+            showToast(msg || (isAr ? "فشل إضافة جهة الاتصال" : "Failed to add contact"));
           });
         }}
       >
@@ -575,6 +577,112 @@ export default function ContactsPage() {
             </span>
           </div>
         </div>
+      </Modal>
+
+      {/* ── Edit Contact Modal ── */}
+      <Modal
+        open={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        title={isAr ? "تعديل جهة اتصال" : "Edit Contact"}
+        submitLabel={isAr ? "حفظ" : "Save"}
+        onSubmit={() => {
+          if (!editContact?.name?.trim()) { showToast(isAr ? "يرجى إدخال الاسم" : "Please enter name"); return; }
+          if (!editContact?.phone?.trim()) { showToast(isAr ? "يرجى إدخال الرقم" : "Please enter phone"); return; }
+          api.patch(`/contacts/${editContact.id}`, {
+            name: editContact.name,
+            phone: editContact.phone,
+            email: editContact.email,
+            city: editContact.city,
+            tags: editContact.tags ? editContact.tags.split(",").map((t: string) => t.trim()).filter(Boolean) : [],
+          }).then(() => {
+            showToast(isAr ? "تم تعديل جهة الاتصال ✓" : "Contact updated ✓");
+            setShowEditModal(false);
+            mutate();
+          }).catch((err) => {
+            const msg = err?.response?.data?.message;
+            showToast(msg || (isAr ? "فشل تعديل جهة الاتصال" : "Failed to update contact"));
+          });
+        }}
+      >
+        {editContact && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div>
+              <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 6 }}>
+                {isAr ? "الاسم" : "Name"} *
+              </label>
+              <input
+                value={editContact.name}
+                onChange={(e) => setEditContact({ ...editContact, name: e.target.value })}
+                style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none" }}
+              />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
+              <div>
+                <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 6 }}>
+                  {isAr ? "رقم الهاتف" : "Phone Number"} *
+                </label>
+                <input
+                  value={editContact.phone}
+                  onChange={(e) => setEditContact({ ...editContact, phone: e.target.value })}
+                  dir="ltr"
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none" }}
+                />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 6 }}>
+                  {isAr ? "البريد الإلكتروني" : "Email"}
+                </label>
+                <input
+                  value={editContact.email}
+                  onChange={(e) => setEditContact({ ...editContact, email: e.target.value })}
+                  dir="ltr"
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none" }}
+                />
+              </div>
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 6 }}>
+                {isAr ? "المدينة" : "City"}
+              </label>
+              <select
+                value={editContact.city}
+                onChange={(e) => setEditContact({ ...editContact, city: e.target.value })}
+                style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none", cursor: "pointer", WebkitAppearance: "none", appearance: "none" }}
+              >
+                <option value="" style={{ background: C.inp, color: C.t2 }}>{isAr ? "اختر المدينة..." : "Select city..."}</option>
+                <option value="الرياض" style={{ background: C.inp, color: C.txt }}>الرياض - Riyadh</option>
+                <option value="جدة" style={{ background: C.inp, color: C.txt }}>جدة - Jeddah</option>
+                <option value="الدمام" style={{ background: C.inp, color: C.txt }}>الدمام - Dammam</option>
+                <option value="مكة" style={{ background: C.inp, color: C.txt }}>مكة - Makkah</option>
+                <option value="المدينة" style={{ background: C.inp, color: C.txt }}>المدينة - Madinah</option>
+                <option value="الطائف" style={{ background: C.inp, color: C.txt }}>الطائف - Taif</option>
+                <option value="تبوك" style={{ background: C.inp, color: C.txt }}>تبوك - Tabuk</option>
+                <option value="أبها" style={{ background: C.inp, color: C.txt }}>أبها - Abha</option>
+                <option value="الخبر" style={{ background: C.inp, color: C.txt }}>الخبر - Khobar</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 6 }}>
+                {isAr ? "الوسوم" : "Tags"} <span style={{ fontWeight: 400, fontSize: 11, color: C.t3 }}>({isAr ? "مفصولة بفاصلة" : "comma separated"})</span>
+              </label>
+              <input
+                value={editContact.tags}
+                onChange={(e) => setEditContact({ ...editContact, tags: e.target.value })}
+                style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none" }}
+              />
+              {editContact.tags && (
+                <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+                  {editContact.tags.split(",").map((tag: string, i: number) => {
+                    const trimmed = tag.trim();
+                    if (!trimmed) return null;
+                    const color = TAG_COLORS[trimmed] || C.pri;
+                    return <Badge key={i} color={color}>{trimmed}</Badge>;
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* ── Create Segment Modal ── */}
