@@ -54,6 +54,10 @@ export default function ContactsPage() {
   const [newSegment, setNewSegment] = useState({ name: "", status: "all", tags: [] as string[], scoreMin: 0, scoreMax: 100, cityFilter: "", orderMin: 0 });
   const [showEditModal, setShowEditModal] = useState(false);
   const [editContact, setEditContact] = useState<any>(null);
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [messageContact, setMessageContact] = useState<any>(null);
+  const [messageText, setMessageText] = useState("");
+  const [sendingMessage, setSendingMessage] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importLoading, setImportLoading] = useState(false);
@@ -213,13 +217,22 @@ export default function ContactsPage() {
     // Last Active
     <span key={`la-${c.id}`} style={{ fontSize: 12, color: C.t2 }}>{c.lastActive}</span>,
     // Action
-    <button
-      key={`act-${c.id}`}
-      onClick={() => { setEditContact({ id: c.id, name: c.name, phone: c.ph, email: c.email, city: c.city, tags: c.tags.join(", ") }); setShowEditModal(true); }}
-      style={{ background: "transparent", border: "none", cursor: "pointer", color: C.t2, padding: 4 }}
-    >
-      <Icon name="pencil" size={14} />
-    </button>,
+    <div key={`act-${c.id}`} style={{ display: "flex", gap: 4, alignItems: "center" }}>
+      <button
+        onClick={() => { setMessageContact({ id: c.id, name: c.name, phone: c.ph }); setMessageText(""); setShowMessageModal(true); }}
+        title={isAr ? "إرسال رسالة" : "Send message"}
+        style={{ background: "transparent", border: "none", cursor: "pointer", color: COLORS.wa, padding: 4 }}
+      >
+        <Icon name="msg" size={14} />
+      </button>
+      <button
+        onClick={() => { setEditContact({ id: c.id, name: c.name, phone: c.ph, email: c.email, city: c.city, tags: c.tags.join(", ") }); setShowEditModal(true); }}
+        title={isAr ? "تعديل" : "Edit"}
+        style={{ background: "transparent", border: "none", cursor: "pointer", color: C.t2, padding: 4 }}
+      >
+        <Icon name="pencil" size={14} />
+      </button>
+    </div>,
   ]);
 
   // ── Loading State ──
@@ -680,6 +693,64 @@ export default function ContactsPage() {
                   })}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* ── Send Message Modal ── */}
+      <Modal
+        open={showMessageModal}
+        onClose={() => setShowMessageModal(false)}
+        title={isAr ? "إرسال رسالة واتساب" : "Send WhatsApp Message"}
+        submitLabel={sendingMessage ? (isAr ? "جارٍ الإرسال..." : "Sending...") : (isAr ? "إرسال" : "Send")}
+        onSubmit={() => {
+          if (!messageText.trim()) { showToast(isAr ? "يرجى كتابة الرسالة" : "Please enter a message"); return; }
+          if (sendingMessage) return;
+          setSendingMessage(true);
+          api.post(`/contacts/${messageContact?.id}/message`, { message: messageText })
+            .then(() => {
+              showToast(isAr ? "تم إرسال الرسالة ✓" : "Message sent ✓");
+              setShowMessageModal(false);
+            })
+            .catch((err) => {
+              const msg = err?.response?.data?.message;
+              showToast(msg || (isAr ? "فشل إرسال الرسالة" : "Failed to send message"));
+            })
+            .finally(() => setSendingMessage(false));
+        }}
+      >
+        {messageContact && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {/* Contact info */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: 14, borderRadius: 12, background: C.srf, border: `1px solid ${C.brd}` }}>
+              <Avatar name={messageContact.name} size={40} />
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 14, color: C.txt }}>{messageContact.name}</div>
+                <div style={{ fontSize: 12, color: C.t2, direction: "ltr" as const, display: "inline-block" }}>{messageContact.phone}</div>
+              </div>
+            </div>
+            {/* Message */}
+            <div>
+              <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 6 }}>
+                {isAr ? "الرسالة" : "Message"} *
+              </label>
+              <textarea
+                value={messageText}
+                onChange={(e) => setMessageText(e.target.value)}
+                placeholder={isAr ? "اكتب رسالتك هنا..." : "Type your message here..."}
+                rows={4}
+                style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none", resize: "vertical" }}
+              />
+            </div>
+            {/* WhatsApp Info */}
+            <div style={{ padding: 14, borderRadius: 12, background: `${COLORS.wa}10`, border: `1px solid ${COLORS.wa}20`, display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: `${COLORS.wa}20`, display: "flex", alignItems: "center", justifyContent: "center", color: COLORS.wa, flexShrink: 0 }}>
+                <Icon name="msg" size={16} />
+              </div>
+              <span style={{ fontSize: 12.5, color: C.t2, lineHeight: 1.5 }}>
+                {isAr ? "سيتم إرسال الرسالة عبر واتساب" : "Message will be sent via WhatsApp"}
+              </span>
             </div>
           </div>
         )}
