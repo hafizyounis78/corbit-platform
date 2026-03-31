@@ -12,7 +12,6 @@ import { useContacts, useContactStats, useContactTags } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
 import { COLORS, GRADIENT } from "@/lib/constants/colors";
 import { FONT_FAMILY } from "@/lib/constants/font";
-import { TemplatePicker } from "@/components/shared/template-picker";
 
 const TAG_COLORS: Record<string, string> = {
   VIP: COLORS.sec,
@@ -55,9 +54,6 @@ export default function ContactsPage() {
   const [newSegment, setNewSegment] = useState({ name: "", status: "all", tags: [] as string[], scoreMin: 0, scoreMax: 100, cityFilter: "", orderMin: 0 });
   const [showEditModal, setShowEditModal] = useState(false);
   const [editContact, setEditContact] = useState<any>(null);
-  const [showTemplateModal, setShowTemplateModal] = useState(false);
-  const [templateContact, setTemplateContact] = useState<any>(null);
-  const [sendingTemplate, setSendingTemplate] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importLoading, setImportLoading] = useState(false);
@@ -217,22 +213,14 @@ export default function ContactsPage() {
     // Last Active
     <span key={`la-${c.id}`} style={{ fontSize: 12, color: C.t2 }}>{c.lastActive}</span>,
     // Action
-    <div key={`act-${c.id}`} style={{ display: "flex", gap: 4, alignItems: "center" }}>
-      <button
-        onClick={() => { setTemplateContact({ id: c.id, name: c.name, phone: c.ph }); setShowTemplateModal(true); }}
-        title={isAr ? "إرسال رسالة" : "Send message"}
-        style={{ background: "transparent", border: "none", cursor: "pointer", color: COLORS.wa, padding: 4 }}
-      >
-        <Icon name="msg" size={14} />
-      </button>
-      <button
-        onClick={() => { setEditContact({ id: c.id, name: c.name, phone: c.ph, email: c.email, city: c.city, tags: c.tags.join(", ") }); setShowEditModal(true); }}
-        title={isAr ? "تعديل" : "Edit"}
-        style={{ background: "transparent", border: "none", cursor: "pointer", color: C.t2, padding: 4 }}
-      >
-        <Icon name="pencil" size={14} />
-      </button>
-    </div>,
+    <button
+      key={`act-${c.id}`}
+      onClick={() => { setEditContact({ id: c.id, name: c.name, phone: c.ph, email: c.email, city: c.city, tags: c.tags.join(", ") }); setShowEditModal(true); }}
+      title={isAr ? "تعديل" : "Edit"}
+      style={{ background: "transparent", border: "none", cursor: "pointer", color: C.t2, padding: 4 }}
+    >
+      <Icon name="pencil" size={14} />
+    </button>,
   ]);
 
   // ── Loading State ──
@@ -697,28 +685,6 @@ export default function ContactsPage() {
           </div>
         )}
       </Modal>
-
-      {/* ── Send Template Modal ── */}
-      <TemplatePicker
-        open={showTemplateModal}
-        onClose={() => { setShowTemplateModal(false); setTemplateContact(null); }}
-        contactName={templateContact?.name}
-        sending={sendingTemplate}
-        onSend={(templateId, variables) => {
-          setSendingTemplate(true);
-          api.post(`/contacts/${templateContact?.id}/message`, { templateId, templateVariables: variables })
-            .then(() => {
-              showToast(isAr ? "تم إرسال القالب ✓" : "Template sent ✓");
-              setShowTemplateModal(false);
-              setTemplateContact(null);
-            })
-            .catch((err) => {
-              const msg = err?.response?.data?.message;
-              showToast(msg || (isAr ? "فشل إرسال القالب" : "Failed to send template"));
-            })
-            .finally(() => setSendingTemplate(false));
-        }}
-      />
 
       {/* ── Create Segment Modal ── */}
       <Modal
