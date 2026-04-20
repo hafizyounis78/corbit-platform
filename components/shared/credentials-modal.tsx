@@ -84,10 +84,14 @@ export function CredentialsModal({ open, data, onClose, title }: Props) {
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
           <div style={{ fontSize: 12, color: C.t2, display: "flex", alignItems: "center", gap: 8 }}>
-            <span>{ar ? "حالة الواتساب:" : "WhatsApp:"}</span>
-            {channel === "whatsapp" && sent ? (
-              <Badge color="#34C77B">{ar ? "تم الإرسال" : "Sent"}</Badge>
-            ) : channel === "whatsapp" ? (
+            <span>{ar ? "حالة الإرسال:" : "Delivery:"}</span>
+            {sent ? (
+              <Badge color="#34C77B">
+                {ar
+                  ? `تم الإرسال${channel === "sms" ? " عبر SMS" : channel === "whatsapp" ? " عبر واتساب" : ""}`
+                  : `Sent${channel === "sms" ? " via SMS" : channel === "whatsapp" ? " via WhatsApp" : ""}`}
+              </Badge>
+            ) : channel === "sms" || channel === "whatsapp" ? (
               <Badge color="#E84855">{ar ? "فشل الإرسال" : "Send failed"}</Badge>
             ) : (
               <Badge color={C.t3}>{ar ? "معطّل (تسجيل فقط)" : "Log-only"}</Badge>
