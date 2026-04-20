@@ -1,247 +1,116 @@
-# CORBIT — خطّة الإطلاق كـ SaaS
+# CORBIT — الأعمال المتبقّية للإطلاق
 
-> **الغرض:** مرجعيّة موحّدة لتفعيل المنصّة تجاريّاً، وبيع حسابات للعملاء، وإضافة موظفين داخل كل مؤسسة.
+> **الغرض:** ما تبقّى بعد جولة الأساسات. ما أُنجز (migration، super-admin، credentials modal، change-password، Moyasar scaffolding) لا يُعاد هنا.
 > **آخر تحديث:** 2026-04-20
 
 ---
 
-## 1. الرؤية المعماريّة
+## 1. نشر ما تمّ برمجته (Deployment)
 
-المنصّة **SaaS متعدّد المستأجرين (Multi-Tenant)**. كل عميل = `organization` مستقلّة ببياناتها.
+خطوات تشغيلية على سيرفر Forge للباك إند وعلى Vercel للفرونت:
 
-```
-Organization (الشركة العميلة)
-   ├── Plan (خطة اشتراك)
-   ├── Wallet (رصيد)
-   └── Users (موظفو الشركة)
-         ├── admin      (المدير)
-         ├── supervisor (المشرف)
-         └── agent      (الوكيل)
+### Backend (Forge)
+- [ ] تحديث `.env` بالقيم الجديدة من `.env.example` (`ACCOUNT_NOTIFICATION_DRIVER=log`, `FRONTEND_URL`, `MOYASAR_*`).
+- [ ] `php artisan migrate` — تشغيل migration `2026_04_20_100000_add_saas_launch_fields_to_users`.
+- [ ] ضع متغيّرات السوبر أدمن في `.env`:
+  ```
+  SUPER_ADMIN_EMAIL=abdulmajeed@corbit.sa
+  SUPER_ADMIN_PASSWORD=<كلمة قوية>
+  SUPER_ADMIN_NAME=<الاسم>
+  SUPER_ADMIN_PHONE=9665xxxxxxxx
+  ```
+- [ ] `php artisan db:seed --class=SuperAdminSeeder`.
+- [ ] تأكّد أن queue worker + Reverb يعملان بعد التحديث.
 
-Super-Admin (Corbit)
-   └── يُنشئ Organizations + أوّل admin لكل واحدة
-```
-
-### الخطط (من `BACKEND_DOCUMENTATION.md`)
-
-| الخطة | السعر | الوكلاء | المحادثات | AI |
-|-------|-------|--------|----------|-----|
-| Starter | 299 ر.س | 3 | 1,000 | 500 |
-| Business | 799 ر.س | 10 | 5,000 | 2,000 |
-| Enterprise | 1,999 ر.س | 50 | 25,000 | 10,000 |
+### Frontend
+- [ ] Vercel يتبنّى آخر commit تلقائياً؛ تحقّق من `/super-admin` و `/auth/change-password` بعد الـ deploy.
 
 ---
 
-## 2. القرار الجوهريّ: الإشعارات عبر واتساب فقط
+## 2. حسابات خارجيّة قيد الشراء / التفعيل
 
-**لا إيميل، لا SMS.** كل بيانات الدخول (بعد إنشاء المؤسسة أو إضافة موظف) تُرسل عبر **WhatsApp Business API**.
+### 360dialog Partner (WhatsApp Business API)
+- [ ] شراء حساب **Partner** (يسمح بإدارة أرقام العملاء من تحت حسابك).
+- [ ] تسجيل **رقم Corbit الخاص** للإشعارات (غير أرقام العملاء).
+- [ ] استخراج: `WHATSAPP_360_API_KEY` + `WHATSAPP_VERIFY_TOKEN` (قيمة تختارها) ووضعها في `.env`.
+- [ ] تسجيل webhook: `https://api.corbit.sa/api/webhook/whatsapp` من لوحة 360dialog.
 
-### قاعدة الـ 24 ساعة من Meta
-لا يمكن إرسال رسالة حرّة لشخص لم يراسلنا خلال 24 ساعة → **إلزامي استخدام قوالب معتمدة**.
+### قوالب Meta (لازمة لتفعيل قناة واتساب)
+- [ ] إنشاء قالب `corbit_welcome_admin` — 4 متغيّرات (اسم الشركة، الإيميل، الباسورد، رابط الدخول).
+- [ ] إنشاء قالب `corbit_welcome_member` — 5 متغيّرات (اسم الموظف، اسم الشركة، الإيميل، الباسورد، الرابط).
+- [ ] الانتظار 1-24 ساعة للاعتماد. بعد الاعتماد:
+  ```
+  ACCOUNT_NOTIFICATION_DRIVER=whatsapp
+  ```
 
-### القوالب المطلوبة من Meta Business
-1. **`corbit_welcome_admin`** — يُرسله Super-Admin للأدمن الجديد
-   - متغيّرات: `{{1}}` اسم الشركة، `{{2}}` الإيميل، `{{3}}` الباسورد، `{{4}}` رابط الدخول
-2. **`corbit_welcome_member`** — يُرسله أدمن المؤسسة للموظف الجديد
-   - متغيّرات: `{{1}}` اسم الموظف، `{{2}}` اسم الشركة، `{{3}}` الإيميل، `{{4}}` الباسورد، `{{5}}` الرابط
+### Anthropic (Claude)
+- [ ] شراء مفتاح ووضعه في `.env`:
+  ```
+  AI_PROVIDER=anthropic
+  ANTHROPIC_API_KEY=sk-ant-...
+  ANTHROPIC_MODEL=claude-sonnet-4-6        # أو claude-haiku-4-5-20251001 للبلك
+  ```
 
-⏱️ اعتماد القوالب يأخذ 1-24 ساعة. حتى الاعتماد، **يُعرض الباسورد في الواجهة كنسخة احتياطيّة دائماً**.
-
-### الأرقام المطلوبة
-| الرقم | الاستخدام |
-|-------|-----------|
-| **رقم Corbit الرسمي** | إشعارات Super-Admin (ترحيب بالعملاء الجدد) |
-| **رقم لكل عميل (org)** | العميل يستخدمه للتواصل مع جمهوره ولإرسال بيانات الموظفين |
-
-**توصية:** حساب 360dialog **Partner** (ليس Regular) للتحكم بعدّة أرقام للعملاء.
-
----
-
-## 3. الفجوة بين التصميم والمبنيّ
-
-| المطلوب | الحالة |
-|---|---|
-| endpoint لإنشاء organization | ❌ غير موجود |
-| صفحة super-admin panel | ❌ غير موجودة |
-| إرسال واتساب لبيانات الدخول | ❌ الكود يولّد باسورد لكن **لا يرسل** |
-| إجبار تغيير الباسورد أول دخول | ❌ غير مطبّق |
-| Moyasar payment gateway | ❌ مذكور بالتوثيق فقط |
-| خطط الاشتراك في DB (PlanSeeder) | ✅ موجود |
-| Login + إدارة أعضاء داخل org | ✅ مبني |
-| `WhatsAppService::sendTemplate()` | ✅ مبني |
+### Moyasar (بوّابة الدفع السعوديّة)
+- [ ] تسجيل حساب — نبدأ بـ sandbox.
+- [ ] وضع المفاتيح في `.env`:
+  ```
+  MOYASAR_ENV=sandbox
+  MOYASAR_PUBLISHABLE_KEY=pk_test_...
+  MOYASAR_SECRET_KEY=sk_test_...
+  MOYASAR_WEBHOOK_SECRET=<random>
+  ```
+- [ ] تسجيل webhook: `https://api.corbit.sa/api/webhooks/moyasar`.
 
 ---
 
-## 4. خطّة التنفيذ (مُرتّبة)
+## 3. أعمال برمجيّة متبقّية
 
-### 4.1 قاعدة البيانات — Migration واحدة
-```sql
-users:
-  + phone                 VARCHAR(20)  NOT NULL       // رقم الواتساب
-  + is_super_admin        BOOLEAN DEFAULT false
-  + must_change_password  BOOLEAN DEFAULT false
-  ~ org_id                NULLABLE                    // ليوجد super-admin بدون org
-```
+### Moyasar (scaffolding فقط — يلزم إكماله)
+المبنيّ حالياً: `MoyasarService` + webhook handler يعتمد الدفع في wallet.
+المتبقّي:
+- [ ] **endpoint لإنشاء عملية دفع**: `POST /api/billing/moyasar/create-payment` يرجع `checkout_url` أو بيانات Moyasar.js.
+- [ ] **صفحة واجهة** في `/billing`: زر "شحن الرصيد" → إدخال المبلغ → استدعاء Moyasar.js → redirect.
+- [ ] **صفحة callback** `/billing/payment/callback` تعرض "نجح/فشل" بناءً على `status` من Moyasar.
+- [ ] **اختبار كامل** في sandbox: دفع بطاقة تجريبيّة → webhook → wallet يتحدّث → transaction + invoice.
 
-### 4.2 Notification Service (Adapter Pattern)
-```
-app/Services/Notifications/
-  ├── NotificationService.php          (entry point)
-  └── Channels/
-       ├── WhatsAppChannel.php         (يستخدم WhatsAppService::sendTemplate)
-       └── LogChannel.php              (fallback — يكتب في storage/logs)
-```
+### 2FA للسوبر أدمن
+مذكور في `BACKEND_DOCUMENTATION` لكن **غير مبني** في الكود.
+- [ ] `POST /api/auth/2fa/setup` — توليد secret + QR.
+- [ ] `POST /api/auth/2fa/verify` — تحقّق OTP وتفعيل.
+- [ ] middleware يفرض 2FA على مسارات super-admin فقط.
+- [ ] صفحة UI في الإعدادات.
 
-في `.env`:
-```
-NOTIFICATION_DRIVER=log          # log | whatsapp
-CORBIT_WHATSAPP_NUMBER=
-CORBIT_WHATSAPP_CHANNEL_ID=
-WELCOME_ADMIN_TEMPLATE=corbit_welcome_admin
-WELCOME_MEMBER_TEMPLATE=corbit_welcome_member
-```
+> ملاحظة: مسارات 2FA موجودة في `routes/api.php` لكن AuthController فيه `setup2fa/verify2fa` كـ methods غير موجودة. لازم تُبنى.
 
-### 4.3 Backend Endpoints
-**جديدة (Super-Admin):**
-```
-POST   /api/super-admin/organizations        { name, plan_id, admin:{name, email, phone, password?}, wallet_balance? }
-GET    /api/super-admin/organizations
-PATCH  /api/super-admin/organizations/{id}
-```
-
-**تعديل موجود:**
-```
-POST   /api/teams/members    → يقبل phone (إلزامي) + password (اختياري)
-                                يرجع الباسورد في الـ response
-```
-
-**Middlewares:**
-- `EnsureSuperAdmin` — يحمي `/api/super-admin/*`
-- `ForcePasswordChange` — يمنع API إلا `/auth/change-password` لو `must_change_password=true`
-
-### 4.4 Frontend
-1. **صفحة `/super-admin`** (إدارة كل العملاء):
-   - جدول المؤسسات + زر إنشاء جديدة
-   - Modal الإنشاء: اسم الشركة / الخطة / اسم الأدمن / إيميله / هاتفه / باسورد (اختياري — تُولَّد عشوائيّاً لو فارغة) / رصيد افتتاحيّ
-   - Modal النجاح: يعرض الباسورد للنسخ + تنبيه "لن تظهر مجدداً" + حالة إرسال الواتساب
-
-2. **تعديل modal إضافة عضو** في [app/(platform)/teams/page.tsx:397](app/(platform)/teams/page.tsx#L397):
-   - إضافة حقل **رقم الجوال** (إلزامي) + حقل **كلمة المرور** (اختياري)
-   - Modal النجاح: نفس المنطق (عرض + نسخ + حالة واتساب)
-
-3. **صفحة `/auth/change-password`** للإجبار أوّل دخول.
-
-4. **Route guard** لإخفاء `/super-admin` من غير السوبر أدمن.
-
-### 4.5 Seeders
-- `SuperAdminSeeder` — ينشئ حساب Corbit الأوّل
+### اختبارات يدويّة end-to-end
+- [ ] سجّل دخول سوبر أدمن → أنشئ مؤسسة جديدة بباسورد يدويّة.
+- [ ] سجّل دخول بالأدمن الجديد → تحقّق من تحويل إجباري لـ `/auth/change-password`.
+- [ ] غيّر الباسورد → تأكّد أن API البقيّة تعمل.
+- [ ] أنشئ عضو فريق → تحقّق من modal البيانات + سجّل دخول بها.
+- [ ] بعد تفعيل `ACCOUNT_NOTIFICATION_DRIVER=whatsapp`: تحقّق من استقبال واتساب على الرقم.
 
 ---
 
-## 5. البنية التحتيّة — الحسابات الخارجيّة
+## 4. قرارات داخليّة مطلوبة من المالك
 
-| # | الخدمة | الحالة | ملاحظات |
-|---|--------|--------|---------|
-| 1 | **WhatsApp Business (360dialog Partner)** | 🛒 سيُشترى اليوم | رقمان: Corbit + أوّل عميل |
-| 2 | **Anthropic (Claude)** | 🛒 سيُشترى اليوم | `claude-sonnet-4-6` للجودة، `claude-haiku-4-5-20251001` للبلك |
-| 3 | **Forge VPS (Backend)** | ✅ موجود | Laravel + Reverb |
-| 4 | **قاعدة البيانات الإنتاجيّة** | ✅ موجودة | على سيرفر الشركة |
-| 5 | **S3-Compatible Storage** | ✅ موجود | |
-| 6 | **Redis** | ✅ موجود | |
-| 7 | **Domain + SSL** | ⏳ سيُجهَّز على سيرفر الشركة | |
-| 8 | **Moyasar (Sandbox ثم Live)** | 🛒 سيُشترى — نبدأ بـ sandbox | |
-| 9 | **Sentry/Bugsnag** | ❌ غير مطلوب | اللوج من Forge يكفي |
-| 10 | **Email / SMS** | ❌ غير مطلوب | البدائل عبر واتساب |
-
-### متغيّرات `.env` للإنتاج
-```env
-APP_ENV=production
-APP_DEBUG=false
-APP_URL=https://api.corbit.sa        # مؤقّت — بديل فعلي من الشركة
-
-# DB
-DB_CONNECTION=mysql
-DB_HOST=
-DB_PORT=3306
-DB_DATABASE=corbit_production
-DB_USERNAME=
-DB_PASSWORD=
-
-# Redis
-REDIS_HOST=
-REDIS_PORT=6379
-REDIS_PASSWORD=
-QUEUE_CONNECTION=redis
-CACHE_STORE=redis
-SESSION_DRIVER=redis
-
-# S3
-FILESYSTEM_DISK=s3
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
-AWS_DEFAULT_REGION=me-south-1
-AWS_BUCKET=
-AWS_ENDPOINT=                         # لو الخدمة R2/Backblaze/MinIO
-
-# WhatsApp
-WHATSAPP_PROVIDER=360dialog
-WHATSAPP_VERIFY_TOKEN=corbit_webhook_2026_xyz
-WHATSAPP_360_API_KEY=
-CORBIT_WHATSAPP_NUMBER=
-CORBIT_WHATSAPP_CHANNEL_ID=
-
-# AI
-AI_PROVIDER=anthropic
-ANTHROPIC_API_KEY=
-ANTHROPIC_MODEL=claude-sonnet-4-6
-
-# Moyasar
-MOYASAR_ENV=sandbox
-MOYASAR_PUBLISHABLE_KEY=
-MOYASAR_SECRET_KEY=
-MOYASAR_WEBHOOK_SECRET=
-
-# Notifications
-NOTIFICATION_DRIVER=log               # يُبدَّل لـ whatsapp بعد اعتماد القوالب
-WELCOME_ADMIN_TEMPLATE=corbit_welcome_admin
-WELCOME_MEMBER_TEMPLATE=corbit_welcome_member
-```
-
-### Webhooks
-- WhatsApp: `https://api.corbit.sa/api/webhooks/whatsapp`
-- Moyasar: `https://api.corbit.sa/api/webhooks/moyasar`
+- [ ] بيانات Super-Admin الأوّل (الاسم + الإيميل + رقم الواتساب) — تذهب مباشرة إلى seeder env.
+- [ ] الدومين النهائي الثلاثي: `app.corbit.sa` (فرونت) / `api.corbit.sa` (باك) / `ws.corbit.sa` (Reverb).
+- [ ] تفعيل 2FA للسوبر أدمن من اليوم الأول؟ — إن نعم، لازم نبني المسارات (انظر أعلاه).
+- [ ] مدّة انتهاء الجلسة: 120 دقيقة (الحالية) أم 8 ساعات؟ — تعدَّل في `config/session.php`.
+- [ ] اسم المنتج الذي سنسجّله عند Meta Business (لاعتماد القوالب).
 
 ---
 
-## 6. قرارات داخليّة مطلوبة من المالك
+## 5. مبادئ ثابتة
 
-- [ ] بيانات Super-Admin الأوّل: الاسم / الإيميل / رقم الواتساب
-- [ ] الدومين النهائي: `app.corbit.sa` للفرونت، `api.corbit.sa` للباك، `ws.corbit.sa` للـ Reverb (تعديل حسب المتاح)
-- [ ] تفعيل 2FA للسوبر أدمن من اليوم الأول؟ (مُوصى به: نعم)
-- [ ] مدّة انتهاء الجلسة: 120 دقيقة (الحالية) أم 8 ساعات؟
-- [ ] اسم المنتج عند Meta Business (لاعتماد القوالب)
+- **WhatsApp-First**: لا إيميل ولا SMS. كل الإشعارات الخارجيّة عبر WhatsApp API.
+- **Credentials Fallback**: كل modal إنشاء حساب يعرض الباسورد للنسخ، حتى بعد تفعيل واتساب.
+- **قنوات الإشعار**: driver واحد قابل للتبديل عبر `ACCOUNT_NOTIFICATION_DRIVER` (`log` → `whatsapp`) بدون تعديل كود.
 
 ---
 
-## 7. مبدأ ثابت
+## 6. مرجع سريع للـ commits المُنجَزة
 
-> **كل بيانات دخول جديدة تُعرض في modal على الشاشة ليتمكّن الأدمن من النسخ**، حتى بعد تفعيل واتساب — كنسخة احتياطيّة لو القالب ما اعتُمد، الرقم غلط، أو الإرسال فشل.
-
----
-
-## 8. ترتيب الخطوات القابل للتنفيذ
-
-| # | الخطوة | يمكن اختبارها مستقلّة؟ |
-|---|--------|----------------------|
-| 1 | Migration (phone + flags) | ✅ |
-| 2 | NotificationService + LogChannel | ✅ |
-| 3 | تعديل `POST /api/teams/members` | ✅ |
-| 4 | تعديل modal أعضاء + modal النجاح | ✅ نقطة اختبار كبرى |
-| 5 | Super-Admin endpoints | ✅ |
-| 6 | صفحة `/super-admin` في الفرونت | ✅ |
-| 7 | Middlewares (SuperAdmin + ForcePasswordChange) | ✅ |
-| 8 | صفحة تغيير الباسورد الإجباريّ | ✅ |
-| 9 | Seeder سوبر أدمن | ✅ |
-| 10 | تقديم قوالب Meta للاعتماد (بالتوازي) | ⏱️ انتظار Meta |
-| 11 | ربط `WhatsAppChannel` + تبديل `NOTIFICATION_DRIVER=whatsapp` | ✅ |
-| 12 | Moyasar sandbox | ✅ |
+- **Backend `c41edd5`**: migration + super-admin + AccountNotifications + middlewares + Moyasar service + SuperAdminSeeder.
+- **Frontend `6232b6b`**: `/super-admin` + `/auth/change-password` + CredentialsModal + phone/password في modal الأعضاء + sidebar guard.
