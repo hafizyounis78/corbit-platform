@@ -7,7 +7,10 @@ interface User {
   id: string;
   name: string;
   email: string;
+  phone: string | null;
   role: string;
+  isSuperAdmin: boolean;
+  mustChangePassword: boolean;
   avatar: string | null;
   online: boolean;
   status: string;
@@ -20,7 +23,7 @@ interface User {
     timezone: string;
     currency: string;
     language: string;
-  };
+  } | null;
   '2fa': boolean;
   lastActive: string;
 }
@@ -78,6 +81,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('auth_user', JSON.stringify(userData));
       setToken(newToken);
       setUser(userData);
+      if (userData?.mustChangePassword) {
+        if (typeof window !== 'undefined') {
+          window.location.href = '/auth/change-password';
+        }
+      }
       return { success: true };
     } catch (e: any) {
       return {

@@ -23,11 +23,19 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && typeof window !== 'undefined') {
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('auth_user');
-      if (!window.location.pathname.includes('/login')) {
-        window.location.href = '/login';
+    if (typeof window !== 'undefined') {
+      if (error.response?.status === 401) {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_user');
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = '/login';
+        }
+      } else if (
+        error.response?.status === 423 &&
+        error.response?.data?.code === 'PASSWORD_CHANGE_REQUIRED' &&
+        !window.location.pathname.includes('/auth/change-password')
+      ) {
+        window.location.href = '/auth/change-password';
       }
     }
     return Promise.reject(error);

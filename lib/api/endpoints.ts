@@ -6,6 +6,11 @@ export const API = {
     REFRESH: '/auth/refresh',
     FORGOT_PASSWORD: '/auth/forgot-password',
     RESET_PASSWORD: '/auth/reset-password',
+    CHANGE_PASSWORD: '/auth/change-password',
+  },
+  SUPER_ADMIN: {
+    ORGANIZATIONS: '/super-admin/organizations',
+    ORGANIZATION: (id: string) => `/super-admin/organizations/${id}`,
   },
   DASHBOARD: { STATS: '/dashboard/stats' },
   NAV: { BADGES: '/nav/badges' },

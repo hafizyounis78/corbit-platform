@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-media-query";
 import { Card, Button, TabBar, Badge, Avatar, Toggle, Modal, Pagination } from "@/components/ui";
 import { Icon } from "@/components/icons/icon";
+import { CredentialsModal } from "@/components/shared/credentials-modal";
 import { FONT_FAMILY } from "@/lib/constants/font";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { useTeams } from "@/lib/api/hooks";
@@ -22,7 +23,8 @@ export default function TeamsPage() {
   const [page, setPage] = useState(1);
   const [showAddMember, setShowAddMember] = useState(false);
   const [addMemberLoading, setAddMemberLoading] = useState(false);
-  const [newMember, setNewMember] = useState({ name: "", email: "", role: "agent", team_id: "", skills: [] as string[], schedule: { sun: true, mon: true, tue: true, wed: true, thu: true, fri: false, sat: false } as Record<string, boolean>, startTime: "09:00", endTime: "17:00" });
+  const [newMember, setNewMember] = useState({ name: "", email: "", phone: "", password: "", role: "agent", team_id: "", skills: [] as string[], schedule: { sun: true, mon: true, tue: true, wed: true, thu: true, fri: false, sat: false } as Record<string, boolean>, startTime: "09:00", endTime: "17:00" });
+  const [credentialsResult, setCredentialsResult] = useState<null | { name: string; email: string; phone: string | null; password: string; notification: { sent: boolean; channel: string; detail?: string }; loginUrl: string; }>(null);
   const [showEditMember, setShowEditMember] = useState(false);
   const [editMemberLoading, setEditMemberLoading] = useState(false);
   const [editMember, setEditMember] = useState<any>(null);
@@ -73,12 +75,19 @@ export default function TeamsPage() {
   const handleAddMember = async () => {
     if (!newMember.name.trim()) { showToast(ar ? "يرجى إدخال الاسم" : "Please enter name"); return; }
     if (!newMember.email.trim()) { showToast(ar ? "يرجى إدخال البريد" : "Please enter email"); return; }
+    if (!newMember.phone.trim()) { showToast(ar ? "يرجى إدخال رقم الجوال" : "Please enter phone number"); return; }
+    if (newMember.password && newMember.password.length < 8) {
+      showToast(ar ? "كلمة المرور يجب ألا تقل عن 8 أحرف" : "Password must be at least 8 characters");
+      return;
+    }
     setAddMemberLoading(true);
     try {
       const activeDays = dayKeys.filter(k => newMember.schedule[k]);
-      await api.post('/teams/members', {
+      const res = await api.post('/teams/members', {
         name: newMember.name,
         email: newMember.email,
+        phone: newMember.phone,
+        ...(newMember.password ? { password: newMember.password } : {}),
         role: newMember.role,
         ...(newMember.team_id ? { team_id: newMember.team_id } : {}),
         skills: newMember.skills,
@@ -88,8 +97,17 @@ export default function TeamsPage() {
           end: newMember.endTime,
         },
       });
-      showToast(ar ? "تم إضافة العضو بنجاح" : "Member added successfully");
+      const data = res.data?.data || {};
       setShowAddMember(false);
+      setCredentialsResult({
+        name: newMember.name,
+        email: newMember.email,
+        phone: newMember.phone,
+        password: data.password,
+        notification: data.notification || { sent: false, channel: 'unknown' },
+        loginUrl: typeof window !== 'undefined' ? `${window.location.origin}/login` : '/login',
+      });
+      setNewMember({ name: "", email: "", phone: "", password: "", role: "agent", team_id: "", skills: [], schedule: { sun: true, mon: true, tue: true, wed: true, thu: true, fri: false, sat: false }, startTime: "09:00", endTime: "17:00" });
       mutate();
     } catch (e: any) {
       const msg = e?.response?.data?.message;
@@ -184,7 +202,7 @@ export default function TeamsPage() {
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{t("teams")}</h2>
           <p style={{ fontSize: 13, color: C.t2, margin: "4px 0 0" }}>{ar ? "إدارة الفرق والوكلاء" : "Manage teams and agents"}</p>
         </div>
-        <Button primary onClick={() => { setNewMember({ name: "", email: "", role: "agent", team_id: "", skills: [], schedule: { sun: true, mon: true, tue: true, wed: true, thu: true, fri: false, sat: false }, startTime: "09:00", endTime: "17:00" }); setShowAddMember(true); }}>{t("addMember")}</Button>
+        <Button primary onClick={() => { setNewMember({ name: "", email: "", phone: "", password: "", role: "agent", team_id: "", skills: [], schedule: { sun: true, mon: true, tue: true, wed: true, thu: true, fri: false, sat: false }, startTime: "09:00", endTime: "17:00" }); setShowAddMember(true); }}>{t("addMember")}</Button>
       </div>
       <div style={{ marginBottom: 16 }}>
         <TabBar tabs={tabs} active={tab} onChange={setTab} />
@@ -396,7 +414,7 @@ export default function TeamsPage() {
         submitLabel={ar ? "إضافة العضو" : "Add Member"}
         onSubmit={handleAddMember}
         submitLoading={addMemberLoading}
-        submitDisabled={addMemberLoading || !newMember.name.trim() || !newMember.email.trim()}
+        submitDisabled={addMemberLoading || !newMember.name.trim() || !newMember.email.trim() || !newMember.phone.trim()}
       >
         <div style={{ display: "grid", gridTemplateColumns: isMob ? "1fr" : "1fr 240px", gap: 24 }}>
           {/* Left: Form */}
@@ -411,6 +429,19 @@ export default function TeamsPage() {
             <div>
               <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 6 }}>{ar ? "البريد الإلكتروني" : "Email"} <span style={{ color: C.err }}>*</span></label>
               <input type="email" value={newMember.email} onChange={(e) => setNewMember({ ...newMember, email: e.target.value })} placeholder="name@corbit.sa" dir="ltr" style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${!newMember.email.trim() && newMember.name.trim() ? C.err : C.brd}`, background: C.inp, color: C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none", boxSizing: "border-box" }} />
+            </div>
+
+            {/* Phone */}
+            <div>
+              <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 6 }}>{ar ? "رقم الجوال (واتساب)" : "Phone (WhatsApp)"} <span style={{ color: C.err }}>*</span></label>
+              <input type="tel" value={newMember.phone} onChange={(e) => setNewMember({ ...newMember, phone: e.target.value })} placeholder="9665xxxxxxxx" dir="ltr" style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${!newMember.phone.trim() && newMember.name.trim() ? C.err : C.brd}`, background: C.inp, color: C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none", boxSizing: "border-box" }} />
+              <div style={{ fontSize: 11, color: C.t3, marginTop: 4 }}>{ar ? "سيتم إرسال بيانات الدخول على هذا الرقم عبر واتساب" : "Login credentials will be sent to this number via WhatsApp"}</div>
+            </div>
+
+            {/* Password */}
+            <div>
+              <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 6 }}>{ar ? "كلمة المرور" : "Password"} <span style={{ fontWeight: 400, fontSize: 11, color: C.t3 }}>({ar ? "اختياري — تُولَّد عشوائية" : "optional — random if empty"})</span></label>
+              <input type="text" value={newMember.password} onChange={(e) => setNewMember({ ...newMember, password: e.target.value })} placeholder={ar ? "اتركها فارغة لتوليد كلمة مرور" : "Leave empty to auto-generate"} dir="ltr" style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none", boxSizing: "border-box" }} />
             </div>
 
             {/* Role & Team */}
@@ -540,6 +571,13 @@ export default function TeamsPage() {
           </div>
         </div>
       </Modal>
+
+      <CredentialsModal
+        open={!!credentialsResult}
+        data={credentialsResult}
+        onClose={() => setCredentialsResult(null)}
+        title={ar ? "تم إنشاء العضو" : "Member Created"}
+      />
     </div>
   );
 }

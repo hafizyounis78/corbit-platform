@@ -136,6 +136,36 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
             </Link>
           );
         })}
+
+        {user?.isSuperAdmin ? (
+          <Link
+            href="/super-admin"
+            style={{
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: open ? "10px 14px" : "10px",
+              justifyContent: open ? "flex-start" : "center",
+              marginTop: 8,
+              borderRadius: 10,
+              cursor: "pointer",
+              fontFamily: FONT_FAMILY,
+              fontSize: 13.5,
+              fontWeight: pathname === "/super-admin" ? 600 : 400,
+              color: pathname === "/super-admin" ? C.pri : C.t2,
+              background: pathname === "/super-admin" ? C.pri + "12" : "transparent",
+              textDecoration: "none",
+              borderTop: "1px dashed " + C.brd,
+              paddingTop: 14,
+            }}
+          >
+            <span style={{ flexShrink: 0, opacity: pathname === "/super-admin" ? 1 : 0.6 }}>
+              <Icon name="shield" size={18} />
+            </span>
+            {open && <span>{isAr ? "المشرف العام" : "Super Admin"}</span>}
+          </Link>
+        ) : null}
       </nav>
 
       {/* User */}
