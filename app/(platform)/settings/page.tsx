@@ -88,25 +88,40 @@ export default function SettingsPage() {
   const whatsappNumbers: any[] = (whatsappData?.numbers as any[]) ?? [];
   const webhooks: any[] = Array.isArray(webhooksData) ? (webhooksData as any[]) : ((webhooksData as any)?.data ?? []);
 
+  // Team member counts for the Team tab
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  useEffect(() => {
+    api.get('/teams/members').then((res: any) => {
+      const list = res?.data?.data ?? res?.data ?? [];
+      setTeamMembers(Array.isArray(list) ? list : []);
+    }).catch(() => setTeamMembers([]));
+  }, []);
+  const roleCounts = {
+    admin: teamMembers.filter((m: any) => m.role === 'admin').length,
+    supervisor: teamMembers.filter((m: any) => m.role === 'supervisor').length,
+    agent: teamMembers.filter((m: any) => m.role === 'agent').length,
+  };
+
   /* general settings state */
-  const [companyName, setCompanyName] = useState("Corbit Tech");
-  const [companyEmail, setCompanyEmail] = useState("admin@corbit.sa");
-  const [companyPhone, setCompanyPhone] = useState("+966 50 123 4567");
-  const [companyWebsite, setCompanyWebsite] = useState("https://corbit.sa");
+  const [companyName, setCompanyName] = useState("");
+  const [companyEmail, setCompanyEmail] = useState("");
+  const [companyPhone, setCompanyPhone] = useState("");
+  const [companyWebsite, setCompanyWebsite] = useState("");
   const [timezone, setTimezone] = useState("Asia/Riyadh (GMT+3)");
   const [currency, setCurrency] = useState("SAR");
-  const [description, setDescription] = useState(ar ? "منصة واتساب للأعمال مع الذكاء الاصطناعي" : "AI-powered WhatsApp Business Platform");
+  const [description, setDescription] = useState("");
 
-  // Populate from API when data arrives
+  // Populate from API when data arrives (backend returns: name, email, phone, website, timezone, currency, description)
   useEffect(() => {
     if (generalData) {
-      if (generalData.companyName) setCompanyName(generalData.companyName);
-      if (generalData.companyEmail) setCompanyEmail(generalData.companyEmail);
-      if (generalData.companyPhone) setCompanyPhone(generalData.companyPhone);
-      if (generalData.companyWebsite) setCompanyWebsite(generalData.companyWebsite);
-      if (generalData.timezone) setTimezone(generalData.timezone);
-      if (generalData.currency) setCurrency(generalData.currency);
-      if (generalData.description) setDescription(generalData.description);
+      const g: any = generalData;
+      if (g.name ?? g.companyName) setCompanyName(g.name ?? g.companyName);
+      if (g.email ?? g.companyEmail) setCompanyEmail(g.email ?? g.companyEmail);
+      if (g.phone ?? g.companyPhone) setCompanyPhone(g.phone ?? g.companyPhone);
+      if (g.website ?? g.companyWebsite) setCompanyWebsite(g.website ?? g.companyWebsite);
+      if (g.timezone) setTimezone(g.timezone);
+      if (g.currency) setCurrency(g.currency);
+      if (g.description) setDescription(g.description);
     }
   }, [generalData]);
 
@@ -552,21 +567,14 @@ export default function SettingsPage() {
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
-                <div><FieldLabel C={C}>{ar ? "المزود" : "Provider"}</FieldLabel><Select value="Unifonic" options={["Unifonic", "Twilio", "Nexmo"]} C={C} /></div>
-                <div><FieldLabel C={C}>{ar ? "معرف المرسل" : "Sender ID"}</FieldLabel><Input value="CORBIT" C={C} /></div>
+                <div><FieldLabel C={C}>{ar ? "المزود" : "Provider"}</FieldLabel><Input value="mobile.net.sa" C={C} /></div>
+                <div><FieldLabel C={C}>{ar ? "معرف المرسل" : "Sender ID"}</FieldLabel><Input value="Corbit" C={C} /></div>
               </div>
-
-              <div style={{ marginBottom: 8 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 6 }}>
-                  <span style={{ color: C.t2 }}>{ar ? "رصيد SMS" : "SMS Balance"}</span>
-                  <span style={{ fontWeight: 600 }}>3,240 / 5,000</span>
-                </div>
-                <ProgressBar value={64.8} color={C.info} />
+              <div style={{ fontSize: 11.5, color: C.t2, lineHeight: 1.7 }}>
+                {ar
+                  ? "يُستخدم لإرسال بيانات الدخول للعملاء الجدد. الرصيد يُدار من حساب mobile.net.sa مباشرة."
+                  : "Used to send login credentials to new clients. Balance is managed directly in the mobile.net.sa account."}
               </div>
-              <Button small outline onClick={() => showToast("✓")} style={{ marginTop: 8 }}>
-                <Icon name="wallet" size={13} />
-                {ar ? "شحن الرصيد" : "Top Up"}
-              </Button>
             </Card>
           </div>
 
@@ -699,9 +707,9 @@ export default function SettingsPage() {
             <Card style={{ padding: 18 }}>
               <SectionTitle>{ar ? "الأدوار والصلاحيات" : "Roles & Permissions"}</SectionTitle>
               {[
-                { role: ar ? "مدير" : "Admin", count: 2, color: C.err, desc: ar ? "وصول كامل لجميع الإعدادات والبيانات" : "Full access to all settings and data", icon: "🔴" },
-                { role: ar ? "مشرف" : "Supervisor", count: 5, color: C.warn, desc: ar ? "إدارة الفريق ومراقبة المحادثات" : "Team management & conversation monitoring", icon: "🟡" },
-                { role: ar ? "وكيل" : "Agent", count: 18, color: C.ok, desc: ar ? "التعامل مع المحادثات والعملاء" : "Handle conversations and customers", icon: "🟢" },
+                { role: ar ? "مدير" : "Admin", count: roleCounts.admin, color: C.err, desc: ar ? "وصول كامل لجميع الإعدادات والبيانات" : "Full access to all settings and data", icon: "🔴" },
+                { role: ar ? "مشرف" : "Supervisor", count: roleCounts.supervisor, color: C.warn, desc: ar ? "إدارة الفريق ومراقبة المحادثات" : "Team management & conversation monitoring", icon: "🟡" },
+                { role: ar ? "وكيل" : "Agent", count: roleCounts.agent, color: C.ok, desc: ar ? "التعامل مع المحادثات والعملاء" : "Handle conversations and customers", icon: "🟢" },
               ].map((r, i) => (
                 <div key={i} style={{ padding: 14, borderRadius: 12, background: C.inp, marginBottom: 6 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
