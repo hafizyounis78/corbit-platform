@@ -78,6 +78,8 @@ export default function BotBuilderPage() {
   const [page, setPage] = useState(1);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newBot, setNewBot] = useState({ name: "", description: "", trigger: "", aiEnabled: true, startNode: "welcome" });
+  const [deleteTarget, setDeleteTarget] = useState<Bot | null>(null);
+  const [deletingBot, setDeletingBot] = useState(false);
 
   /* ---- Flow editor state ---- */
   const [flow, setFlow] = useState<FlowNode[]>([]);
@@ -1230,17 +1232,9 @@ export default function BotBuilderPage() {
                   </div>
                 </div>
                 <button
-                  onClick={async (e) => {
+                  onClick={(e) => {
                     e.stopPropagation();
-                    if (!confirm(isAr ? `\u0647\u0644 \u062a\u0631\u064a\u062f \u062d\u0630\u0641 "${bot.name}"\u061f` : `Delete "${bot.name}"?`)) return;
-                    try {
-                      await api.delete(`/bots/${bot.id}`);
-                      showToast(isAr ? "\u062a\u0645 \u0627\u0644\u062d\u0630\u0641 \u2713" : "Deleted \u2713");
-                      mutate();
-                    } catch (err: any) {
-                      const msg = err?.response?.data?.message || (isAr ? "\u0641\u0634\u0644 \u0627\u0644\u062d\u0630\u0641" : "Failed to delete");
-                      showToast(msg);
-                    }
+                    setDeleteTarget(bot);
                   }}
                   title={isAr ? "\u062d\u0630\u0641" : "Delete"}
                   style={{
@@ -1290,6 +1284,46 @@ export default function BotBuilderPage() {
           </p>
         </div>
       )}
+
+      {/* ── Delete Bot Confirmation Modal ── */}
+      <Modal
+        open={!!deleteTarget}
+        onClose={() => !deletingBot && setDeleteTarget(null)}
+        title={isAr ? "\u062A\u0623\u0643\u064A\u062F \u0627\u0644\u062D\u0630\u0641" : "Confirm Delete"}
+        submitLabel={deletingBot ? (isAr ? "\u062C\u0627\u0631\u064D \u0627\u0644\u062D\u0630\u0641..." : "Deleting...") : (isAr ? "\u0646\u0639\u0645\u060C \u0627\u062D\u0630\u0641" : "Yes, Delete")}
+        submitDisabled={deletingBot}
+        onSubmit={async () => {
+          if (!deleteTarget) return;
+          setDeletingBot(true);
+          try {
+            await api.delete(`/bots/${deleteTarget.id}`);
+            showToast(isAr ? "\u062A\u0645 \u0627\u0644\u062D\u0630\u0641 \u2713" : "Deleted \u2713");
+            mutate();
+            setDeleteTarget(null);
+          } catch (err: any) {
+            const msg = err?.response?.data?.message || (isAr ? "\u0641\u0634\u0644 \u0627\u0644\u062D\u0630\u0641" : "Failed to delete");
+            showToast(msg);
+          } finally {
+            setDeletingBot(false);
+          }
+        }}
+      >
+        <div style={{ padding: "8px 4px" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 14, padding: 16, borderRadius: 12, background: "#EF444410", border: `1px solid #EF444430`, marginBottom: 12 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: "#EF444418", color: "#EF4444", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Icon name="x" size={20} />
+            </div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
+                {isAr ? `\u0647\u0644 \u0623\u0646\u062A \u0645\u062A\u0623\u0643\u062F \u0645\u0646 \u062D\u0630\u0641 "${deleteTarget?.name}"\u061F` : `Delete "${deleteTarget?.name}"?`}
+              </div>
+              <div style={{ fontSize: 12.5, color: C.t2, lineHeight: 1.6 }}>
+                {isAr ? "\u0633\u064A\u062A\u0645 \u062D\u0630\u0641 \u0627\u0644\u0628\u0648\u062A \u0648\u062C\u0645\u064A\u0639 \u0639\u0642\u062F\u0647 \u0646\u0647\u0627\u0626\u064A\u0627\u064B. \u0644\u0627 \u064A\u0645\u0643\u0646 \u0627\u0644\u062A\u0631\u0627\u062C\u0639 \u0639\u0646 \u0647\u0630\u0627 \u0627\u0644\u0625\u062C\u0631\u0627\u0621." : "This will permanently delete the bot and all its flow nodes. This action cannot be undone."}
+              </div>
+            </div>
+          </div>
+        </div>
+      </Modal>
 
       {/* ── Create Bot Flow Modal ── */}
       <Modal
