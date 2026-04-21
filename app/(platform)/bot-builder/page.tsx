@@ -272,6 +272,28 @@ export default function BotBuilderPage() {
     }
   }, [selectedBotId, flow, isAr, showToast, mutate]);
 
+  /* ---- Publish / Unpublish bot ---- */
+  const [togglingPublish, setTogglingPublish] = useState(false);
+  const handleTogglePublish = useCallback(async () => {
+    if (selectedBotId === null || !selectedBot) return;
+    const isPublished = selectedBot.st === "published";
+    setTogglingPublish(true);
+    try {
+      await api.post(`/bots/${selectedBotId}/${isPublished ? "unpublish" : "publish"}`);
+      showToast(
+        isPublished
+          ? (isAr ? "\u062A\u0645 \u0625\u064A\u0642\u0627\u0641 \u0627\u0644\u0646\u0634\u0631" : "Unpublished")
+          : (isAr ? "\u062A\u0645 \u0646\u0634\u0631 \u0627\u0644\u0628\u0648\u062A \u2713" : "Bot published \u2713")
+      );
+      mutate();
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || (isAr ? "\u062D\u062F\u062B \u062E\u0637\u0623" : "Error");
+      showToast(msg);
+    } finally {
+      setTogglingPublish(false);
+    }
+  }, [selectedBotId, selectedBot, isAr, showToast, mutate]);
+
   /* ---- Drag handlers ---- */
   const handleMouseDown = useCallback(
     (e: React.MouseEvent, nodeId: string) => {
@@ -433,6 +455,33 @@ export default function BotBuilderPage() {
                 <>
                   <Icon name="check" size={14} />
                   {isAr ? "\u062D\u0641\u0638 \u0627\u0644\u062A\u062F\u0641\u0642" : "Save Flow"}
+                </>
+              )}
+            </Button>
+            <Button
+              small
+              onClick={handleTogglePublish}
+              disabled={togglingPublish}
+              style={{
+                background: selectedBot.st === "published" ? "#EF444418" : "#10B98118",
+                color: selectedBot.st === "published" ? "#EF4444" : "#10B981",
+                border: `1px solid ${selectedBot.st === "published" ? "#EF444440" : "#10B98140"}`,
+              }}
+            >
+              {togglingPublish ? (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ width: 14, height: 14, border: "2px solid currentColor", borderTopColor: "transparent", borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />
+                  ...
+                </span>
+              ) : selectedBot.st === "published" ? (
+                <>
+                  <Icon name="x" size={14} />
+                  {isAr ? "\u0625\u064A\u0642\u0627\u0641 \u0627\u0644\u0646\u0634\u0631" : "Unpublish"}
+                </>
+              ) : (
+                <>
+                  <Icon name="send" size={14} />
+                  {isAr ? "\u0646\u0634\u0631" : "Publish"}
                 </>
               )}
             </Button>
