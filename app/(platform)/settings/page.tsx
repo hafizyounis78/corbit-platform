@@ -83,6 +83,10 @@ export default function SettingsPage() {
   const { data: securityData, isLoading: loadingSecurity, mutate: mutateSecurity } = useSettings('security');
   const { data: channelsData, isLoading: loadingChannels, mutate: mutateChannels } = useSettings('conversations');
   const { data: apiKeysData, isLoading: loadingApi, mutate: mutateApi } = useSettings('api-keys');
+  const { data: whatsappData, mutate: mutateWhatsapp } = useSettings('whatsapp');
+  const { data: webhooksData, mutate: mutateWebhooks } = useSettings('webhooks');
+  const whatsappNumbers: any[] = (whatsappData?.numbers as any[]) ?? [];
+  const webhooks: any[] = Array.isArray(webhooksData) ? (webhooksData as any[]) : ((webhooksData as any)?.data ?? []);
 
   /* general settings state */
   const [companyName, setCompanyName] = useState("Corbit Tech");
@@ -134,8 +138,6 @@ export default function SettingsPage() {
   const [autoAssign, setAutoAssign] = useState(true);
   const [custTakeover, setCustTakeover] = useState(false);
   const [postSurvey, setPostSurvey] = useState(true);
-  const [wh1Active, setWh1Active] = useState(true);
-  const [wh2Active, setWh2Active] = useState(true);
 
   // Populate notification toggles from API
   useEffect(() => {
@@ -515,19 +517,26 @@ export default function SettingsPage() {
                   <SectionTitle>WhatsApp Business</SectionTitle>
                 </div>
               </div>
-              {[
-                { num: "+966 50 123 4567", name: ar ? "الدعم الرئيسي" : "Main Support", verified: true },
-                { num: "+966 50 234 5678", name: ar ? "المبيعات" : "Sales", verified: true },
-                { num: "+966 50 345 6789", name: ar ? "التسويق" : "Marketing", verified: false },
-              ].map((ph, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px solid ${dk ? C.brd : "#F5F2ED"}` }}>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 500 }}>{ph.num}</div>
-                    <div style={{ fontSize: 11, color: C.t2 }}>{ph.name}</div>
-                  </div>
-                  <Badge color={ph.verified ? C.ok : C.warn}>{ph.verified ? (ar ? "موثق" : "Verified") : (ar ? "قيد المراجعة" : "Pending")}</Badge>
+              {whatsappNumbers.length === 0 ? (
+                <div style={{ padding: "16px 0", fontSize: 12.5, color: C.t2, textAlign: "center" }}>
+                  {ar ? "لا توجد أرقام واتساب مُعدّة بعد" : "No WhatsApp numbers configured yet"}
                 </div>
-              ))}
+              ) : (
+                whatsappNumbers.map((ph: any) => (
+                  <div key={ph.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px solid ${dk ? C.brd : "#F5F2ED"}` }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 500, direction: "ltr" }}>{ph.phone_number}</div>
+                      <div style={{ fontSize: 11, color: C.t2 }}>{(ar ? ph.display_name_ar : null) || ph.display_name}</div>
+                    </div>
+                    <Badge color={ph.is_verified ? C.ok : C.warn}>
+                      {ph.is_verified ? (ar ? "موثق" : "Verified") : (ar ? "قيد المراجعة" : "Pending")}
+                    </Badge>
+                  </div>
+                ))
+              )}
+              <div style={{ marginTop: 10, fontSize: 11, color: C.t2 }}>
+                {ar ? "المزوّد الحالي: " : "Active provider: "}<b style={{ color: C.txt }}>{(whatsappData as any)?.provider ?? "—"}</b>
+              </div>
             </Card>
 
             {/* SMS */}
@@ -796,52 +805,59 @@ export default function SettingsPage() {
               </Button>
             </div>
 
-            {[
-              { label: ar ? "مفتاح الإنتاج" : "Production Key", key: "sk_live_corbit_4f8a9c2d...e7b1", env: "production", color: C.ok },
-              { label: ar ? "مفتاح التجربة" : "Sandbox Key", key: "sk_test_corbit_8d3e7f1a...c4d9", env: "sandbox", color: C.warn },
-            ].map((apiKey, i) => (
-              <div key={i} style={{ padding: 14, borderRadius: 12, background: C.inp, marginBottom: 6 }}>
+            {(() => {
+              const list: any[] = Array.isArray(apiKeysData) ? apiKeysData : ((apiKeysData as any)?.data ?? []);
+              if (list.length === 0) {
+                return (
+                  <div style={{ padding: "20px 0", textAlign: "center", fontSize: 12.5, color: C.t2 }}>
+                    {ar ? "لا توجد مفاتيح API — أنشئ مفتاحاً جديداً" : "No API keys — create one to get started"}
+                  </div>
+                );
+              }
+              return list.map((apiKey: any, i: number) => (
+              <div key={apiKey.id ?? i} style={{ padding: 14, borderRadius: 12, background: C.inp, marginBottom: 6 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <Icon name="key" size={14} />
-                    <span style={{ fontSize: 13, fontWeight: 600 }}>{apiKey.label}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>{apiKey.name ?? apiKey.label ?? (ar ? "مفتاح" : "Key")}</span>
                   </div>
-                  <Badge color={apiKey.color}>{apiKey.env}</Badge>
+                  <Badge color={apiKey.environment === "production" ? C.ok : C.warn}>{apiKey.environment ?? "—"}</Badge>
                 </div>
-                <div style={{ padding: "8px 12px", borderRadius: 8, background: C.card, fontFamily: "monospace", fontSize: 12, color: C.t2, marginBottom: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {apiKey.key}
+                <div style={{ padding: "8px 12px", borderRadius: 8, background: C.card, fontFamily: "monospace", fontSize: 12, color: C.t2, marginBottom: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", direction: "ltr" }}>
+                  {apiKey.key ?? apiKey.masked_key ?? ""}
                 </div>
                 <div style={{ display: "flex", gap: 4 }}>
-                  <Button small outline onClick={() => { navigator.clipboard.writeText(apiKey.key); showToast(ar ? "تم النسخ" : "Copied!"); }}>
+                  <Button small outline onClick={() => { navigator.clipboard.writeText(apiKey.key ?? ""); showToast(ar ? "تم النسخ" : "Copied!"); }}>
                     <Icon name="copy" size={12} /> {ar ? "نسخ" : "Copy"}
                   </Button>
                   <Button small outline onClick={async () => {
                     try {
-                      await api.post(`/settings/api-keys/${apiKey.env}/rotate`);
+                      await api.post(`/settings/api-keys/${apiKey.id}/regenerate`);
                       showToast(ar ? "تم التدوير" : "Key rotated");
                       mutateApi();
                     } catch (e: any) {
                       const msg = e?.response?.data?.message || e?.message || "";
-                      showToast(ar ? `فشل التدوير: ${msg}` : `Failed to rotate key: ${msg}`, "error");
+                      showToast(ar ? `فشل التدوير: ${msg}` : `Failed to rotate key: ${msg}`);
                     }
                   }}>
                     <Icon name="refresh" size={12} /> {ar ? "تدوير" : "Rotate"}
                   </Button>
                   <Button small outline onClick={async () => {
                     try {
-                      await api.delete(`/settings/api-keys/${apiKey.env}`);
+                      await api.delete(`/settings/api-keys/${apiKey.id}`);
                       showToast(ar ? "تم الحذف" : "Key deleted");
                       mutateApi();
                     } catch (e: any) {
                       const msg = e?.response?.data?.message || e?.message || "";
-                      showToast(ar ? `فشل الحذف: ${msg}` : `Failed to delete key: ${msg}`, "error");
+                      showToast(ar ? `فشل الحذف: ${msg}` : `Failed to delete key: ${msg}`);
                     }
                   }} style={{ color: C.err }}>
                     <Icon name="x" size={12} /> {ar ? "حذف" : "Delete"}
                   </Button>
                 </div>
               </div>
-            ))}
+              ));
+            })()}
 
             <div style={{ marginTop: 14, padding: 12, borderRadius: 10, background: `#7C3AED08`, border: `1px solid #7C3AED20` }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: "#7C3AED", marginBottom: 4 }}>{ar ? "وثائق API" : "API Documentation"}</div>
@@ -871,54 +887,37 @@ export default function SettingsPage() {
               </Button>
             </div>
 
-            {[
-              {
-                url: "https://api.corbit.sa/webhooks/messages",
-                events: [ar ? "رسائل" : "Messages", ar ? "حالة" : "Status"],
-                active: wh1Active,
-                toggle: () => setWh1Active(!wh1Active),
-              },
-              {
-                url: "https://api.corbit.sa/webhooks/events",
-                events: [ar ? "محادثات" : "Conversations", ar ? "جهات اتصال" : "Contacts", ar ? "فواتير" : "Billing"],
-                active: wh2Active,
-                toggle: () => setWh2Active(!wh2Active),
-              },
-            ].map((wh, i) => (
-              <div key={i} style={{ padding: 14, borderRadius: 12, background: C.inp, marginBottom: 6 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                  <div style={{ flex: 1, fontFamily: "monospace", fontSize: 11.5, color: C.t2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginInlineEnd: 10 }}>
-                    {wh.url}
-                  </div>
-                  <Toggle on={wh.active} onToggle={wh.toggle} />
-                </div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  {wh.events.map((ev) => (
-                    <Badge key={ev} color={C.info}>{ev}</Badge>
-                  ))}
-                </div>
+            {webhooks.length === 0 ? (
+              <div style={{ padding: "16px 0", fontSize: 12.5, color: C.t2, textAlign: "center" }}>
+                {ar ? "لا توجد ويب هوكس مضافة بعد" : "No webhooks configured yet"}
               </div>
-            ))}
-
-            {/* Request Log */}
-            <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.brd}` }}>
-              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>{ar ? "سجل الطلبات" : "Request Log"}</div>
-              {[
-                { method: "POST", path: "/webhooks/messages", status: 200, time: "12ms", ts: "14:32:05" },
-                { method: "POST", path: "/webhooks/events", status: 200, time: "8ms", ts: "14:31:58" },
-                { method: "POST", path: "/webhooks/messages", status: 500, time: "245ms", ts: "14:31:42" },
-                { method: "POST", path: "/webhooks/events", status: 200, time: "15ms", ts: "14:30:21" },
-                { method: "POST", path: "/webhooks/messages", status: 200, time: "11ms", ts: "14:29:55" },
-              ].map((log, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 6, background: C.inp, marginBottom: 2, fontSize: 11 }}>
-                  <Badge color={log.status === 200 ? C.ok : C.err}>{log.status}</Badge>
-                  <span style={{ fontFamily: "monospace", fontWeight: 600, fontSize: 11 }}>{log.method}</span>
-                  <span style={{ fontFamily: "monospace", color: C.t2, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{log.path}</span>
-                  <span style={{ color: C.t3, fontSize: 11 }}>{log.time}</span>
-                  <span style={{ color: C.t3, fontSize: 11 }}>{log.ts}</span>
+            ) : (
+              webhooks.map((wh: any) => (
+                <div key={wh.id} style={{ padding: 14, borderRadius: 12, background: C.inp, marginBottom: 6 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                    <div style={{ flex: 1, fontFamily: "monospace", fontSize: 11.5, color: C.t2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginInlineEnd: 10, direction: "ltr" }}>
+                      {wh.url}
+                    </div>
+                    <Toggle
+                      on={!!wh.is_active}
+                      onToggle={async () => {
+                        try {
+                          await api.patch(`/settings/webhooks/${wh.id}`, { is_active: !wh.is_active });
+                          mutateWebhooks();
+                        } catch (e: any) {
+                          showToast(ar ? "فشل التحديث" : "Update failed");
+                        }
+                      }}
+                    />
+                  </div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {(wh.events ?? []).map((ev: string) => (
+                      <Badge key={ev} color={C.info}>{ev}</Badge>
+                    ))}
+                  </div>
                 </div>
-              ))}
-            </div>
+              ))
+            )}
           </Card>
         </div>
       )}
