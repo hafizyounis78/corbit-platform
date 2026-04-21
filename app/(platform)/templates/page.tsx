@@ -37,6 +37,7 @@ export default function TemplatesPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Template | null>(null);
   const [deletingTemplate, setDeletingTemplate] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [previewLang, setPreviewLang] = useState<"ar" | "en">("ar");
   const [newTemplate, setNewTemplate] = useState({
     name: "",
@@ -423,10 +424,33 @@ export default function TemplatesPage() {
       {/* Page Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
         <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: C.txt }}>{t("templates")}</h2>
-        <Button primary onClick={() => { setNewTemplate({ name: "", category: "utility", language: "ar", header: "", body: "", body_ar: "", footer: "", buttons: [] }); setPreviewLang("ar"); setShowCreateModal(true); }}>
-          <Icon name="file" size={14} />
-          {t("createTmpl")}
-        </Button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Button
+            outline
+            disabled={syncing}
+            onClick={async () => {
+              setSyncing(true);
+              try {
+                const res = await api.post('/templates/sync');
+                const n = res?.data?.data?.synced ?? 0;
+                showToast(isAr ? `\u062A\u0645\u062A \u0627\u0644\u0645\u0632\u0627\u0645\u0646\u0629 (${n} \u0642\u0627\u0644\u0628)` : `Synced ${n} templates`);
+                mutate();
+              } catch (err: any) {
+                const msg = err?.response?.data?.message || (isAr ? "\u0641\u0634\u0644\u062A \u0627\u0644\u0645\u0632\u0627\u0645\u0646\u0629" : "Sync failed");
+                showToast(msg);
+              } finally {
+                setSyncing(false);
+              }
+            }}
+          >
+            <Icon name="refresh" size={14} />
+            {syncing ? (isAr ? "\u062C\u0627\u0631\u064D \u0627\u0644\u0645\u0632\u0627\u0645\u0646\u0629..." : "Syncing...") : (isAr ? "\u0645\u0632\u0627\u0645\u0646\u0629 \u0645\u0646 360dialog" : "Sync from 360dialog")}
+          </Button>
+          <Button primary onClick={() => { setNewTemplate({ name: "", category: "utility", language: "ar", header: "", body: "", body_ar: "", footer: "", buttons: [] }); setPreviewLang("ar"); setShowCreateModal(true); }}>
+            <Icon name="file" size={14} />
+            {t("createTmpl")}
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
