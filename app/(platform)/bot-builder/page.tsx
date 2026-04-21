@@ -261,11 +261,12 @@ export default function BotBuilderPage() {
     if (selectedBotId === null) return;
     setSavingFlow(true);
     try {
-      await api.post(`/bots/${selectedBotId}/flow`, flow);
+      await api.put(`/bots/${selectedBotId}/flow`, flow);
       showToast(isAr ? "\u062A\u0645 \u062D\u0641\u0638 \u0627\u0644\u062A\u062F\u0641\u0642 \u0628\u0646\u062C\u0627\u062D \u2713" : "Flow saved successfully \u2713");
       mutate();
-    } catch {
-      showToast(isAr ? "\u062A\u0645 \u062D\u0641\u0638 \u0627\u0644\u062A\u062F\u0641\u0642 \u0628\u0646\u062C\u0627\u062D \u2713" : "Flow saved successfully \u2713");
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || (isAr ? "\u0641\u0634\u0644 \u062D\u0641\u0638 \u0627\u0644\u062A\u062F\u0641\u0642" : "Failed to save flow");
+      showToast(msg);
     } finally {
       setSavingFlow(false);
     }
