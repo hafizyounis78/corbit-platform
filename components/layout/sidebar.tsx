@@ -138,33 +138,61 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
         })}
 
         {user?.isSuperAdmin ? (
-          <Link
-            href="/super-admin"
-            style={{
-              width: "100%",
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              padding: open ? "10px 14px" : "10px",
-              justifyContent: open ? "flex-start" : "center",
-              marginTop: 8,
-              borderRadius: 10,
-              cursor: "pointer",
-              fontFamily: FONT_FAMILY,
-              fontSize: 13.5,
-              fontWeight: pathname === "/super-admin" ? 600 : 400,
-              color: pathname === "/super-admin" ? C.pri : C.t2,
-              background: pathname === "/super-admin" ? C.pri + "12" : "transparent",
-              textDecoration: "none",
-              borderTop: "1px dashed " + C.brd,
-              paddingTop: 14,
-            }}
-          >
-            <span style={{ flexShrink: 0, opacity: pathname === "/super-admin" ? 1 : 0.6 }}>
-              <Icon name="shield" size={18} />
-            </span>
-            {open && <span>{isAr ? "المشرف العام" : "Super Admin"}</span>}
-          </Link>
+          <>
+            <Link
+              href="/super-admin"
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: open ? "10px 14px" : "10px",
+                justifyContent: open ? "flex-start" : "center",
+                marginTop: 8,
+                borderRadius: 10,
+                cursor: "pointer",
+                fontFamily: FONT_FAMILY,
+                fontSize: 13.5,
+                fontWeight: pathname === "/super-admin" ? 600 : 400,
+                color: pathname === "/super-admin" ? C.pri : C.t2,
+                background: pathname === "/super-admin" ? C.pri + "12" : "transparent",
+                textDecoration: "none",
+                borderTop: "1px dashed " + C.brd,
+                paddingTop: 14,
+              }}
+            >
+              <span style={{ flexShrink: 0, opacity: pathname === "/super-admin" ? 1 : 0.6 }}>
+                <Icon name="shield" size={18} />
+              </span>
+              {open && <span>{isAr ? "المشرف العام" : "Super Admin"}</span>}
+            </Link>
+
+            <Link
+              href="/super-admin/sms-welcome"
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: open ? "10px 14px" : "10px",
+                justifyContent: open ? "flex-start" : "center",
+                marginTop: 2,
+                borderRadius: 10,
+                cursor: "pointer",
+                fontFamily: FONT_FAMILY,
+                fontSize: 13.5,
+                fontWeight: pathname === "/super-admin/sms-welcome" ? 600 : 400,
+                color: pathname === "/super-admin/sms-welcome" ? C.pri : C.t2,
+                background: pathname === "/super-admin/sms-welcome" ? C.pri + "12" : "transparent",
+                textDecoration: "none",
+              }}
+            >
+              <span style={{ flexShrink: 0, opacity: pathname === "/super-admin/sms-welcome" ? 1 : 0.6 }}>
+                <Icon name="msg" size={18} />
+              </span>
+              {open && <span>{isAr ? "رسائل SMS ترحيبيّة" : "Welcome SMS"}</span>}
+            </Link>
+          </>
         ) : null}
       </nav>
 
