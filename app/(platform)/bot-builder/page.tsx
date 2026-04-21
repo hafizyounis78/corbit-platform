@@ -1213,7 +1213,7 @@ export default function BotBuilderPage() {
             style={{ padding: 0, cursor: "pointer" }}
           >
             <div style={{ padding: 18 }}>
-              {/* Top row: name + badges */}
+              {/* Top row: name + badges + delete */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 10 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                   <div
@@ -1229,6 +1229,29 @@ export default function BotBuilderPage() {
                     </div>
                   </div>
                 </div>
+                <button
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    if (!confirm(isAr ? `\u0647\u0644 \u062a\u0631\u064a\u062f \u062d\u0630\u0641 "${bot.name}"\u061f` : `Delete "${bot.name}"?`)) return;
+                    try {
+                      await api.delete(`/bots/${bot.id}`);
+                      showToast(isAr ? "\u062a\u0645 \u0627\u0644\u062d\u0630\u0641 \u2713" : "Deleted \u2713");
+                      mutate();
+                    } catch (err: any) {
+                      const msg = err?.response?.data?.message || (isAr ? "\u0641\u0634\u0644 \u0627\u0644\u062d\u0630\u0641" : "Failed to delete");
+                      showToast(msg);
+                    }
+                  }}
+                  title={isAr ? "\u062d\u0630\u0641" : "Delete"}
+                  style={{
+                    width: 30, height: 30, borderRadius: 8,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    background: "#EF444412", color: "#EF4444",
+                    border: `1px solid #EF444430`, cursor: "pointer",
+                  }}
+                >
+                  <Icon name="x" size={14} />
+                </button>
               </div>
 
               {/* Description */}
