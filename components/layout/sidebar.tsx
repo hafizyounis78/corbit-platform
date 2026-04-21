@@ -6,7 +6,7 @@ import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { Icon } from "@/components/icons/icon";
 import { Avatar } from "@/components/ui/avatar";
-import { navItems } from "@/data/nav-items";
+import { navItems, canAccessNav } from "@/data/nav-items";
 import { FONT_FAMILY } from "@/lib/constants/font";
 import { GRADIENT } from "@/lib/constants/colors";
 import { useNavBadges } from "@/lib/api/hooks";
@@ -88,7 +88,7 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
 
       {/* Nav */}
       <nav style={{ flex: 1, padding: "12px 8px", overflowY: "auto" }}>
-        {navItems.map((n) => {
+        {navItems.filter((n) => canAccessNav(n, user?.role)).map((n) => {
           const isActive = pathname === n.path;
           const badgeCount = getBadge(n);
           return (

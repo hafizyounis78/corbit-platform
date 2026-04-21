@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth/auth-context";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { FONT_FAMILY } from "@/lib/constants/font";
+import { navItems, canAccessNav } from "@/data/nav-items";
 
 export default function PlatformLayout({ children }: { children: ReactNode }) {
   const [sideOpen, setSideOpen] = useState(true);
@@ -15,14 +16,24 @@ export default function PlatformLayout({ children }: { children: ReactNode }) {
   const { colors: C } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const isInbox = pathname === "/inbox";
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.replace('/login');
+      return;
     }
-  }, [isLoading, isAuthenticated]);
+
+    // Role-based page guard: if current path matches a nav item with role
+    // restrictions and the user's role isn't allowed, bounce to dashboard.
+    if (!isLoading && user) {
+      const current = navItems.find((n) => pathname === n.path || pathname.startsWith(n.path + "/"));
+      if (current && !canAccessNav(current, user.role)) {
+        router.replace("/dashboard");
+      }
+    }
+  }, [isLoading, isAuthenticated, user, pathname, router]);
 
   if (isLoading) {
     return (
