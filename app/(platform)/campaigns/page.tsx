@@ -84,7 +84,7 @@ export default function CampaignsPage() {
     }
   };
 
-  const { data: templatesApiResponse } = useTemplatesApi({ status: "approved" });
+  const { data: templatesApiResponse } = useTemplatesApi();
   const templates = useMemo(() => {
     const list = templatesApiResponse?.data || templatesApiResponse;
     return Array.isArray(list) ? list : [];
@@ -427,13 +427,20 @@ export default function CampaignsPage() {
                 }}
               >
                 <option value="">{isAr ? "اختر قالب..." : "Select template..."}</option>
-                {templates.map((tmpl: any) => (
-                  <option key={tmpl.id} value={tmpl.id}>{tmpl.name}</option>
-                ))}
+                {templates.map((tmpl: any) => {
+                  const st = String(tmpl.status || "").toLowerCase();
+                  const stLabel = st === "approved" ? (isAr ? "معتمد" : "approved") : st === "pending" ? (isAr ? "معلق" : "pending") : st === "rejected" ? (isAr ? "مرفوض" : "rejected") : st;
+                  return (
+                    <option key={tmpl.id} value={tmpl.id}>{tmpl.name} — {stLabel}</option>
+                  );
+                })}
               </select>
               {formErrors.template && (
                 <span style={{ fontSize: 11.5, color: COLORS.err, marginTop: 4, display: "block" }}>{formErrors.template}</span>
               )}
+              <div style={{ fontSize: 11, color: C.t3, marginTop: 6 }}>
+                {isAr ? "ملاحظة: فقط القوالب المعتمدة من Meta تُرسل فعلياً في الحملة." : "Note: Only Meta-approved templates are actually sent."}
+              </div>
             </div>
             <div>
               <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 6 }}>
