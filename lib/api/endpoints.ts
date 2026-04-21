@@ -4,6 +4,7 @@ export const API = {
     LOGOUT: '/auth/logout',
     ME: '/auth/me',
     REFRESH: '/auth/refresh',
+    REGISTER: '/auth/register',
     FORGOT_PASSWORD: '/auth/forgot-password',
     RESET_PASSWORD: '/auth/reset-password',
     CHANGE_PASSWORD: '/auth/change-password',

@@ -141,6 +141,16 @@ export default function LoginPage() {
               نسيت كلمة المرور؟
             </button>
           </div>
+
+          <div style={{ textAlign: 'center', marginTop: 20, paddingTop: 20, borderTop: '1px solid #1E2233', fontSize: 13, color: '#8B8D97' }}>
+            ليس لديك حساب؟{' '}
+            <a
+              href="/register"
+              style={{ color: '#E8713A', textDecoration: 'none', fontWeight: 600 }}
+            >
+              أنشئ حسابك الآن
+            </a>
+          </div>
         </form>
       </div>
     </div>
