@@ -35,6 +35,8 @@ export default function TemplatesPage() {
   const [activeTab, setActiveTab] = useState("all");
   const [selected, setSelected] = useState<Template | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Template | null>(null);
+  const [deletingTemplate, setDeletingTemplate] = useState(false);
   const [previewLang, setPreviewLang] = useState<"ar" | "en">("ar");
   const [newTemplate, setNewTemplate] = useState({
     name: "",
@@ -485,7 +487,7 @@ export default function TemplatesPage() {
             >
               {/* Card top */}
               <div style={{ padding: "16px 20px 12px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8, gap: 8 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14.5, fontWeight: 600, marginBottom: 6, color: C.txt }}>{tmpl.name}</div>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -495,10 +497,30 @@ export default function TemplatesPage() {
                       </Badge>
                     </div>
                   </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteTarget(tmpl);
+                    }}
+                    title={isAr ? "\u062D\u0630\u0641" : "Delete"}
+                    style={{
+                      width: 30, height: 30, borderRadius: 8,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      background: "#EF444412", color: "#EF4444",
+                      border: `1px solid #EF444430`, cursor: "pointer", flexShrink: 0,
+                    }}
+                  >
+                    <Icon name="x" size={14} />
+                  </button>
                 </div>
                 <div style={{ fontSize: 11.5, color: C.t2, marginTop: 4 }}>
                   {t("lng")}: {tmpl.ln}
                 </div>
+                {tmpl.st === "rejected" && (tmpl as any).rejection_reason && (
+                  <div style={{ fontSize: 11, color: "#EF4444", marginTop: 6, lineHeight: 1.5 }}>
+                    {isAr ? "\u0633\u0628\u0628 \u0627\u0644\u0631\u0641\u0636:" : "Reason:"} {(tmpl as any).rejection_reason}
+                  </div>
+                )}
               </div>
 
               {/* Card metrics */}
@@ -530,6 +552,46 @@ export default function TemplatesPage() {
 
       {/* Pagination */}
       <Pagination page={page} totalPages={totalPages} totalItems={paginationTotalCount} onPageChange={setPage} />
+
+      {/* ── Delete Template Confirmation Modal ── */}
+      <Modal
+        open={!!deleteTarget}
+        onClose={() => !deletingTemplate && setDeleteTarget(null)}
+        title={isAr ? "\u062A\u0623\u0643\u064A\u062F \u0627\u0644\u062D\u0630\u0641" : "Confirm Delete"}
+        submitLabel={deletingTemplate ? (isAr ? "\u062C\u0627\u0631\u064D \u0627\u0644\u062D\u0630\u0641..." : "Deleting...") : (isAr ? "\u0646\u0639\u0645\u060C \u0627\u062D\u0630\u0641" : "Yes, Delete")}
+        submitDisabled={deletingTemplate}
+        onSubmit={async () => {
+          if (!deleteTarget) return;
+          setDeletingTemplate(true);
+          try {
+            await api.delete(`/templates/${deleteTarget.id}`);
+            showToast(isAr ? "\u062A\u0645 \u0627\u0644\u062D\u0630\u0641 \u2713" : "Deleted \u2713");
+            mutate();
+            setDeleteTarget(null);
+          } catch (err: any) {
+            const msg = err?.response?.data?.message || (isAr ? "\u0641\u0634\u0644 \u0627\u0644\u062D\u0630\u0641" : "Failed to delete");
+            showToast(msg);
+          } finally {
+            setDeletingTemplate(false);
+          }
+        }}
+      >
+        <div style={{ padding: "8px 4px" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 14, padding: 16, borderRadius: 12, background: "#EF444410", border: `1px solid #EF444430` }}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: "#EF444418", color: "#EF4444", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Icon name="x" size={20} />
+            </div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
+                {isAr ? `\u0647\u0644 \u062A\u0631\u064A\u062F \u062D\u0630\u0641 \u0627\u0644\u0642\u0627\u0644\u0628 "${deleteTarget?.name}"\u061F` : `Delete template "${deleteTarget?.name}"?`}
+              </div>
+              <div style={{ fontSize: 12.5, color: C.t2, lineHeight: 1.6 }}>
+                {isAr ? "\u0633\u064A\u062A\u0645 \u062D\u0630\u0641 \u0627\u0644\u0642\u0627\u0644\u0628 \u0645\u0646 \u0627\u0644\u0645\u0646\u0635\u0629. \u0644\u0627 \u064A\u0645\u0643\u0646 \u0627\u0644\u062A\u0631\u0627\u062C\u0639 \u0639\u0646 \u0647\u0630\u0627 \u0627\u0644\u0625\u062C\u0631\u0627\u0621." : "The template will be removed from the platform. This action cannot be undone."}
+              </div>
+            </div>
+          </div>
+        </div>
+      </Modal>
 
       {/* ── Create Template Modal ── */}
       <Modal
