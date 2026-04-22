@@ -810,13 +810,35 @@ export default function TemplatesPage() {
                 </label>
                 <select
                   value={newTemplate.category}
-                  onChange={(e) => setNewTemplate({ ...newTemplate, category: e.target.value })}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setNewTemplate((prev) => {
+                      // Suggest an unsubscribe footer the first time the
+                      // user picks MARKETING — Meta expects marketing
+                      // templates to give recipients a way out.
+                      const needsFooter = next === "marketing" && !prev.footer;
+                      return {
+                        ...prev,
+                        category: next,
+                        footer: needsFooter
+                          ? (isAr ? "لإيقاف الرسائل، أرسل \"إلغاء\"" : "Reply STOP to unsubscribe")
+                          : prev.footer,
+                      };
+                    });
+                  }}
                   style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none", cursor: "pointer", boxSizing: "border-box" }}
                 >
                   <option value="utility">{isAr ? "خدمي" : "Utility"} (خدمي)</option>
                   <option value="marketing">{isAr ? "تسويقي" : "Marketing"} (تسويقي)</option>
                   <option value="authentication">{isAr ? "مصادقة" : "Authentication"} (مصادقة)</option>
                 </select>
+                {newTemplate.category === "marketing" && (
+                  <div style={{ marginTop: 6, fontSize: 11, color: C.t2, lineHeight: 1.6, padding: "8px 10px", borderRadius: 8, background: `${COLORS.warn}12`, border: `1px solid ${COLORS.warn}30` }}>
+                    {isAr
+                      ? "سياسة Meta: القوالب التسويقية يجب أن تتضمن طريقة لإلغاء الاشتراك. تم تعبئة حقل التذييل تلقائياً، يمكنك تعديله."
+                      : "Meta policy: marketing templates must include an opt-out method. A default footer was added — feel free to edit."}
+                  </div>
+                )}
               </div>
               <div>
                 <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 6 }}>
