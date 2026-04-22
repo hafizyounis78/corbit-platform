@@ -103,6 +103,24 @@ export default function TemplatesPage() {
   // When tab changes, reset to page 1
   useEffect(() => { setPage(1); }, [activeTab]);
 
+  // Auto-sync with 360dialog on mount + every 60s while the page is open.
+  // Silent (no toast) — keeps the list fresh without nagging the user.
+  useEffect(() => {
+    let cancelled = false;
+    const silentSync = async () => {
+      try {
+        await api.post('/templates/sync');
+        if (!cancelled) mutate();
+      } catch {
+        // ignore — manual sync button is still available
+      }
+    };
+    silentSync();
+    const interval = setInterval(silentSync, 60_000);
+    return () => { cancelled = true; clearInterval(interval); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Search: Enter key triggers server search
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
