@@ -38,6 +38,7 @@ export default function TemplatesPage() {
   const [deleteTarget, setDeleteTarget] = useState<Template | null>(null);
   const [deletingTemplate, setDeletingTemplate] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [errorDetailsTarget, setErrorDetailsTarget] = useState<any | null>(null);
   const [previewLang, setPreviewLang] = useState<"ar" | "en">("ar");
   const [newTemplate, setNewTemplate] = useState({
     name: "",
@@ -516,9 +517,20 @@ export default function TemplatesPage() {
                     <div style={{ fontSize: 14.5, fontWeight: 600, marginBottom: 6, color: C.txt }}>{tmpl.name}</div>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                       <Badge color={categoryColor(tmpl.cat)}>{categoryLabel(tmpl.cat)}</Badge>
-                      <Badge color={sColor}>
-                        {tmpl.st === "approved" ? t("approved") : tmpl.st === "pending" ? t("pending") : t("rejected")}
-                      </Badge>
+                      <span
+                        onClick={(e) => {
+                          if (tmpl.st === "rejected") {
+                            e.stopPropagation();
+                            setErrorDetailsTarget(tmpl);
+                          }
+                        }}
+                        style={{ cursor: tmpl.st === "rejected" ? "pointer" : "default" }}
+                        title={tmpl.st === "rejected" ? (isAr ? "\u0639\u0631\u0636 \u062a\u0641\u0627\u0635\u064a\u0644 \u0627\u0644\u0631\u0641\u0636" : "View rejection details") : undefined}
+                      >
+                        <Badge color={sColor}>
+                          {tmpl.st === "approved" ? t("approved") : tmpl.st === "pending" ? t("pending") : t("rejected")}
+                        </Badge>
+                      </span>
                     </div>
                   </div>
                   <button
@@ -541,7 +553,10 @@ export default function TemplatesPage() {
                   {t("lng")}: {tmpl.ln}
                 </div>
                 {tmpl.st === "rejected" && (tmpl as any).rejection_reason && (
-                  <div style={{ fontSize: 11, color: "#EF4444", marginTop: 6, lineHeight: 1.5 }}>
+                  <div
+                    onClick={(e) => { e.stopPropagation(); setErrorDetailsTarget(tmpl); }}
+                    style={{ fontSize: 11, color: "#EF4444", marginTop: 6, lineHeight: 1.5, cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 2 }}
+                  >
                     {isAr ? "\u0633\u0628\u0628 \u0627\u0644\u0631\u0641\u0636:" : "Reason:"} {(tmpl as any).rejection_reason}
                   </div>
                 )}
@@ -576,6 +591,68 @@ export default function TemplatesPage() {
 
       {/* Pagination */}
       <Pagination page={page} totalPages={totalPages} totalItems={paginationTotalCount} onPageChange={setPage} />
+
+      {/* ── Rejection Details Modal ── */}
+      <Modal
+        open={!!errorDetailsTarget}
+        onClose={() => setErrorDetailsTarget(null)}
+        title={isAr ? "\u062A\u0641\u0627\u0635\u064A\u0644 \u0627\u0644\u0631\u0641\u0636 \u0645\u0646 360dialog" : "Rejection details from 360dialog"}
+        hideFooter
+        wide
+      >
+        <div style={{ padding: "4px 0" }}>
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 12, color: C.t2, marginBottom: 4 }}>{isAr ? "\u0627\u0644\u0642\u0627\u0644\u0628" : "Template"}</div>
+            <div style={{ fontSize: 14, fontWeight: 600 }}>{errorDetailsTarget?.name}</div>
+          </div>
+
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 12, color: C.t2, marginBottom: 4 }}>{isAr ? "\u0631\u0633\u0627\u0644\u0629 \u0627\u0644\u062E\u0637\u0623" : "Error message"}</div>
+            <div style={{ fontSize: 13, color: "#EF4444", padding: "10px 12px", borderRadius: 8, background: "#EF444410", border: "1px solid #EF444430" }}>
+              {errorDetailsTarget?.rejection_reason ?? "—"}
+            </div>
+          </div>
+
+          {errorDetailsTarget?.provider_error_details && (
+            <>
+              {errorDetailsTarget.provider_error_details.status && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 12, color: C.t2, marginBottom: 4 }}>{isAr ? "\u062d\u0627\u0644\u0629 HTTP" : "HTTP Status"}</div>
+                  <div style={{ fontSize: 13, fontFamily: "monospace" }}>{errorDetailsTarget.provider_error_details.status}</div>
+                </div>
+              )}
+              <div>
+                <div style={{ fontSize: 12, color: C.t2, marginBottom: 4 }}>{isAr ? "\u0627\u0644\u0627\u0633\u062A\u062C\u0627\u0628\u0629 \u0627\u0644\u0643\u0627\u0645\u0644\u0629 \u0645\u0646 360dialog" : "Full response from 360dialog"}</div>
+                <pre
+                  style={{
+                    margin: 0,
+                    fontSize: 12,
+                    fontFamily: "monospace",
+                    padding: "12px 14px",
+                    borderRadius: 8,
+                    background: C.inp,
+                    border: `1px solid ${C.brd}`,
+                    color: C.t2,
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-all",
+                    direction: "ltr",
+                    maxHeight: 300,
+                    overflow: "auto",
+                  }}
+                >
+                  {JSON.stringify(errorDetailsTarget.provider_error_details.raw ?? errorDetailsTarget.provider_error_details, null, 2)}
+                </pre>
+              </div>
+            </>
+          )}
+
+          {!errorDetailsTarget?.provider_error_details && (
+            <div style={{ fontSize: 12, color: C.t3, textAlign: "center", padding: 14 }}>
+              {isAr ? "\u0644\u0627 \u062A\u0648\u062C\u062F \u062A\u0641\u0627\u0635\u064A\u0644 \u0625\u0636\u0627\u0641\u064A\u0629 \u0645\u062D\u0641\u0648\u0638\u0629. \u0623\u0639\u062F \u0627\u0644\u062A\u0642\u062F\u064A\u0645 \u0644\u062A\u0638\u0647\u0631 \u0627\u0644\u0627\u0633\u062A\u062C\u0627\u0628\u0629 \u0627\u0644\u062C\u062F\u064A\u062F\u0629 \u0647\u0646\u0627." : "No additional details saved. Resubmit to capture the latest response here."}
+            </div>
+          )}
+        </div>
+      </Modal>
 
       {/* ── Delete Template Confirmation Modal ── */}
       <Modal
