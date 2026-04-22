@@ -50,7 +50,17 @@ export default function TemplatesPage() {
     body_ar: "",
     footer: "",
     buttons: [] as { text: string; type: string }[],
+    body_examples: [] as string[],
   });
+
+  // Detect {{n}} placeholders in the active body to decide how many
+  // example inputs to show. Only counts unique indices.
+  const activeBodyForVars = newTemplate.language === "en"
+    ? newTemplate.body
+    : newTemplate.body_ar || newTemplate.body;
+  const bodyVarIndexes = Array.from(
+    new Set(Array.from(activeBodyForVars.matchAll(/\{\{\s*(\d+)\s*\}\}/g), (m) => Number(m[1])))
+  ).sort((a, b) => a - b);
 
   const PAGE_SIZE = 50;
 
@@ -466,7 +476,7 @@ export default function TemplatesPage() {
             <Icon name="refresh" size={14} />
             {syncing ? (isAr ? "\u062C\u0627\u0631\u064D \u0627\u0644\u0645\u0632\u0627\u0645\u0646\u0629..." : "Syncing...") : (isAr ? "\u0645\u0632\u0627\u0645\u0646\u0629 \u0645\u0646 360dialog" : "Sync from 360dialog")}
           </Button>
-          <Button primary onClick={() => { setNewTemplate({ name: "", category: "utility", language: "ar", header: "", body: "", body_ar: "", footer: "", buttons: [] }); setPreviewLang("ar"); setShowCreateModal(true); }}>
+          <Button primary onClick={() => { setNewTemplate({ name: "", category: "utility", language: "ar", header: "", body: "", body_ar: "", footer: "", buttons: [], body_examples: [] }); setPreviewLang("ar"); setShowCreateModal(true); }}>
             <Icon name="file" size={14} />
             {t("createTmpl")}
           </Button>
@@ -765,7 +775,7 @@ export default function TemplatesPage() {
             await api.post("/templates", payload);
             showToast(isAr ? "تم إنشاء القالب بنجاح" : "Template created successfully");
             setShowCreateModal(false);
-            setNewTemplate({ name: "", category: "utility", language: "ar", header: "", body: "", body_ar: "", footer: "", buttons: [] });
+            setNewTemplate({ name: "", category: "utility", language: "ar", header: "", body: "", body_ar: "", footer: "", buttons: [], body_examples: [] });
             mutate();
           } catch (err: any) {
             const msg = err?.response?.data?.message || (isAr ? "حدث خطأ" : "Error occurred");

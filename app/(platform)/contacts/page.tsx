@@ -693,23 +693,26 @@ export default function ContactsPage() {
         title={isAr ? "إنشاء شريحة جديدة" : "Create Segment"}
         wide
         submitLabel={isAr ? "إنشاء الشريحة" : "Create Segment"}
-        onSubmit={() => {
+        onSubmit={async () => {
           if (!newSegment.name.trim()) { showToast(isAr ? "يرجى إدخال اسم الشريحة" : "Please enter segment name"); return; }
-          api.post("/segments", {
-            name: newSegment.name,
-            status: newSegment.status,
-            tags: newSegment.tags,
-            score_min: newSegment.scoreMin,
-            score_max: newSegment.scoreMax,
-            city: newSegment.cityFilter,
-            order_min: newSegment.orderMin,
-          }).then(() => {
+          const filters: Record<string, any> = {};
+          if (newSegment.status && newSegment.status !== "all") filters.status = newSegment.status;
+          if (newSegment.tags && newSegment.tags.length > 0) filters.tags = newSegment.tags;
+          if (typeof newSegment.scoreMin === "number") filters.scoreMin = newSegment.scoreMin;
+          if (typeof newSegment.scoreMax === "number") filters.scoreMax = newSegment.scoreMax;
+          if (newSegment.cityFilter && newSegment.cityFilter !== "all") filters.city = newSegment.cityFilter;
+          if (typeof newSegment.orderMin === "number" && newSegment.orderMin > 0) filters.orderMin = newSegment.orderMin;
+          try {
+            await api.post("/segments", { name: newSegment.name, filters });
             showToast(isAr ? "تم إنشاء الشريحة ✓" : "Segment created ✓");
             setShowSegmentModal(false);
-          }).catch(() => {
-            showToast(isAr ? "تم إنشاء الشريحة ✓" : "Segment created ✓");
-            setShowSegmentModal(false);
-          });
+          } catch (err: any) {
+            const msg = err?.response?.data?.message
+              || err?.response?.data?.errors?.name?.[0]
+              || err?.response?.data?.errors?.filters?.[0]
+              || (isAr ? "فشل إنشاء الشريحة" : "Failed to create segment");
+            showToast(msg);
+          }
         }}
       >
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 280px", gap: 24 }}>
