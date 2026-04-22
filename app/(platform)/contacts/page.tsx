@@ -8,7 +8,7 @@ import { useIsMobile } from "@/hooks/use-media-query";
 import { Card, CardHeader, Button, Badge, TabBar, Avatar, SearchInput, DataTable, Modal } from "@/components/ui";
 import { Icon } from "@/components/icons/icon";
 import type { Contact } from "@/data/contacts";
-import { useContacts, useContactStats, useContactTags } from "@/lib/api/hooks";
+import { useContacts, useContactStats, useContactTags, useSegments } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
 import { COLORS, GRADIENT } from "@/lib/constants/colors";
 import { FONT_FAMILY } from "@/lib/constants/font";
@@ -139,6 +139,10 @@ export default function ContactsPage() {
       setPage(1);
     }
   };
+
+  // Segments from API
+  const { data: segmentsResponse, mutate: mutateSegments } = useSegments();
+  const segmentsList: any[] = Array.isArray(segmentsResponse) ? segmentsResponse : (segmentsResponse?.data ?? []);
 
   // Stats from API, fall back to mock
   const { data: apiStats } = useContactStats();
@@ -310,6 +314,55 @@ export default function ContactsPage() {
           </Card>
         ))}
       </div>
+
+      {/* Segments list */}
+      {segmentsList.length > 0 && (
+        <Card style={{ marginBottom: 16, padding: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <div style={{ fontSize: 14, fontWeight: 700 }}>
+              {isAr ? "الشرائح" : "Segments"} <span style={{ color: C.t2, fontWeight: 500 }}>({segmentsList.length})</span>
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(240px, 1fr))", gap: 10 }}>
+            {segmentsList.map((seg: any) => (
+              <div
+                key={seg.id}
+                style={{ padding: 12, borderRadius: 10, background: C.inp, border: `1px solid ${C.brd}`, display: "flex", flexDirection: "column", gap: 6 }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{seg.name}</div>
+                  <button
+                    onClick={async () => {
+                      if (!confirm(isAr ? `\u062D\u0630\u0641 \u0627\u0644\u0634\u0631\u064A\u062D\u0629 "${seg.name}"\u061F` : `Delete segment "${seg.name}"?`)) return;
+                      try {
+                        await api.delete(`/segments/${seg.id}`);
+                        showToast(isAr ? "\u062A\u0645 \u0627\u0644\u062D\u0630\u0641 \u2713" : "Deleted \u2713");
+                        mutateSegments();
+                      } catch (err: any) {
+                        showToast(err?.response?.data?.message || (isAr ? "\u0641\u0634\u0644 \u0627\u0644\u062D\u0630\u0641" : "Failed"));
+                      }
+                    }}
+                    title={isAr ? "\u062D\u0630\u0641" : "Delete"}
+                    style={{
+                      width: 26, height: 26, borderRadius: 6,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      background: "#EF444412", color: "#EF4444",
+                      border: `1px solid #EF444430`, cursor: "pointer",
+                    }}
+                  >
+                    <Icon name="x" size={12} />
+                  </button>
+                </div>
+                <div style={{ fontSize: 11, color: C.t2, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  <span><Icon name="users" size={11} /> {seg.contactCount ?? seg.contact_count ?? 0}</span>
+                  {seg.filters?.status && <span>• {String(seg.filters.status)}</span>}
+                  {seg.filters?.city && <span>• {seg.filters.city}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Filter Bar */}
       <Card style={{ marginBottom: 16 }}>
@@ -709,6 +762,7 @@ export default function ContactsPage() {
             await api.post("/segments", { name: newSegment.name, filters });
             showToast(isAr ? "تم إنشاء الشريحة ✓" : "Segment created ✓");
             setShowSegmentModal(false);
+            mutateSegments();
           } catch (err: any) {
             const msg = err?.response?.data?.message
               || err?.response?.data?.errors?.name?.[0]
