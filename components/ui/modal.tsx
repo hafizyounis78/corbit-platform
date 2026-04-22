@@ -100,7 +100,22 @@ export function Modal({ open, onClose, title, wide, children, submitLabel, onSub
                 }
               }}
             >
-              {submitLoading ? "..." : (submitLabel ?? t("save"))}
+              {submitLoading ? (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                  <span
+                    style={{
+                      width: 14,
+                      height: 14,
+                      border: "2px solid #fff4",
+                      borderTopColor: "#fff",
+                      borderRadius: "50%",
+                      display: "inline-block",
+                      animation: "spin 0.7s linear infinite",
+                    }}
+                  />
+                  {submitLabel ?? "..."}
+                </span>
+              ) : (submitLabel ?? t("save"))}
             </Button>
           </div>
         )}

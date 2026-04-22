@@ -39,6 +39,7 @@ export default function TemplatesPage() {
   const [deletingTemplate, setDeletingTemplate] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [errorDetailsTarget, setErrorDetailsTarget] = useState<any | null>(null);
+  const [creatingTemplate, setCreatingTemplate] = useState(false);
   const [previewLang, setPreviewLang] = useState<"ar" | "en">("ar");
   const [newTemplate, setNewTemplate] = useState({
     name: "",
@@ -697,11 +698,14 @@ export default function TemplatesPage() {
       {/* ── Create Template Modal ── */}
       <Modal
         open={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
+        onClose={() => !creatingTemplate && setShowCreateModal(false)}
         title={isAr ? "إنشاء قالب" : "Create Template"}
         wide
-        submitLabel={isAr ? "إنشاء القالب" : "Create Template"}
-        onSubmit={() => {
+        submitLabel={creatingTemplate ? (isAr ? "\u062C\u0627\u0631\u064D \u0627\u0644\u0625\u0631\u0633\u0627\u0644 \u0625\u0644\u0649 Meta..." : "Submitting to Meta...") : (isAr ? "إنشاء القالب" : "Create Template")}
+        submitDisabled={creatingTemplate}
+        submitLoading={creatingTemplate}
+        onSubmit={async () => {
+          if (creatingTemplate) return;
           if (!newTemplate.name.trim()) {
             showToast(isAr ? "يرجى إدخال اسم القالب" : "Please enter template name");
             return;
@@ -737,14 +741,20 @@ export default function TemplatesPage() {
           if (newTemplate.header.trim()) payload.header = newTemplate.header;
           if (newTemplate.footer.trim()) payload.footer = newTemplate.footer;
           if (newTemplate.buttons.length > 0) payload.buttons = newTemplate.buttons;
-          api.post("/templates", payload).then(() => {
+
+          setCreatingTemplate(true);
+          try {
+            await api.post("/templates", payload);
             showToast(isAr ? "تم إنشاء القالب بنجاح" : "Template created successfully");
             setShowCreateModal(false);
             setNewTemplate({ name: "", category: "utility", language: "ar", header: "", body: "", body_ar: "", footer: "", buttons: [] });
             mutate();
-          }).catch(() => {
-            showToast(isAr ? "حدث خطأ" : "Error occurred");
-          });
+          } catch (err: any) {
+            const msg = err?.response?.data?.message || (isAr ? "حدث خطأ" : "Error occurred");
+            showToast(msg);
+          } finally {
+            setCreatingTemplate(false);
+          }
         }}
       >
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 340px", gap: 24 }}>
