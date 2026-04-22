@@ -19,6 +19,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [showPw, setShowPw] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -38,6 +39,10 @@ export default function RegisterPage() {
       setError("كلمة المرور وتأكيدها غير متطابقين");
       return;
     }
+    if (!acceptedTerms) {
+      setError("يجب الموافقة على الشروط وسياسة الاستخدام للمتابعة");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -48,6 +53,8 @@ export default function RegisterPage() {
         phone: phone.trim(),
         password,
         password_confirmation: passwordConfirm,
+        terms_accepted: true,
+        terms_accepted_at: new Date().toISOString(),
       });
 
       const { token, user } = res.data.data;
@@ -209,6 +216,65 @@ export default function RegisterPage() {
             />
           </Field>
 
+          <label
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 10,
+              fontSize: 12.5,
+              color: "#B8BAC3",
+              lineHeight: 1.7,
+              marginTop: 6,
+              marginBottom: 16,
+              cursor: "pointer",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={acceptedTerms}
+              onChange={(e) => setAcceptedTerms(e.target.checked)}
+              required
+              style={{
+                marginTop: 3,
+                width: 16,
+                height: 16,
+                accentColor: "#E8713A",
+                flexShrink: 0,
+                cursor: "pointer",
+              }}
+            />
+            <span>
+              أوافق على{" "}
+              <a
+                href="/terms"
+                target="_blank"
+                rel="noreferrer"
+                style={{ color: "#E8713A", textDecoration: "none", fontWeight: 600 }}
+              >
+                شروط الاستخدام
+              </a>
+              {" "}و{" "}
+              <a
+                href="/privacy"
+                target="_blank"
+                rel="noreferrer"
+                style={{ color: "#E8713A", textDecoration: "none", fontWeight: 600 }}
+              >
+                سياسة الخصوصية
+              </a>
+              {" "}و{" "}
+              <a
+                href="https://business.whatsapp.com/policy"
+                target="_blank"
+                rel="noreferrer"
+                style={{ color: "#E8713A", textDecoration: "none", fontWeight: 600 }}
+              >
+                سياسة WhatsApp Business
+              </a>
+              ، وألتزم بالحصول على موافقة صريحة من العملاء قبل إرسال أي رسائل تسويقية.
+            </span>
+          </label>
+
           {error ? (
             <div
               style={{
@@ -227,20 +293,20 @@ export default function RegisterPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !acceptedTerms}
             style={{
               width: "100%",
               padding: "13px",
               borderRadius: 10,
               border: "none",
-              background: loading ? "#555" : GRADIENT,
+              background: (loading || !acceptedTerms) ? "#555" : GRADIENT,
               color: "#fff",
               fontSize: 15,
               fontWeight: 700,
               fontFamily: FONT_FAMILY,
-              cursor: loading ? "not-allowed" : "pointer",
-              opacity: loading ? 0.7 : 1,
-              marginTop: 6,
+              cursor: (loading || !acceptedTerms) ? "not-allowed" : "pointer",
+              opacity: (loading || !acceptedTerms) ? 0.7 : 1,
+              marginTop: 0,
             }}
           >
             {loading ? "جاري إنشاء الحساب..." : "إنشاء الحساب"}
