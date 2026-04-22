@@ -695,11 +695,14 @@ export default function ContactsPage() {
         submitLabel={isAr ? "إنشاء الشريحة" : "Create Segment"}
         onSubmit={async () => {
           if (!newSegment.name.trim()) { showToast(isAr ? "يرجى إدخال اسم الشريحة" : "Please enter segment name"); return; }
-          const filters: Record<string, any> = {};
+          // Always send scoreMin/scoreMax so the filters object is never empty
+          // (Laravel 'required|array' rejects empty objects/arrays).
+          const filters: Record<string, any> = {
+            scoreMin: typeof newSegment.scoreMin === "number" ? newSegment.scoreMin : 0,
+            scoreMax: typeof newSegment.scoreMax === "number" ? newSegment.scoreMax : 100,
+          };
           if (newSegment.status && newSegment.status !== "all") filters.status = newSegment.status;
           if (newSegment.tags && newSegment.tags.length > 0) filters.tags = newSegment.tags;
-          if (typeof newSegment.scoreMin === "number") filters.scoreMin = newSegment.scoreMin;
-          if (typeof newSegment.scoreMax === "number") filters.scoreMax = newSegment.scoreMax;
           if (newSegment.cityFilter && newSegment.cityFilter !== "all") filters.city = newSegment.cityFilter;
           if (typeof newSegment.orderMin === "number" && newSegment.orderMin > 0) filters.orderMin = newSegment.orderMin;
           try {
