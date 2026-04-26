@@ -45,16 +45,36 @@ export default function AICenterPage() {
   }, [apiModels, isAr, modelOverrides]);
 
   const kbDocs = Array.isArray(apiKb) ? apiKb : [];
-  const tones = Array.isArray(apiTone) ? apiTone : [];
 
-  // Active tone - initialize from API/mock, then local control only
-  const initialTone = useMemo(() => {
-    const active = tones.find((t: any) => t.active || t.is_active);
-    return active?.name || tones[0]?.name || "";
-  }, [apiTone]); // only recalculate when API data changes, not mock
+  // Tone settings (single object: { tone, customInstructions })
+  const toneData = (apiTone && !Array.isArray(apiTone)) ? apiTone as { tone?: string; customInstructions?: string } : { tone: "friendly", customInstructions: "" };
+  const [customInstructions, setCustomInstructions] = useState("");
+  const [savingTone, setSavingTone] = useState(false);
+
   useEffect(() => {
-    if (initialTone && !activeTone) setActiveTone(initialTone);
-  }, [initialTone]);
+    if (!activeTone && toneData.tone) setActiveTone(toneData.tone);
+    if (toneData.customInstructions !== undefined) setCustomInstructions(toneData.customInstructions || "");
+  }, [apiTone]);
+
+  const TONE_OPTIONS = useMemo(() => [
+    { key: "friendly", emoji: "😊", name: ar ? "وديّة" : "Friendly", desc: ar ? "قريبة من العميل، ودودة" : "Warm and approachable" },
+    { key: "formal",   emoji: "🎩", name: ar ? "رسميّة" : "Formal",   desc: ar ? "محترمة، مهنيّة" : "Professional and respectful" },
+    { key: "casual",   emoji: "👋", name: ar ? "عفويّة" : "Casual",   desc: ar ? "غير رسميّة، عفويّة" : "Relaxed and informal" },
+    { key: "sales",    emoji: "🎯", name: ar ? "مبيعات" : "Sales",    desc: ar ? "مقنعة، محفّزة" : "Persuasive and engaging" },
+  ], [ar]);
+
+  async function saveTone(toneKey: string, instructions: string) {
+    setSavingTone(true);
+    try {
+      await api.patch("/ai/tone", { tone: toneKey, customInstructions: instructions });
+      mutateTone();
+      showToast(ar ? "تم الحفظ" : "Saved");
+    } catch (e: any) {
+      showToast(e?.response?.data?.message || (ar ? "تعذّر الحفظ" : "Save failed"));
+    } finally {
+      setSavingTone(false);
+    }
+  }
 
   const [guardrailOverrides, setGuardrailOverrides] = useState<Record<string, boolean>>({});
   const guardrails = useMemo(() => {
@@ -282,35 +302,80 @@ export default function AICenterPage() {
       )}
 
       {tab === "tone" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 14 }}>
-          {tones.length === 0 && (
-            <div style={{ padding: "40px 20px", textAlign: "center", fontSize: 13, color: C.t2 }}>
-              {ar ? "لا توجد نغمات" : "No tones configured"}
+        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          <div>
+            <h3 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 700, color: C.txt }}>
+              {ar ? "اختر نغمة الذكاء الاصطناعي" : "Choose AI tone"}
+            </h3>
+            <p style={{ margin: "0 0 12px", fontSize: 12, color: C.t2 }}>
+              {ar
+                ? "تنطبق على كل اقتراحات الذكاء (اقتراح ردّ، توليد حملات، إلخ)"
+                : "Applies to all AI suggestions (reply, campaign copy, etc.)"}
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: 12 }}>
+              {TONE_OPTIONS.map((tone) => {
+                const isActive = tone.key === activeTone;
+                return (
+                  <Card
+                    key={tone.key}
+                    style={isActive
+                      ? { padding: 16, cursor: "pointer", border: `2px solid ${aiC2}`, background: aiC2 + "08" }
+                      : { padding: 16, cursor: "pointer" }}
+                    onClick={() => {
+                      setActiveTone(tone.key);
+                      saveTone(tone.key, customInstructions);
+                    }}
+                  >
+                    <div style={{ fontSize: 26, marginBottom: 6 }}>{tone.emoji}</div>
+                    <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 3, color: C.txt }}>{tone.name}</div>
+                    <div style={{ fontSize: 11.5, color: C.t2 }}>{tone.desc}</div>
+                    {isActive && <div style={{ marginTop: 8 }}><Badge color={aiC2}>{ar ? "مفعّل" : "Active"}</Badge></div>}
+                  </Card>
+                );
+              })}
             </div>
-          )}
-          {tones.map((tone: any, i: number) => {
-            const isActive = tone.name === activeTone;
-            return (
-            <Card
-              key={i}
-              style={isActive ? { padding: 18, cursor: "pointer", border: `2px solid ${aiC2}` } : { padding: 18, cursor: "pointer" }}
-              onClick={async () => {
-                const prev = activeTone;
-                setActiveTone(tone.name);
-                try {
-                  await api.patch("/ai/tone", { tone: tone.key || tone.name });
-                } catch {
-                  setActiveTone(prev);
-                }
+          </div>
+
+          <Card style={{ padding: 18 }}>
+            <h3 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 700, color: C.txt }}>
+              {ar ? "تعليمات مخصّصة (اختياري)" : "Custom instructions (optional)"}
+            </h3>
+            <p style={{ margin: "0 0 12px", fontSize: 12, color: C.t2 }}>
+              {ar
+                ? "أضف تعليمات خاصّة بشركتك (اسم الشركة، ساعات العمل، قواعد ردّ معيّنة، إلخ)"
+                : "Add company-specific guidance (company name, hours, response rules, etc.)"}
+            </p>
+            <textarea
+              value={customInstructions}
+              onChange={(e) => setCustomInstructions(e.target.value)}
+              placeholder={ar
+                ? "مثال: اسم شركتنا كوربت — ساعات العمل الأحد-الخميس 9-5 — لا تقدّم خصومات بدون موافقة"
+                : "e.g. Our company is Corbit. Hours: Sun-Thu 9-5. Do not offer discounts without approval."}
+              rows={10}
+              style={{
+                width: "100%",
+                padding: "12px 14px",
+                borderRadius: 10,
+                border: `1px solid ${C.brd}`,
+                background: C.inp,
+                color: C.txt,
+                fontFamily: FONT_FAMILY,
+                fontSize: 13,
+                lineHeight: 1.7,
+                resize: "vertical",
+                outline: "none",
               }}
-            >
-              <div style={{ fontSize: 28, marginBottom: 8 }}>{tone.emoji}</div>
-              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{tone.name}</div>
-              <div style={{ fontSize: 12, color: C.t2 }}>{tone.desc}</div>
-              {isActive && <div style={{ marginTop: 8 }}><Badge color={aiC2}>{ar ? "\u0645\u0641\u0639\u0651\u0644" : "Active"}</Badge></div>}
-            </Card>
-            );
-          })}
+            />
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
+              <Button
+                primary
+                disabled={savingTone}
+                onClick={() => saveTone(activeTone || "friendly", customInstructions)}
+              >
+                {savingTone ? (ar ? "جاري الحفظ..." : "Saving...") : (ar ? "حفظ" : "Save")}
+              </Button>
+            </div>
+          </Card>
         </div>
       )}
 
