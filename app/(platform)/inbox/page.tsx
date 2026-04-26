@@ -601,7 +601,33 @@ export default function InboxPage() {
               </button>
             </div>
           )}
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 10, opacity: (isAiOn || !windowOpen) ? 0.4 : 1, pointerEvents: (isAiOn || !windowOpen) ? "none" : "auto" }}>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 10 }}>
+            <button
+              onClick={handleAiSuggest}
+              disabled={aiSuggesting || !selectedId}
+              title={isAr ? "اقترح ردًّا بالذكاء الاصطناعي (يعمل دائماً)" : "AI Suggest reply (always available)"}
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 10,
+                border: "1.5px solid " + AI_COLOR,
+                background: aiSuggesting ? AI_COLOR + "20" : AI_COLOR + "10",
+                cursor: aiSuggesting ? "wait" : "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: AI_COLOR,
+                opacity: aiSuggesting || !selectedId ? 0.6 : 1,
+                marginBottom: 2,
+                flexShrink: 0,
+              }}
+            >
+              <span style={{ display: "inline-flex", animation: aiSuggesting ? "ai-spin 1s linear infinite" : undefined }}>
+                <Icon name={aiSuggesting ? "loader" : "sparkles"} size={18} />
+              </span>
+              <style>{`@keyframes ai-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+            </button>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 10, flex: 1, opacity: (isAiOn || !windowOpen) ? 0.4 : 1, pointerEvents: (isAiOn || !windowOpen) ? "none" : "auto" }}>
             <div style={{ display: "flex", gap: 6, paddingBottom: 4 }}>
               <button style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: C.inp, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.t2 }}>
                 <Icon name="clip" size={16} />
@@ -617,29 +643,6 @@ export default function InboxPage() {
                 style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: showQuickReplies ? C.pri + "15" : C.inp, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: showQuickReplies ? C.pri : C.t2 }}
               >
                 <Icon name="bookmark" size={16} />
-              </button>
-              <button
-                onClick={handleAiSuggest}
-                disabled={aiSuggesting || !selectedId}
-                title={isAr ? "اقترح ردًّا بالذكاء الاصطناعي" : "AI Suggest reply"}
-                style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 8,
-                  border: "1px solid " + AI_COLOR + "40",
-                  background: aiSuggesting ? AI_COLOR + "15" : C.inp,
-                  cursor: aiSuggesting ? "wait" : "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: AI_COLOR,
-                  opacity: aiSuggesting || !selectedId ? 0.6 : 1,
-                }}
-              >
-                <span style={{ display: "inline-flex", animation: aiSuggesting ? "ai-spin 1s linear infinite" : undefined }}>
-                  <Icon name={aiSuggesting ? "loader" : "sparkles"} size={16} />
-                </span>
-                <style>{`@keyframes ai-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
               </button>
               <button
                 onClick={toggleAi}
@@ -664,6 +667,7 @@ export default function InboxPage() {
             >
               <Icon name="send" size={18} />
             </button>
+            </div>
           </div>
         </div>
         {/* Inbox Template Picker */}
