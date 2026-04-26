@@ -98,6 +98,8 @@ export default function InboxPage() {
   const [noteText, setNoteText] = useState("");
   const [aiSummary, setAiSummary] = useState(false);
   const [notes, setNotes] = useState<string[]>([]);
+  const [aiSuggesting, setAiSuggesting] = useState(false);
+  const [aiSuggestionLogId, setAiSuggestionLogId] = useState<string | null>(null);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -196,6 +198,9 @@ export default function InboxPage() {
     const now = new Date();
     const time = now.toLocaleTimeString(isAr ? "ar-SA" : "en-US", { hour: "numeric", minute: "2-digit" });
     const newMsg: ChatMessage = { from: "agent", text, time };
+    // Capture and clear AI suggestion tracker BEFORE the await
+    const acceptedLogId = aiSuggestionLogId;
+    setAiSuggestionLogId(null);
     // Optimistic update
     setLocalMessages((prev) => [...prev, newMsg]);
     setInputText("");
@@ -205,11 +210,45 @@ export default function InboxPage() {
       try {
         await api.post(`/conversations/${selectedId}/messages`, { content: text, messageType: "text" });
         mutateMessages();
+        // If this message originated from an AI suggestion, mark it as accepted (fire-and-forget)
+        if (acceptedLogId) {
+          api.post(`/conversations/${selectedId}/ai/suggest/${acceptedLogId}/accept`).catch(() => {});
+        }
       } catch (e: any) {
         const msg = e?.response?.data?.message;
         if (msg) showToast(msg);
         console.error(e);
       }
+    }
+  }
+
+  async function handleAiSuggest() {
+    if (!selectedId || aiSuggesting) return;
+    setAiSuggesting(true);
+    try {
+      const res = await api.post(`/conversations/${selectedId}/ai/suggest`);
+      const payload = res.data?.data ?? res.data;
+      const suggestion: string = payload?.suggestion ?? "";
+      const logId: string | null = payload?.logId ?? null;
+      const kbHits: number = payload?.kbHits ?? 0;
+      if (suggestion) {
+        setInputText(suggestion);
+        setAiSuggestionLogId(logId);
+        inputRef.current?.focus();
+        if (kbHits > 0) {
+          showToast(isAr ? `اقتراح جاهز (${kbHits} مرجع من قاعدة المعرفة)` : `Suggestion ready (${kbHits} KB hits)`);
+        } else {
+          showToast(isAr ? "اقتراح جاهز" : "Suggestion ready");
+        }
+      } else {
+        showToast(isAr ? "تعذّر توليد اقتراح" : "Could not generate a suggestion");
+      }
+    } catch (e: any) {
+      const msg = e?.response?.data?.message;
+      showToast(msg || (isAr ? "تعذّر الاتصال بالذكاء" : "AI request failed"));
+      console.error(e);
+    } finally {
+      setAiSuggesting(false);
     }
   }
 
@@ -578,6 +617,29 @@ export default function InboxPage() {
                 style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: showQuickReplies ? C.pri + "15" : C.inp, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: showQuickReplies ? C.pri : C.t2 }}
               >
                 <Icon name="bookmark" size={16} />
+              </button>
+              <button
+                onClick={handleAiSuggest}
+                disabled={aiSuggesting || !selectedId}
+                title={isAr ? "اقترح ردًّا بالذكاء الاصطناعي" : "AI Suggest reply"}
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 8,
+                  border: "1px solid " + AI_COLOR + "40",
+                  background: aiSuggesting ? AI_COLOR + "15" : C.inp,
+                  cursor: aiSuggesting ? "wait" : "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: AI_COLOR,
+                  opacity: aiSuggesting || !selectedId ? 0.6 : 1,
+                }}
+              >
+                <span style={{ display: "inline-flex", animation: aiSuggesting ? "ai-spin 1s linear infinite" : undefined }}>
+                  <Icon name={aiSuggesting ? "loader" : "sparkles"} size={16} />
+                </span>
+                <style>{`@keyframes ai-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
               </button>
               <button
                 onClick={toggleAi}

@@ -87,8 +87,12 @@ export default function SuperAdminPage() {
   };
 
   const handleCreate = async () => {
-    if (!form.name.trim() || !form.admin_name.trim() || !form.admin_email.trim()) {
-      showToast(ar ? "يرجى إكمال الحقول المطلوبة" : "Please complete required fields");
+    if (!form.name.trim() || !form.admin_name.trim() || !form.admin_email.trim() || !form.admin_phone.trim()) {
+      showToast(ar ? "يرجى إكمال الحقول المطلوبة (بما فيها رقم الجوال)" : "Please complete required fields (including phone)");
+      return;
+    }
+    if (!/^\+?[0-9 \-]{8,20}$/.test(form.admin_phone.trim())) {
+      showToast(ar ? "صيغة رقم الجوال غير صحيحة (مثال: +966500000000)" : "Invalid phone format (e.g. +966500000000)");
       return;
     }
     if (form.admin_password && form.admin_password.length < 8) {
@@ -107,7 +111,7 @@ export default function SuperAdminPage() {
         admin: {
           name: form.admin_name,
           email: form.admin_email,
-          ...(form.admin_phone ? { phone: form.admin_phone } : {}),
+          phone: form.admin_phone.trim(),
           ...(form.admin_password ? { password: form.admin_password } : {}),
         },
       });
@@ -224,8 +228,11 @@ export default function SuperAdminPage() {
           <Field label={ar ? "بريد الأدمن" : "Admin Email"} required C={C}>
             <input type="email" dir="ltr" value={form.admin_email} onChange={(e) => setForm({ ...form, admin_email: e.target.value })} style={inputStyle(C)} />
           </Field>
-          <Field label={ar ? "رقم جوال الأدمن (واتساب)" : "Admin Phone (WhatsApp)"} C={C}>
-            <input type="tel" dir="ltr" placeholder="9665xxxxxxxx" value={form.admin_phone} onChange={(e) => setForm({ ...form, admin_phone: e.target.value })} style={inputStyle(C)} />
+          <Field label={ar ? "رقم جوال الأدمن (واتساب)" : "Admin Phone (WhatsApp)"} required C={C}>
+            <input type="tel" dir="ltr" placeholder="+966500000000" value={form.admin_phone} onChange={(e) => setForm({ ...form, admin_phone: e.target.value })} style={inputStyle(C)} />
+            <div style={{ fontSize: 11, color: C.t3, marginTop: 4 }}>
+              {ar ? "ضروريّ لإرسال بيانات الدخول عبر واتساب" : "Required to deliver credentials via WhatsApp"}
+            </div>
           </Field>
           <Field label={ar ? "كلمة المرور (اختياري)" : "Password (optional)"} C={C}>
             <input type="text" dir="ltr" placeholder={ar ? "فارغة = عشوائية" : "Leave empty for random"} value={form.admin_password} onChange={(e) => setForm({ ...form, admin_password: e.target.value })} style={inputStyle(C)} />
