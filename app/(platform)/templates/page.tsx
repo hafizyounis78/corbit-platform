@@ -49,7 +49,7 @@ export default function TemplatesPage() {
     body: "",
     body_ar: "",
     footer: "",
-    buttons: [] as { text: string; type: string }[],
+    buttons: [] as { text: string; type: string; value?: string }[],
     body_examples: [] as string[],
   });
 
@@ -474,7 +474,7 @@ export default function TemplatesPage() {
             }}
           >
             <Icon name="refresh" size={14} />
-            {syncing ? (isAr ? "\u062C\u0627\u0631\u064D \u0627\u0644\u0645\u0632\u0627\u0645\u0646\u0629..." : "Syncing...") : (isAr ? "\u0645\u0632\u0627\u0645\u0646\u0629 \u0645\u0646 360dialog" : "Sync from 360dialog")}
+            {syncing ? (isAr ? "\u062C\u0627\u0631\u064D \u0627\u0644\u0645\u0632\u0627\u0645\u0646\u0629..." : "Syncing...") : (isAr ? "\u0645\u0632\u0627\u0645\u0646\u0629" : "Sync")}
           </Button>
           <Button primary onClick={() => { setNewTemplate({ name: "", category: "utility", language: "ar", header: "", body: "", body_ar: "", footer: "", buttons: [], body_examples: [] }); setPreviewLang("ar"); setShowCreateModal(true); }}>
             <Icon name="file" size={14} />
@@ -980,59 +980,110 @@ export default function TemplatesPage() {
                 )}
               </div>
               {newTemplate.buttons.map((btn, i) => (
-                <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
-                  <input
-                    value={btn.text}
-                    onChange={(e) => {
-                      const btns = [...newTemplate.buttons];
-                      btns[i] = { ...btns[i], text: e.target.value };
-                      setNewTemplate({ ...newTemplate, buttons: btns });
-                    }}
-                    placeholder={isAr ? "نص الزر" : "Button text"}
-                    style={{
-                      flex: 1,
-                      padding: "8px 12px",
-                      borderRadius: 8,
-                      border: `1px solid ${C.brd}`,
-                      background: C.inp,
-                      color: C.txt,
-                      fontSize: 12.5,
-                      fontFamily: FONT_FAMILY,
-                      outline: "none",
-                    }}
-                  />
-                  <select
-                    value={btn.type}
-                    onChange={(e) => {
-                      const btns = [...newTemplate.buttons];
-                      btns[i] = { ...btns[i], type: e.target.value };
-                      setNewTemplate({ ...newTemplate, buttons: btns });
-                    }}
-                    style={{
-                      padding: "8px 10px",
-                      borderRadius: 8,
-                      border: `1px solid ${C.brd}`,
-                      background: C.inp,
-                      color: C.txt,
-                      fontSize: 12,
-                      fontFamily: FONT_FAMILY,
-                      outline: "none",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <option value="url">URL</option>
-                    <option value="phone">{isAr ? "هاتف" : "Phone"}</option>
-                    <option value="quick_reply">{isAr ? "رد سريع" : "Quick Reply"}</option>
-                  </select>
-                  <button
-                    onClick={() => {
-                      const btns = newTemplate.buttons.filter((_, idx) => idx !== i);
-                      setNewTemplate({ ...newTemplate, buttons: btns });
-                    }}
-                    style={{ background: "transparent", border: "none", color: COLORS.err, cursor: "pointer", padding: 4, flexShrink: 0 }}
-                  >
-                    <Icon name="x" size={14} />
-                  </button>
+                <div key={i} style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12, padding: 10, border: `1px solid ${C.brd}`, borderRadius: 8, background: C.bg }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <input
+                      value={btn.text}
+                      onChange={(e) => {
+                        const btns = [...newTemplate.buttons];
+                        btns[i] = { ...btns[i], text: e.target.value.slice(0, 25) };
+                        setNewTemplate({ ...newTemplate, buttons: btns });
+                      }}
+                      placeholder={isAr ? "نص الزر (حد أقصى 25 حرف)" : "Button label (max 25 chars)"}
+                      maxLength={25}
+                      style={{
+                        flex: 1,
+                        padding: "8px 12px",
+                        borderRadius: 8,
+                        border: `1px solid ${C.brd}`,
+                        background: C.inp,
+                        color: C.txt,
+                        fontSize: 12.5,
+                        fontFamily: FONT_FAMILY,
+                        outline: "none",
+                      }}
+                    />
+                    <select
+                      value={btn.type}
+                      onChange={(e) => {
+                        const btns = [...newTemplate.buttons];
+                        // Reset value when switching types so old data doesn't leak
+                        btns[i] = { text: btns[i].text, type: e.target.value, value: "" };
+                        setNewTemplate({ ...newTemplate, buttons: btns });
+                      }}
+                      style={{
+                        padding: "8px 10px",
+                        borderRadius: 8,
+                        border: `1px solid ${C.brd}`,
+                        background: C.inp,
+                        color: C.txt,
+                        fontSize: 12,
+                        fontFamily: FONT_FAMILY,
+                        outline: "none",
+                        cursor: "pointer",
+                        minWidth: 90,
+                      }}
+                    >
+                      <option value="url">URL</option>
+                      <option value="phone">{isAr ? "هاتف" : "Phone"}</option>
+                      <option value="quick_reply">{isAr ? "رد سريع" : "Quick Reply"}</option>
+                    </select>
+                    <button
+                      onClick={() => {
+                        const btns = newTemplate.buttons.filter((_, idx) => idx !== i);
+                        setNewTemplate({ ...newTemplate, buttons: btns });
+                      }}
+                      style={{ background: "transparent", border: "none", color: COLORS.err, cursor: "pointer", padding: 4, flexShrink: 0 }}
+                    >
+                      <Icon name="x" size={14} />
+                    </button>
+                  </div>
+                  {btn.type === "url" && (
+                    <input
+                      value={btn.value || ""}
+                      onChange={(e) => {
+                        const btns = [...newTemplate.buttons];
+                        btns[i] = { ...btns[i], value: e.target.value };
+                        setNewTemplate({ ...newTemplate, buttons: btns });
+                      }}
+                      placeholder={isAr ? "الرابط (مثال: https://corbit.sa)" : "URL (e.g. https://corbit.sa)"}
+                      type="url"
+                      dir="ltr"
+                      style={{
+                        padding: "8px 12px",
+                        borderRadius: 8,
+                        border: `1px solid ${C.brd}`,
+                        background: C.inp,
+                        color: C.txt,
+                        fontSize: 12.5,
+                        fontFamily: FONT_FAMILY,
+                        outline: "none",
+                      }}
+                    />
+                  )}
+                  {btn.type === "phone" && (
+                    <input
+                      value={btn.value || ""}
+                      onChange={(e) => {
+                        const btns = [...newTemplate.buttons];
+                        btns[i] = { ...btns[i], value: e.target.value };
+                        setNewTemplate({ ...newTemplate, buttons: btns });
+                      }}
+                      placeholder={isAr ? "رقم الجوال (مثال: +966500000000)" : "Phone (e.g. +966500000000)"}
+                      type="tel"
+                      dir="ltr"
+                      style={{
+                        padding: "8px 12px",
+                        borderRadius: 8,
+                        border: `1px solid ${C.brd}`,
+                        background: C.inp,
+                        color: C.txt,
+                        fontSize: 12.5,
+                        fontFamily: FONT_FAMILY,
+                        outline: "none",
+                      }}
+                    />
+                  )}
                 </div>
               ))}
               {newTemplate.buttons.length === 0 && (
