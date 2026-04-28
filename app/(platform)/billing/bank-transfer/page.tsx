@@ -137,7 +137,7 @@ export default function BankTransferPage() {
     borderRadius: 8,
     border: `1px solid ${C.brd}`,
     background: C.bg,
-    color: C.t1,
+    color: C.txt,
     fontSize: 13,
     outline: "none",
   };
@@ -355,7 +355,7 @@ function Row({ label, value, copyable }: { label: string; value: string; copyabl
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, fontSize: 12, padding: "4px 0" }}>
       <span style={{ color: C.t2 }}>{label}</span>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <span style={{ fontFamily: "monospace", color: C.t1 }}>{value}</span>
+        <span style={{ fontFamily: "monospace", color: C.txt }}>{value}</span>
         {copyable && (
           <button
             onClick={copy}
@@ -381,5 +381,5 @@ function Th({ children }: { children: React.ReactNode }) {
 
 function Td({ children }: { children: React.ReactNode }) {
   const { colors: C } = useTheme();
-  return <td style={{ padding: "10px 14px", color: C.t1 }}>{children}</td>;
+  return <td style={{ padding: "10px 14px", color: C.txt }}>{children}</td>;
 }
