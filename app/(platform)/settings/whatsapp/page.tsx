@@ -39,10 +39,11 @@ export default function WhatsAppOnboardingPage() {
     api_key: "",
     phone_number_id: "",
     waba_id: "",
+    phone_number: "",
   });
 
   const reset = () => {
-    setForm({ api_key: "", phone_number_id: "", waba_id: "" });
+    setForm({ api_key: "", phone_number_id: "", waba_id: "", phone_number: "" });
     setTestResult(null);
   };
 
@@ -71,6 +72,10 @@ export default function WhatsAppOnboardingPage() {
   const handleConnect = async () => {
     if (!testResult) {
       showToast(isAr ? "اختبر المفاتيح أوّلاً" : "Test credentials first", "error");
+      return;
+    }
+    if (!form.phone_number) {
+      showToast(isAr ? "أدخل رقم الجوال" : "Enter the phone number", "error");
       return;
     }
     setConnecting(true);
@@ -284,6 +289,20 @@ export default function WhatsAppOnboardingPage() {
             />
             <div style={{ fontSize: 11, color: C.t2, marginTop: 4 }}>
               {isAr ? "من 360dialog Hub → WhatsApp Business Account ID" : "From 360dialog Hub → WhatsApp Business Account ID"}
+            </div>
+          </div>
+
+          <div>
+            <label style={labelStyle}>{isAr ? "رقم الجوال" : "Phone Number"} <span style={{ color: "#ef4444" }}>*</span></label>
+            <input
+              type="text"
+              value={form.phone_number}
+              onChange={(e) => setForm({ ...form, phone_number: e.target.value })}
+              placeholder="966148213721"
+              style={inputStyle}
+            />
+            <div style={{ fontSize: 11, color: C.t2, marginTop: 4 }}>
+              {isAr ? "بدون + أو 00 (الرقم اللي يظهر في الـ Hub أعلى صفحة Channel)" : "Without + or 00 (the number shown at the top of the Hub Channel page)"}
             </div>
           </div>
 
