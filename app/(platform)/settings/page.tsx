@@ -11,6 +11,7 @@ import { FONT_FAMILY } from "@/lib/constants/font";
 import { GRADIENT } from "@/lib/constants/colors";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { useSettings } from "@/lib/api/hooks";
+import { WhatsAppConnect } from "@/components/settings/whatsapp-connect";
 import api from "@/lib/api/client";
 
 /* ─── helpers ─── */
@@ -198,6 +199,7 @@ export default function SettingsPage() {
     { key: "notifications", label: ar ? "الإشعارات" : "Notifications" },
     { key: "security", label: ar ? "الأمان" : "Security" },
     { key: "channels", label: ar ? "القنوات" : "Channels" },
+    { key: "whatsapp", label: ar ? "ربط الواتساب" : "WhatsApp" },
     { key: "team", label: ar ? "الفريق" : "Team" },
     { key: "api", label: ar ? "واجهة API" : "API" },
   ];
@@ -697,6 +699,11 @@ export default function SettingsPage() {
             </Card>
           </div>
         </div>
+      )}
+
+      {/* ═══════════ WHATSAPP TAB ═══════════ */}
+      {tab === "whatsapp" && (
+        <WhatsAppConnect showHeader={false} />
       )}
 
       {/* ═══════════ TEAM TAB ═══════════ */}

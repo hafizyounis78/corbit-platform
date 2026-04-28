@@ -13,6 +13,7 @@ import { Donut } from "@/components/charts/donut";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { Sparkline } from "@/components/charts/sparkline";
 import { useBillingOverview, useBillingPlans, useBillingTransactions, useBankAccounts } from "@/lib/api/hooks";
+import { PlanUsageCard } from "@/components/plan/plan-usage-card";
 import api from "@/lib/api/client";
 
 type BankAccount = {
@@ -258,26 +259,7 @@ export default function BillingPage() {
       )}
 
       {tab === "usage" && (
-        <div style={{ display: "grid", gridTemplateColumns: isMob ? "1fr" : "1fr 1fr", gap: 16 }}>
-          <Card style={{ padding: 20 }}>
-            <h3 style={{ margin: "0 0 16px", fontSize: 14, fontWeight: 700 }}>{t("waConv")}</h3>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 6 }}>
-              <span style={{ color: C.t2 }}>{ar ? "مستخدم" : "Used"}: {overview.waUsed || "0"}</span>
-              <span style={{ fontWeight: 600 }}>{ar ? "الإجمالي" : "Total"}: {overview.waTotal || "0"}</span>
-            </div>
-            <ProgressBar value={73.7} color={C.pri} />
-            <div style={{ fontSize: 11, color: C.t2, marginTop: 6 }}>{ar ? "متبقي:" : "Remaining:"} {overview.waRemaining || "0"}</div>
-          </Card>
-          <Card style={{ padding: 20 }}>
-            <h3 style={{ margin: "0 0 16px", fontSize: 14, fontWeight: 700 }}>{t("aiCredits")}</h3>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 6 }}>
-              <span style={{ color: C.t2 }}>{ar ? "مستخدم" : "Used"}: {overview.aiUsed || "0"}</span>
-              <span style={{ fontWeight: 600 }}>{ar ? "الإجمالي" : "Total"}: {overview.aiTotal || "0"}</span>
-            </div>
-            <ProgressBar value={62} color="#7C3AED" />
-            <div style={{ fontSize: 11, color: C.t2, marginTop: 6 }}>{ar ? "متبقي:" : "Remaining:"} {overview.aiRemaining || "0"}</div>
-          </Card>
-        </div>
+        <PlanUsageCard />
       )}
 
       {tab === "transactions" && (
