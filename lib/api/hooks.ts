@@ -191,6 +191,14 @@ export function useWhatsAppStatus() {
   return useApi('/onboarding/whatsapp/status');
 }
 
+export function usePlanUsage() {
+  return useApi<{
+    plan: { name: string; name_ar: string; price: number } | null;
+    limits: Record<string, number | boolean>;
+    usage: Record<string, number>;
+  }>('/billing/plan-usage');
+}
+
 // ─── Notifications ────────────────────────────────────────
 export function useNotifications() {
   return useApi('/notifications');
