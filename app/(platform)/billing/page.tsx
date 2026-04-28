@@ -125,7 +125,12 @@ export default function BillingPage() {
           <h2 style={{ margin: "0 0 4px", fontSize: 20, fontWeight: 700 }}>{t("billing")}</h2>
           <p style={{ fontSize: 13, color: C.t2, margin: 0 }}>{ar ? "الفوترة والاشتراكات" : "Billing & subscriptions"}</p>
         </div>
-        <Button primary onClick={() => { setTopUpAmount(""); setPaymentMethod("card"); setShowTopUp(true); }}>{t("topUp")}</Button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <a href="/billing/bank-transfer" style={{ textDecoration: "none" }}>
+            <Button>{ar ? "تحويل بنكي" : "Bank Transfer"}</Button>
+          </a>
+          <Button primary onClick={() => { setTopUpAmount(""); setPaymentMethod("card"); setShowTopUp(true); }}>{t("topUp")}</Button>
+        </div>
       </div>
       <div style={{ marginBottom: 16 }}>
         <TabBar tabs={tabs} active={tab} onChange={setTab} />

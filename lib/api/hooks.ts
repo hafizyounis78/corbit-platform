@@ -179,6 +179,14 @@ export function useBillingTransactions() {
   return useApi('/billing/transactions');
 }
 
+export function useBankAccounts() {
+  return useApi('/billing/bank-accounts');
+}
+
+export function useMyTransfers() {
+  return useApi('/billing/transfers');
+}
+
 // ─── Notifications ────────────────────────────────────────
 export function useNotifications() {
   return useApi('/notifications');
