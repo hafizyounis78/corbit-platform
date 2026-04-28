@@ -12,8 +12,18 @@ import { GRADIENT } from "@/lib/constants/colors";
 import { Donut } from "@/components/charts/donut";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { Sparkline } from "@/components/charts/sparkline";
-import { useBillingOverview, useBillingPlans, useBillingTransactions } from "@/lib/api/hooks";
+import { useBillingOverview, useBillingPlans, useBillingTransactions, useBankAccounts } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
+
+type BankAccount = {
+  id: string;
+  bank_name: string;
+  bank_name_ar?: string;
+  account_number: string;
+  iban: string;
+  account_holder: string;
+  is_default?: boolean;
+};
 
 export default function BillingPage() {
   const { colors: C, isDark: dk } = useTheme();
@@ -25,8 +35,16 @@ export default function BillingPage() {
   const [txnPage, setTxnPage] = useState(1);
   const [showTopUp, setShowTopUp] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("card");
+  const [paymentMethod, setPaymentMethod] = useState("bank");
   const [topUpLoading, setTopUpLoading] = useState(false);
+  const [bankAccountId, setBankAccountId] = useState("");
+  const [depositedName, setDepositedName] = useState("");
+  const [transferDate, setTransferDate] = useState(new Date().toISOString().slice(0, 10));
+  const [reference, setReference] = useState("");
+  const [note, setNote] = useState("");
+  const [receipt, setReceipt] = useState<File | null>(null);
+  const { data: bankAccountsData } = useBankAccounts();
+  const bankAccounts: BankAccount[] = Array.isArray(bankAccountsData) ? bankAccountsData : [];
   const [upgradeLoading, setUpgradeLoading] = useState<number | null>(null);
   const [confirmUpgrade, setConfirmUpgrade] = useState<any | null>(null);
 
@@ -76,6 +94,39 @@ export default function BillingPage() {
   const handleTopUp = async () => {
     const amt = parseFloat(topUpAmount);
     if (!amt || amt <= 0) { showToast(ar ? "يرجى إدخال مبلغ صحيح" : "Please enter valid amount", "error"); return; }
+
+    if (paymentMethod === "bank") {
+      if (!bankAccountId) { showToast(ar ? "اختر البنك المستفيد" : "Select bank account", "error"); return; }
+      if (!depositedName) { showToast(ar ? "اسم المحوِّل مطلوب" : "Depositor name required", "error"); return; }
+      if (!receipt) { showToast(ar ? "صورة الإيصال مطلوبة" : "Receipt is required", "error"); return; }
+
+      setTopUpLoading(true);
+      try {
+        const fd = new FormData();
+        fd.append("amount", String(amt));
+        fd.append("bank_account_id", bankAccountId);
+        fd.append("deposited_name", depositedName);
+        fd.append("transfer_date", transferDate);
+        if (reference) fd.append("reference", reference);
+        if (note) fd.append("note", note);
+        fd.append("receipt", receipt);
+
+        await api.post('/billing/transfers', fd, { headers: { "Content-Type": "multipart/form-data" } });
+        showToast(ar ? "تمّ استلام التحويل، سيتمّ مراجعته" : "Transfer submitted, awaiting review");
+        setShowTopUp(false);
+        setTopUpAmount("");
+        setBankAccountId(""); setDepositedName(""); setReference(""); setNote(""); setReceipt(null);
+        mutateOverview();
+        mutateTxns();
+      } catch (e: any) {
+        const msg = e?.response?.data?.message || e?.message || "";
+        showToast(ar ? `فشل الإرسال: ${msg}` : `Submission failed: ${msg}`, "error");
+      } finally {
+        setTopUpLoading(false);
+      }
+      return;
+    }
+
     setTopUpLoading(true);
     try {
       await api.post('/billing/top-up', { amount: amt, paymentMethod });
@@ -125,12 +176,7 @@ export default function BillingPage() {
           <h2 style={{ margin: "0 0 4px", fontSize: 20, fontWeight: 700 }}>{t("billing")}</h2>
           <p style={{ fontSize: 13, color: C.t2, margin: 0 }}>{ar ? "الفوترة والاشتراكات" : "Billing & subscriptions"}</p>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <a href="/billing/bank-transfer" style={{ textDecoration: "none" }}>
-            <Button>{ar ? "تحويل بنكي" : "Bank Transfer"}</Button>
-          </a>
-          <Button primary onClick={() => { setTopUpAmount(""); setPaymentMethod("card"); setShowTopUp(true); }}>{t("topUp")}</Button>
-        </div>
+        <Button primary onClick={() => { setTopUpAmount(""); setPaymentMethod("bank"); setShowTopUp(true); }}>{t("topUp")}</Button>
       </div>
       <div style={{ marginBottom: 16 }}>
         <TabBar tabs={tabs} active={tab} onChange={setTab} />
@@ -351,9 +397,10 @@ export default function BillingPage() {
             <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 8 }}>{ar ? "طريقة الدفع" : "Payment Method"}</label>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {[
-                { key: "card", icon: "card", label: ar ? "بطاقة ائتمان" : "Credit Card", desc: ar ? "Visa, Mastercard, مدى" : "Visa, Mastercard, Mada" },
+                // Hidden until a payment gateway is integrated:
+                // { key: "card", icon: "card", label: ar ? "بطاقة ائتمان" : "Credit Card", desc: ar ? "Visa, Mastercard, مدى" : "Visa, Mastercard, Mada" },
                 { key: "bank", icon: "receipt", label: ar ? "تحويل بنكي" : "Bank Transfer", desc: ar ? "حوالة بنكية مباشرة" : "Direct bank transfer" },
-                { key: "wallet", icon: "wallet", label: ar ? "Apple Pay / STC Pay" : "Apple Pay / STC Pay", desc: ar ? "محافظ إلكترونية" : "Digital wallets" },
+                // { key: "wallet", icon: "wallet", label: ar ? "Apple Pay / STC Pay" : "Apple Pay / STC Pay", desc: ar ? "محافظ إلكترونية" : "Digital wallets" },
               ].map((m) => (
                 <button
                   key={m.key}
@@ -380,6 +427,112 @@ export default function BillingPage() {
               ))}
             </div>
           </div>
+
+          {/* Bank Transfer Details (only when bank method selected) */}
+          {paymentMethod === "bank" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: 14, borderRadius: 12, background: C.inp, border: `1px solid ${C.brd}` }}>
+              <div style={{ fontSize: 12.5, fontWeight: 600, color: C.txt }}>
+                {ar ? "تفاصيل التحويل البنكي" : "Bank transfer details"}
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: 11.5, color: C.t2, marginBottom: 4 }}>
+                  {ar ? "البنك المستفيد" : "To bank account"} <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <select
+                  value={bankAccountId}
+                  onChange={(e) => setBankAccountId(e.target.value)}
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.brd}`, background: C.bg, color: C.txt, fontSize: 13, outline: "none", fontFamily: FONT_FAMILY }}
+                >
+                  <option value="">{ar ? "اختر..." : "Select..."}</option>
+                  {bankAccounts.map((acc) => (
+                    <option key={acc.id} value={acc.id}>
+                      {ar ? acc.bank_name_ar || acc.bank_name : acc.bank_name} — {acc.iban}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {bankAccountId && (() => {
+                const acc = bankAccounts.find((a) => a.id === bankAccountId);
+                if (!acc) return null;
+                return (
+                  <div style={{ padding: 10, borderRadius: 8, background: C.bg, fontSize: 12, lineHeight: 1.7 }}>
+                    <div><span style={{ color: C.t2 }}>{ar ? "اسم المستفيد:" : "Beneficiary:"}</span> <strong style={{ color: C.txt }}>{acc.account_holder}</strong></div>
+                    <div><span style={{ color: C.t2 }}>{ar ? "رقم الحساب:" : "Account #:"}</span> <strong style={{ color: C.txt, fontFamily: "monospace" }}>{acc.account_number}</strong></div>
+                    <div><span style={{ color: C.t2 }}>IBAN:</span> <strong style={{ color: C.txt, fontFamily: "monospace" }}>{acc.iban}</strong></div>
+                  </div>
+                );
+              })()}
+
+              <div>
+                <label style={{ display: "block", fontSize: 11.5, color: C.t2, marginBottom: 4 }}>
+                  {ar ? "اسم المحوِّل" : "Depositor name"} <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  value={depositedName}
+                  onChange={(e) => setDepositedName(e.target.value)}
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.brd}`, background: C.bg, color: C.txt, fontSize: 13, outline: "none", fontFamily: FONT_FAMILY }}
+                />
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <div>
+                  <label style={{ display: "block", fontSize: 11.5, color: C.t2, marginBottom: 4 }}>
+                    {ar ? "تاريخ التحويل" : "Transfer date"} <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={transferDate}
+                    max={new Date().toISOString().slice(0, 10)}
+                    onChange={(e) => setTransferDate(e.target.value)}
+                    style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.brd}`, background: C.bg, color: C.txt, fontSize: 13, outline: "none", fontFamily: FONT_FAMILY }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: 11.5, color: C.t2, marginBottom: 4 }}>
+                    {ar ? "الرقم المرجعي" : "Reference"}
+                  </label>
+                  <input
+                    type="text"
+                    value={reference}
+                    onChange={(e) => setReference(e.target.value)}
+                    style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.brd}`, background: C.bg, color: C.txt, fontSize: 13, outline: "none", fontFamily: FONT_FAMILY }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: 11.5, color: C.t2, marginBottom: 4 }}>
+                  {ar ? "ملاحظة" : "Note"}
+                </label>
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  rows={2}
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.brd}`, background: C.bg, color: C.txt, fontSize: 13, outline: "none", fontFamily: FONT_FAMILY, resize: "vertical" }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: 11.5, color: C.t2, marginBottom: 4 }}>
+                  {ar ? "صورة الإيصال (jpg/png/pdf، حدّ أقصى 5MB)" : "Receipt (jpg/png/pdf, max 5MB)"} <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,application/pdf"
+                  onChange={(e) => setReceipt(e.target.files?.[0] ?? null)}
+                  style={{ width: "100%", padding: "8px", borderRadius: 8, border: `1px solid ${C.brd}`, background: C.bg, color: C.txt, fontSize: 12, fontFamily: FONT_FAMILY }}
+                />
+                {receipt && (
+                  <div style={{ marginTop: 4, fontSize: 11, color: C.t2 }}>
+                    {receipt.name} ({(receipt.size / 1024).toFixed(1)} KB)
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Summary */}
           {topUpAmount && parseFloat(topUpAmount) > 0 && (
