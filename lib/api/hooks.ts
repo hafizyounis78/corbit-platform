@@ -187,6 +187,10 @@ export function useMyTransfers() {
   return useApi('/billing/transfers');
 }
 
+export function useWhatsAppStatus() {
+  return useApi('/onboarding/whatsapp/status');
+}
+
 // ─── Notifications ────────────────────────────────────────
 export function useNotifications() {
   return useApi('/notifications');
