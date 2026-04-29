@@ -33,6 +33,7 @@ export function getConversations(lang: Locale): Conversation[] {
 }
 
 export interface ChatMessage {
+  id?: string;
   from: "customer" | "bot" | "agent";
   text: string;
   time: string;

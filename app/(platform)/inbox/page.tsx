@@ -15,6 +15,7 @@ import { useConversations, useMessages, useWindowStatus } from "@/lib/api/hooks"
 import api from "@/lib/api/client";
 import { COLORS } from "@/lib/constants/colors";
 import { TemplatePicker } from "@/components/shared/template-picker";
+import { ReportIssueModal, type IssueContext } from "@/components/support/report-issue-modal";
 
 const QUICK_REPLIES_AR = ["شكراً لتواصلك!", "سأتحقق وأعود لك", "هل تحتاج مساعدة أخرى؟", "تم إرسال التفاصيل"];
 const QUICK_REPLIES_EN = ["Thanks for reaching out!", "Let me check and get back to you", "Anything else I can help with?", "Details sent"];
@@ -59,6 +60,7 @@ function mapApiConversation(c: any): Conversation {
 
 function mapApiMessage(m: any): ChatMessage {
   return {
+    id:   m.id || m._id || undefined,
     from: m.from || m.sender || m.messageType || "customer",
     text: m.text || m.content || m.body || "",
     time: m.time || m.created_at || m.createdAt || "",
@@ -106,6 +108,11 @@ export default function InboxPage() {
   const [notes, setNotes] = useState<string[]>([]);
   const [aiSuggesting, setAiSuggesting] = useState(false);
   const [aiSuggestionLogId, setAiSuggestionLogId] = useState<string | null>(null);
+
+  // "Report this message" modal — captures the message id + a preview
+  // so support sees what the user was complaining about even if the
+  // message is later deleted.
+  const [reportContext, setReportContext] = useState<IssueContext | null>(null);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -497,9 +504,14 @@ export default function InboxPage() {
           {messages.map((m, i) => {
             const cu = m.from === "customer";
             const bo = m.from === "bot";
+            const canReport = !!m.id && !!selectedId;
             return (
-              <div key={i} style={{ display: "flex", justifyContent: cu ? (rtl ? "flex-end" : "flex-start") : (rtl ? "flex-start" : "flex-end"), marginBottom: 14 }}>
-                <div style={{ maxWidth: "65%", padding: "12px 16px", borderRadius: 16, background: cu ? C.card : bo ? C.wa + "12" : C.pri, color: (!cu && !bo) ? "#fff" : C.txt, border: cu ? "1px solid " + (dk ? C.brd : "#E8E5E0") : "none", boxShadow: cu ? C.shadow : "none" }}>
+              <div
+                key={i}
+                className="msg-row"
+                style={{ display: "flex", justifyContent: cu ? (rtl ? "flex-end" : "flex-start") : (rtl ? "flex-start" : "flex-end"), marginBottom: 14, alignItems: "flex-start", gap: 6 }}
+              >
+                <div style={{ maxWidth: "65%", padding: "12px 16px", borderRadius: 16, background: cu ? C.card : bo ? C.wa + "12" : C.pri, color: (!cu && !bo) ? "#fff" : C.txt, border: cu ? "1px solid " + (dk ? C.brd : "#E8E5E0") : "none", boxShadow: cu ? C.shadow : "none", position: "relative" }}>
                   {bo && (
                     <div style={{ fontSize: 10.5, fontWeight: 600, color: C.wa, marginBottom: 5, display: "flex", alignItems: "center", gap: 4 }}>
                       <Icon name="bot" size={12} /> Bot
@@ -511,6 +523,28 @@ export default function InboxPage() {
                     {!cu && <span style={{ color: C.info }}><Icon name="dcheck" size={10} /></span>}
                   </div>
                 </div>
+                {canReport && (
+                  <button
+                    onClick={() => setReportContext({
+                      type: "message",
+                      conversationId: selectedId!,
+                      messageId: m.id!,
+                      preview: m.text,
+                      sentAt: m.time,
+                    })}
+                    title={isAr ? "تبليغ عن هذه الرسالة" : "Report this message"}
+                    style={{
+                      width: 26, height: 26, borderRadius: 13, border: `1px solid ${C.brd}`,
+                      background: C.card, color: C.t3, cursor: "pointer", padding: 0,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      flexShrink: 0, marginTop: 6, fontSize: 12, transition: "all 0.15s",
+                    }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = C.err; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = C.t3; }}
+                  >
+                    🚩
+                  </button>
+                )}
               </div>
             );
           })}
@@ -812,6 +846,14 @@ export default function InboxPage() {
       {renderConversationList()}
       {renderChatPanel()}
       {showDetail && !isTablet && renderDetailPanel()}
+
+      {/* Per-message report-issue modal. Mounted once for the whole
+          inbox; the row buttons just feed it a fresh IssueContext. */}
+      <ReportIssueModal
+        open={!!reportContext}
+        onClose={() => setReportContext(null)}
+        context={reportContext ?? { type: "general" }}
+      />
     </div>
   );
 }
