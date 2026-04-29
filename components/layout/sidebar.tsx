@@ -9,7 +9,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { navItems, canAccessNav } from "@/data/nav-items";
 import { FONT_FAMILY } from "@/lib/constants/font";
 import { GRADIENT } from "@/lib/constants/colors";
-import { useNavBadges } from "@/lib/api/hooks";
+import { useNavBadges, usePlanUsage } from "@/lib/api/hooks";
 import { useAuth } from "@/lib/auth/auth-context";
 
 interface SidebarProps {
@@ -22,7 +22,17 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
   const { colors: C } = useTheme();
   const { t, isAr } = useLocale();
   const { data: badges } = useNavBadges();
+  const { data: planData } = usePlanUsage();
   const { user, logout } = useAuth();
+
+  const plan = (planData as any)?.plan;
+  const usage = (planData as any)?.usage ?? {};
+  const limits = (planData as any)?.limits ?? {};
+  const convUsed = Number(usage.conversations ?? 0);
+  const convLimit = Number(limits.max_conversations ?? 0);
+  const convPct = convLimit > 0 && convLimit !== -1 ? Math.min(100, (convUsed / convLimit) * 100) : 0;
+  const convDanger = convLimit !== -1 && convPct >= 90;
+  const convWarn = convLimit !== -1 && convPct >= 70 && convPct < 90;
 
   const getBadge = (item: (typeof navItems)[number]) => {
     if (badges) {
@@ -195,6 +205,53 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
           </>
         ) : null}
       </nav>
+
+      {/* Plan badge — links to /billing */}
+      {open && plan && (
+        <Link
+          href="/billing"
+          style={{
+            margin: "0 16px 4px",
+            padding: "10px 12px",
+            borderRadius: 10,
+            border: `1px solid ${convDanger ? C.err : convWarn ? C.warn : C.brd}`,
+            background: convDanger ? C.err + "10" : convWarn ? C.warn + "10" : "transparent",
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+            textDecoration: "none",
+            cursor: "pointer",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <Icon name="star" size={12} />
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: C.txt }}>
+                {isAr ? plan.name_ar || plan.name : plan.name}
+              </span>
+            </div>
+            <span style={{ fontSize: 10, color: C.t2 }}>
+              {Number(plan.price).toLocaleString()} {isAr ? "ر.س" : "SAR"}
+            </span>
+          </div>
+          <div style={{ fontSize: 10, color: C.t2, display: "flex", justifyContent: "space-between" }}>
+            <span>{isAr ? "محادثات الشهر" : "Conversations"}</span>
+            <span style={{ fontFamily: "monospace" }}>
+              {convUsed.toLocaleString()} / {convLimit === -1 ? "∞" : convLimit.toLocaleString()}
+            </span>
+          </div>
+          {convLimit !== -1 && (
+            <div style={{ height: 4, background: C.brd, borderRadius: 2, overflow: "hidden" }}>
+              <div style={{
+                height: "100%",
+                width: `${convPct}%`,
+                background: convDanger ? C.err : convWarn ? C.warn : "#10b981",
+                transition: "width 0.3s",
+              }} />
+            </div>
+          )}
+        </Link>
+      )}
 
       {/* User */}
       {open && (
