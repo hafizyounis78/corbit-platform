@@ -53,6 +53,7 @@ function mapApiConversation(c: any): Conversation {
     orders: c.orders ?? 0,
     joined: c.joined || c.created_at || c.createdAt || "",
     notes: c.notes || "",
+    aiEnabled: !!(c.aiEnabled ?? c.ai_agent_enabled ?? false),
   };
 }
 
@@ -94,7 +95,12 @@ export default function InboxPage() {
   const [showQuickReplies, setShowQuickReplies] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [mobileView, setMobileView] = useState<"list" | "chat" | "detail">("list");
-  const [aiAgents, setAiAgents] = useState<Record<number, boolean>>({ 0: true, 3: true });
+  // Per-conversation AI override map keyed by conversation id. Only set
+  // for conversations the user toggled this session — for the rest we
+  // read straight from the conversation's aiEnabled (loaded from API),
+  // so a refresh always reflects the source of truth in DB instead of
+  // a stale hard-coded local state.
+  const [aiAgentsById, setAiAgentsById] = useState<Record<string, boolean>>({});
   const [noteText, setNoteText] = useState("");
   const [aiSummary, setAiSummary] = useState(false);
   const [notes, setNotes] = useState<string[]>([]);
@@ -159,21 +165,29 @@ export default function InboxPage() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const isAiOn = aiAgents[selectedIdx] === true;
+  // Resolved AI state for the selected conversation: prefer the user's
+  // session-level override (so optimistic toggles don't flicker), fall
+  // back to whatever the API reported.
+  const isAiOn = selectedId
+    ? (aiAgentsById[selectedId] ?? selected?.aiEnabled ?? false)
+    : false;
 
   const toggleAi = useCallback(async () => {
+    if (!selectedId) return;
     const newVal = !isAiOn;
-    // Optimistic update
-    setAiAgents((prev) => ({ ...prev, [selectedIdx]: newVal }));
-    // Sync with API
-    if (selectedId) {
-      try {
-        await api.post(`/conversations/${selectedId}/ai/toggle`, { enabled: newVal });
-      } catch (e) {
-        console.error(e);
-      }
+    // Optimistic update keyed by conversation id (not by row index).
+    setAiAgentsById((prev) => ({ ...prev, [selectedId]: newVal }));
+    try {
+      await api.post(`/conversations/${selectedId}/ai/toggle`, { enabled: newVal });
+      // Re-fetch so the next render reads aiEnabled from the API and
+      // we can drop the override on success.
+      mutateConvos();
+    } catch (e) {
+      // Roll the optimistic flip back on failure so the UI stays honest.
+      setAiAgentsById((prev) => ({ ...prev, [selectedId]: !newVal }));
+      console.error(e);
     }
-  }, [isAiOn, selectedIdx, selectedId]);
+  }, [isAiOn, selectedId, mutateConvos]);
 
   const sentColor = getSentimentColor(selected?.sentiment);
   const sentLabel = getSentimentLabel(selected?.sentiment, isAr);
@@ -364,7 +378,7 @@ export default function InboxPage() {
                   {c.online && (
                     <div style={{ position: "absolute", bottom: 0, right: 0, width: 12, height: 12, borderRadius: 6, background: C.wa, border: "2px solid " + C.card }} />
                   )}
-                  {aiAgents[idx] && (
+                  {(c.id ? (aiAgentsById[c.id] ?? c.aiEnabled) : c.aiEnabled) && (
                     <div style={{ position: "absolute", top: -2, left: -2, width: 18, height: 18, borderRadius: 5, background: AI_COLOR, border: "2px solid " + C.card, display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <span style={{ color: "#fff", fontSize: 8, fontWeight: 800 }}>AI</span>
                     </div>

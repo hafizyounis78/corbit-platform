@@ -17,6 +17,8 @@ export interface Conversation {
   orders: number;
   joined: string;
   notes: string;
+  /** True when the AI auto-reply is currently handling this conversation. */
+  aiEnabled?: boolean;
 }
 
 export function getConversations(lang: Locale): Conversation[] {
