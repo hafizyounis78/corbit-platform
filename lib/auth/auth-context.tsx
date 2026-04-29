@@ -28,12 +28,23 @@ interface User {
   lastActive: string;
 }
 
+interface LoginResult {
+  success: boolean;
+  error?: string;
+  /** Set when the user has 2FA enabled — frontend should redirect to /auth/otp. */
+  otpRequired?: boolean;
+  userId?: string;
+  phoneMasked?: string;
+}
+
 interface AuthContextType {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string) => Promise<LoginResult>;
+  /** Used by /auth/otp page to finalize login after the SMS code is verified. */
+  finalizeLoginFromVerify: (data: { token: string; user: User }) => void;
   logout: () => Promise<void>;
   updateUser: (data: Partial<User>) => void;
 }
@@ -44,6 +55,7 @@ const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   isLoading: true,
   login: async () => ({ success: false }),
+  finalizeLoginFromVerify: () => {},
   logout: async () => {},
   updateUser: () => {},
 });
@@ -73,10 +85,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string): Promise<LoginResult> => {
     try {
       const res = await api.post(API.AUTH.LOGIN, { email, password });
-      const { token: newToken, user: userData } = res.data.data;
+      const data = res.data?.data ?? {};
+
+      // SMS OTP gate: backend says credentials are good but user has 2FA on.
+      // Don't store anything — the page will route to /auth/otp and the
+      // verify step there will hand back a real token.
+      if (data.otp_required) {
+        return {
+          success: false,
+          otpRequired: true,
+          userId: data.user_id,
+          phoneMasked: data.phone_masked,
+        };
+      }
+
+      const { token: newToken, user: userData } = data;
       localStorage.setItem('auth_token', newToken);
       localStorage.setItem('auth_user', JSON.stringify(userData));
       setToken(newToken);
@@ -93,6 +119,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         error: e.response?.data?.message || 'فشل تسجيل الدخول',
       };
     }
+  }, []);
+
+  /**
+   * Persist token and user from the OTP verify response, mirroring what
+   * login() does on a 2FA-off success. Kept separate so the OTP page
+   * can stay decoupled from the login form.
+   */
+  const finalizeLoginFromVerify = useCallback((data: { token: string; user: User }) => {
+    localStorage.setItem('auth_token', data.token);
+    localStorage.setItem('auth_user', JSON.stringify(data.user));
+    setToken(data.token);
+    setUser(data.user);
   }, []);
 
   const logout = useCallback(async () => {
@@ -117,6 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: !!user && !!token,
       isLoading,
       login,
+      finalizeLoginFromVerify,
       logout,
       updateUser,
     }}>

@@ -25,6 +25,16 @@ export default function LoginPage() {
     const result = await login(email, password);
     if (result.success) {
       router.replace('/dashboard');
+    } else if (result.otpRequired && result.userId) {
+      // 2FA gate: stash the user_id + masked phone so the OTP page can
+      // render context without us passing them through router state.
+      try {
+        sessionStorage.setItem('otp_pending', JSON.stringify({
+          userId: result.userId,
+          phoneMasked: result.phoneMasked ?? '',
+        }));
+      } catch { /* sessionStorage not available — page will fall back to query string */ }
+      router.replace(`/auth/otp?u=${encodeURIComponent(result.userId)}`);
     } else {
       setError(result.error || 'فشل تسجيل الدخول');
     }
