@@ -50,18 +50,36 @@ function Select({ value, onChange, options, C }: { value: string; onChange?: (v:
   );
 }
 
-function ToggleRow({ label, on, onToggle, desc, icon, C }: { label: string; on: boolean; onToggle: () => void; desc?: string; icon?: string; C: any }) {
+function ToggleRow({ label, on, onToggle, desc, icon, C, comingSoon }: { label: string; on: boolean; onToggle: () => void; desc?: string; icon?: string; C: any; comingSoon?: boolean }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", borderRadius: 10, background: C.inp, marginBottom: 4 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", borderRadius: 10, background: C.inp, marginBottom: 4, opacity: comingSoon ? 0.55 : 1 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
         {icon && <span style={{ fontSize: 16 }}>{icon}</span>}
         <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 600, fontSize: 13 }}>{label}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontWeight: 600, fontSize: 13 }}>{label}</span>
+            {comingSoon && (
+              <span style={{ fontSize: 9.5, fontWeight: 600, padding: "1px 6px", borderRadius: 6, background: `${C.warn}20`, color: C.warn, letterSpacing: 0.2 }}>قريباً</span>
+            )}
+          </div>
           {desc && <div style={{ fontSize: 11, color: C.t2, marginTop: 2 }}>{desc}</div>}
         </div>
       </div>
-      <Toggle on={on} onToggle={onToggle} />
+      <Toggle on={comingSoon ? false : on} onToggle={() => { if (!comingSoon) onToggle(); }} />
     </div>
+  );
+}
+
+/**
+ * Section header with a "قريباً" badge — for whole cards/sections that
+ * aren't wired up yet. Use sparingly: prefer hiding dead UI to badging it.
+ */
+function SectionTitleWithComingSoon({ children, C }: { children: string; C: any }) {
+  return (
+    <h3 style={{ margin: "0 0 14px", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+      {children}
+      <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 6, background: `${C.warn}20`, color: C.warn }}>قريباً</span>
+    </h3>
   );
 }
 
@@ -577,47 +595,35 @@ export default function SettingsPage() {
         <div style={grid2Style}>
           {/* Platform Notifications */}
           <Card style={{ padding: 18 }}>
-            <SectionTitle>{ar ? "إشعارات المنصة" : "Platform Notifications"}</SectionTitle>
-            <ToggleRow C={C} label={ar ? "محادثة جديدة" : "New Conversation"} desc={ar ? "عند وصول محادثة جديدة" : "When a new conversation arrives"} on={notifNew} onToggle={() => setNotifNew(!notifNew)} icon="💬" />
-            <ToggleRow C={C} label={ar ? "رسالة جديدة" : "New Message"} desc={ar ? "عند وصول رسالة في محادثة حالية" : "When a message arrives in existing conversation"} on={notifMsg} onToggle={() => setNotifMsg(!notifMsg)} icon="📩" />
-            <ToggleRow C={C} label={ar ? "تعيين" : "Assignment"} desc={ar ? "عند تعيين محادثة لك" : "When a conversation is assigned to you"} on={notifAssign} onToggle={() => setNotifAssign(!notifAssign)} icon="👤" />
-            <ToggleRow C={C} label={ar ? "تصعيد" : "Escalation"} desc={ar ? "عند تصعيد محادثة" : "When a conversation is escalated"} on={notifEsc} onToggle={() => setNotifEsc(!notifEsc)} icon="🚨" />
-            <ToggleRow C={C} label={ar ? "تحذير SLA" : "SLA Warning"} desc={ar ? "عند اقتراب انتهاء وقت الاستجابة" : "When response time is nearing limit"} on={notifSla} onToggle={() => setNotifSla(!notifSla)} icon="⏰" />
-            <ToggleRow C={C} label={ar ? "رصيد منخفض" : "Low Balance"} desc={ar ? "عند انخفاض رصيد الحساب" : "When account balance is low"} on={notifBal} onToggle={() => setNotifBal(!notifBal)} icon="💰" />
+            <SectionTitleWithComingSoon C={C}>{ar ? "إشعارات المنصة" : "Platform Notifications"}</SectionTitleWithComingSoon>
+            <div style={{ fontSize: 11.5, color: C.t2, marginBottom: 12, lineHeight: 1.6 }}>
+              {ar ? "حالياً ستصلك كل التنبيهات داخل التطبيق. التحكم بكل نوع على حدة قيد التطوير." : "All in-app notifications are on by default. Per-type controls are coming."}
+            </div>
+            <ToggleRow C={C} comingSoon label={ar ? "محادثة جديدة" : "New Conversation"} desc={ar ? "عند وصول محادثة جديدة" : "When a new conversation arrives"} on={notifNew} onToggle={() => setNotifNew(!notifNew)} icon="💬" />
+            <ToggleRow C={C} comingSoon label={ar ? "رسالة جديدة" : "New Message"} desc={ar ? "عند وصول رسالة في محادثة حالية" : "When a message arrives in existing conversation"} on={notifMsg} onToggle={() => setNotifMsg(!notifMsg)} icon="📩" />
+            <ToggleRow C={C} comingSoon label={ar ? "تعيين" : "Assignment"} desc={ar ? "عند تعيين محادثة لك" : "When a conversation is assigned to you"} on={notifAssign} onToggle={() => setNotifAssign(!notifAssign)} icon="👤" />
+            <ToggleRow C={C} comingSoon label={ar ? "تصعيد" : "Escalation"} desc={ar ? "عند تصعيد محادثة" : "When a conversation is escalated"} on={notifEsc} onToggle={() => setNotifEsc(!notifEsc)} icon="🚨" />
+            <ToggleRow C={C} comingSoon label={ar ? "تحذير SLA" : "SLA Warning"} desc={ar ? "عند اقتراب انتهاء وقت الاستجابة" : "When response time is nearing limit"} on={notifSla} onToggle={() => setNotifSla(!notifSla)} icon="⏰" />
+            <ToggleRow C={C} comingSoon label={ar ? "رصيد منخفض" : "Low Balance"} desc={ar ? "عند انخفاض رصيد الحساب" : "When account balance is low"} on={notifBal} onToggle={() => setNotifBal(!notifBal)} icon="💰" />
           </Card>
 
           {/* Notification Channels */}
           <Card style={{ padding: 18 }}>
-            <SectionTitle>{ar ? "قنوات الإشعارات" : "Notification Channels"}</SectionTitle>
-            <ToggleRow C={C} label={ar ? "إشعارات المتصفح" : "Browser Push"} desc={ar ? "إشعارات منبثقة في المتصفح" : "Browser push notifications"} on={pushBrowser} onToggle={() => setPushBrowser(!pushBrowser)} icon="🔔" />
-            <ToggleRow C={C} label={ar ? "البريد الإلكتروني" : "Email"} desc={ar ? "إرسال إشعارات عبر البريد" : "Send notifications via email"} on={pushEmail} onToggle={() => setPushEmail(!pushEmail)} icon="📧" />
-            <ToggleRow C={C} label={ar ? "الصوت" : "Sound"} desc={ar ? "تشغيل صوت عند وصول إشعار" : "Play sound on notification"} on={pushSound} onToggle={() => setPushSound(!pushSound)} icon="🔊" />
-            <ToggleRow C={C} label={ar ? "إشعارات الجوال" : "Mobile Push"} desc={ar ? "إشعارات على تطبيق الجوال" : "Push to mobile app"} on={pushMobile} onToggle={() => setPushMobile(!pushMobile)} icon="📱" />
+            <SectionTitleWithComingSoon C={C}>{ar ? "قنوات الإشعارات" : "Notification Channels"}</SectionTitleWithComingSoon>
+            <div style={{ fontSize: 11.5, color: C.t2, marginBottom: 12, lineHeight: 1.6 }}>
+              {ar ? "كوربت يستخدم واتساب كقناة وحيدة. خيارات البريد والصوت والجوال قيد التطوير." : "Corbit is WhatsApp-first. Email/sound/mobile channels are on the roadmap."}
+            </div>
+            <ToggleRow C={C} comingSoon label={ar ? "إشعارات المتصفح" : "Browser Push"} desc={ar ? "إشعارات منبثقة في المتصفح" : "Browser push notifications"} on={pushBrowser} onToggle={() => setPushBrowser(!pushBrowser)} icon="🔔" />
+            <ToggleRow C={C} comingSoon label={ar ? "البريد الإلكتروني" : "Email"} desc={ar ? "إرسال إشعارات عبر البريد" : "Send notifications via email"} on={pushEmail} onToggle={() => setPushEmail(!pushEmail)} icon="📧" />
+            <ToggleRow C={C} comingSoon label={ar ? "الصوت" : "Sound"} desc={ar ? "تشغيل صوت عند وصول إشعار" : "Play sound on notification"} on={pushSound} onToggle={() => setPushSound(!pushSound)} icon="🔊" />
+            <ToggleRow C={C} comingSoon label={ar ? "إشعارات الجوال" : "Mobile Push"} desc={ar ? "إشعارات على تطبيق الجوال" : "Push to mobile app"} on={pushMobile} onToggle={() => setPushMobile(!pushMobile)} icon="📱" />
 
             <div style={{ marginTop: 12 }}>
-              <ToggleRow C={C} label={ar ? "ساعات الهدوء" : "Quiet Hours"} desc={ar ? "إيقاف الإشعارات خلال فترة محددة" : "Mute notifications during a specific period"} on={quietHours} onToggle={() => setQuietHours(!quietHours)} icon="🌙" />
-              {quietHours && (
-                <div style={{ display: "flex", gap: 8, alignItems: "center", paddingTop: 8, paddingInlineStart: 26 }}>
-                  <span style={{ fontSize: 12, color: C.t2 }}>{ar ? "من" : "From"}</span>
-                  <input type="time" defaultValue="22:00" style={{ padding: "7px 10px", borderRadius: 8, background: C.inp, border: `1px solid ${C.brd}`, fontFamily: FONT_FAMILY, fontSize: 12, color: C.txt }} />
-                  <span style={{ fontSize: 12, color: C.t2 }}>{ar ? "إلى" : "To"}</span>
-                  <input type="time" defaultValue="07:00" style={{ padding: "7px 10px", borderRadius: 8, background: C.inp, border: `1px solid ${C.brd}`, fontFamily: FONT_FAMILY, fontSize: 12, color: C.txt }} />
-                </div>
-              )}
+              <ToggleRow C={C} comingSoon label={ar ? "ساعات الهدوء" : "Quiet Hours"} desc={ar ? "إيقاف الإشعارات خلال فترة محددة" : "Mute notifications during a specific period"} on={quietHours} onToggle={() => setQuietHours(!quietHours)} icon="🌙" />
             </div>
 
             <div style={{ marginTop: 14 }}>
-              <ToggleRow C={C} label={ar ? "التقارير التلقائية" : "Auto Reports"} desc={ar ? "إرسال تقارير دورية تلقائياً" : "Send periodic reports automatically"} on={autoReports} onToggle={() => setAutoReports(!autoReports)} icon="📊" />
-              {autoReports && (
-                <div style={{ paddingTop: 8, paddingInlineStart: 26 }}>
-                  <FieldLabel C={C}>{ar ? "التكرار" : "Frequency"}</FieldLabel>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    {(ar ? ["يومي", "أسبوعي", "شهري"] : ["Daily", "Weekly", "Monthly"]).map((r, i) => (
-                      <button key={i} style={{ padding: "6px 14px", borderRadius: 8, border: i === 1 ? `1.5px solid ${C.pri}` : `1.5px solid ${dk ? C.brd : "#D5D2CC"}`, background: i === 1 ? `${C.pri}12` : "transparent", color: i === 1 ? C.pri : C.t2, fontFamily: FONT_FAMILY, fontSize: 11, cursor: "pointer", fontWeight: i === 1 ? 600 : 400 }}>{r}</button>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <ToggleRow C={C} comingSoon label={ar ? "التقارير التلقائية" : "Auto Reports"} desc={ar ? "إرسال تقارير دورية تلقائياً" : "Send periodic reports automatically"} on={autoReports} onToggle={() => setAutoReports(!autoReports)} icon="📊" />
             </div>
           </Card>
         </div>
