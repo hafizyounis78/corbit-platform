@@ -65,6 +65,42 @@ function ToggleRow({ label, on, onToggle, desc, icon, C }: { label: string; on: 
   );
 }
 
+function AutoMessageBlock({
+  C, ar, icon, label, desc, placeholder, on, onToggle, value, onChangeText,
+}: {
+  C: any; ar: boolean; icon: string; label: string; desc: string; placeholder: string;
+  on: boolean; onToggle: () => void; value: string; onChangeText: (v: string) => void;
+}) {
+  return (
+    <div style={{ padding: "14px 14px 12px", borderRadius: 12, background: C.inp, marginBottom: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: on ? 10 : 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
+          <span style={{ fontSize: 16 }}>{icon}</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, fontSize: 13 }}>{label}</div>
+            <div style={{ fontSize: 11, color: C.t2, marginTop: 2 }}>{desc}</div>
+          </div>
+        </div>
+        <Toggle on={on} onToggle={onToggle} />
+      </div>
+      {on && (
+        <textarea
+          value={value}
+          onChange={(e) => onChangeText(e.target.value)}
+          placeholder={placeholder}
+          dir={ar ? "rtl" : "ltr"}
+          style={{
+            width: "100%", minHeight: 64, padding: "9px 12px", borderRadius: 10,
+            background: C.bg ?? "#fff", border: `1px solid ${C.brd}`,
+            fontFamily: FONT_FAMILY, fontSize: 12.5, color: C.txt,
+            outline: "none", resize: "vertical", boxSizing: "border-box",
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
 /* ─── page ─── */
 
 export default function SettingsPage() {
@@ -86,6 +122,7 @@ export default function SettingsPage() {
   const { data: apiKeysData, isLoading: loadingApi, mutate: mutateApi } = useSettings('api-keys');
   const { data: whatsappData, mutate: mutateWhatsapp } = useSettings('whatsapp');
   const { data: webhooksData, mutate: mutateWebhooks } = useSettings('webhooks');
+  const { data: autoMsgsData, mutate: mutateAutoMsgs } = useSettings('auto-messages');
   const whatsappNumbers: any[] = (whatsappData?.numbers as any[]) ?? [];
   const webhooks: any[] = Array.isArray(webhooksData) ? (webhooksData as any[]) : ((webhooksData as any)?.data ?? []);
 
@@ -132,6 +169,9 @@ export default function SettingsPage() {
   const [welcomeMsg, setWelcomeMsg] = useState(true);
   const [awayMsg, setAwayMsg] = useState(true);
   const [queueMsg, setQueueMsg] = useState(false);
+  const [welcomeText, setWelcomeText] = useState("");
+  const [awayText, setAwayText] = useState("");
+  const [queueText, setQueueText] = useState("");
   const [notifNew, setNotifNew] = useState(true);
   const [notifMsg, setNotifMsg] = useState(true);
   const [notifAssign, setNotifAssign] = useState(true);
@@ -183,6 +223,27 @@ export default function SettingsPage() {
     }
   }, [securityData]);
 
+  // Populate auto-messages (welcome / away / queue) from API.
+  // Backend returns array: [{type, text, text_ar, is_enabled}].
+  useEffect(() => {
+    const list = Array.isArray(autoMsgsData) ? autoMsgsData : (autoMsgsData as any)?.data;
+    if (!Array.isArray(list)) return;
+    const byType: Record<string, any> = {};
+    list.forEach((m: any) => { if (m?.type) byType[m.type] = m; });
+    if (byType.welcome) {
+      setWelcomeMsg(!!byType.welcome.is_enabled);
+      setWelcomeText(byType.welcome.text_ar ?? byType.welcome.text ?? "");
+    }
+    if (byType.away) {
+      setAwayMsg(!!byType.away.is_enabled);
+      setAwayText(byType.away.text_ar ?? byType.away.text ?? "");
+    }
+    if (byType.queue) {
+      setQueueMsg(!!byType.queue.is_enabled);
+      setQueueText(byType.queue.text_ar ?? byType.queue.text ?? "");
+    }
+  }, [autoMsgsData]);
+
   /* business hours state */
   const [bizHours, setBizHours] = useState([
     { day: ar ? "الأحد" : "Sunday", on: true, from: "09:00", to: "17:00" },
@@ -219,7 +280,20 @@ export default function SettingsPage() {
       const payload: Record<string, any> = {};
 
       if (tab === "general") {
-        Object.assign(payload, { name: companyName, email: companyEmail, phone: companyPhone, website: companyWebsite, timezone, currency, language: lang, description, welcomeMsg, awayMsg, queueMsg, bizHours });
+        // Profile fields go to /settings/general. Welcome / Away / Queue
+        // texts are persisted separately to /settings/auto-messages because
+        // the backend updateGeneral fillable drops anything outside the
+        // organization profile fields.
+        Object.assign(payload, { name: companyName, email: companyEmail, phone: companyPhone, website: companyWebsite, timezone, currency, language: lang, description });
+
+        await api.patch(`/settings/auto-messages`, {
+          messages: [
+            { type: "welcome", text_ar: welcomeText, text: welcomeText, is_enabled: welcomeMsg },
+            { type: "away",    text_ar: awayText,    text: awayText,    is_enabled: awayMsg },
+            { type: "queue",   text_ar: queueText,   text: queueText,   is_enabled: queueMsg },
+          ],
+        });
+        mutateAutoMsgs();
       } else if (tab === "notifications") {
         Object.assign(payload, { preferences: [
           { key: "newConversation", enabled: notifNew },
@@ -331,9 +405,42 @@ export default function SettingsPage() {
             {/* Auto Messages */}
             <Card style={{ padding: 18 }}>
               <SectionTitle>{ar ? "الرسائل التلقائية" : "Auto Messages"}</SectionTitle>
-              <ToggleRow C={C} label={ar ? "رسالة الترحيب" : "Welcome Message"} desc={ar ? "إرسال تلقائي عند بدء محادثة جديدة" : "Auto-send when a new conversation starts"} on={welcomeMsg} onToggle={() => setWelcomeMsg(!welcomeMsg)} icon="👋" />
-              <ToggleRow C={C} label={ar ? "رسالة الغياب" : "Away Message"} desc={ar ? "إرسال تلقائي خارج أوقات العمل" : "Auto-send outside business hours"} on={awayMsg} onToggle={() => setAwayMsg(!awayMsg)} icon="🌙" />
-              <ToggleRow C={C} label={ar ? "رسالة قائمة الانتظار" : "Queue Message"} desc={ar ? "إرسال عند انتظار العميل" : "Send when customer is queued"} on={queueMsg} onToggle={() => setQueueMsg(!queueMsg)} icon="⏳" />
+              <AutoMessageBlock
+                C={C}
+                ar={ar}
+                icon="👋"
+                label={ar ? "رسالة الترحيب" : "Welcome Message"}
+                desc={ar ? "تُرسل تلقائيّاً لمّا يبدأ العميل محادثة جديدة" : "Auto-send when a new conversation starts"}
+                placeholder={ar ? "مرحباً بك في متجرنا! كيف نقدر نخدمك؟" : "Welcome to our store! How can we help?"}
+                on={welcomeMsg}
+                onToggle={() => { setWelcomeMsg(!welcomeMsg); markChanged(); }}
+                value={welcomeText}
+                onChangeText={(v) => { setWelcomeText(v); markChanged(); }}
+              />
+              <AutoMessageBlock
+                C={C}
+                ar={ar}
+                icon="🌙"
+                label={ar ? "رسالة الغياب" : "Away Message"}
+                desc={ar ? "تُرسل تلقائيّاً خارج ساعات العمل المضبوطة" : "Auto-send outside configured business hours"}
+                placeholder={ar ? "نعتذر، نحن خارج الدوام الآن. سنرد عليك في أقرب وقت." : "We're currently away. We'll get back to you soon."}
+                on={awayMsg}
+                onToggle={() => { setAwayMsg(!awayMsg); markChanged(); }}
+                value={awayText}
+                onChangeText={(v) => { setAwayText(v); markChanged(); }}
+              />
+              <AutoMessageBlock
+                C={C}
+                ar={ar}
+                icon="⏳"
+                label={ar ? "رسالة قائمة الانتظار" : "Queue Message"}
+                desc={ar ? "تُرسل عند وضع العميل في طابور الانتظار" : "Sent when the customer is placed in queue"}
+                placeholder={ar ? "شكراً لتواصلك. أنت في قائمة الانتظار وسيتم الردّ عليك قريباً." : "Thanks for reaching out. You're in queue, we'll be with you shortly."}
+                on={queueMsg}
+                onToggle={() => { setQueueMsg(!queueMsg); markChanged(); }}
+                value={queueText}
+                onChangeText={(v) => { setQueueText(v); markChanged(); }}
+              />
             </Card>
           </div>
 
