@@ -36,6 +36,20 @@ api.interceptors.response.use(
         !window.location.pathname.includes('/auth/change-password')
       ) {
         window.location.href = '/auth/change-password';
+      } else if (error.response?.status === 403) {
+        // Plan-limit and plan-feature errors carry a known code under
+        // .errors so the frontend can surface them as a uniform toast
+        // wherever they happen — no need for every page to handle it.
+        const code = error.response?.data?.errors?.code;
+        const message = error.response?.data?.message;
+        if (
+          (code === 'PLAN_LIMIT_EXCEEDED' || code === 'PLAN_FEATURE_REQUIRED') &&
+          message
+        ) {
+          window.dispatchEvent(new CustomEvent('corbit:toast', {
+            detail: { message, type: 'error', code },
+          }));
+        }
       }
     }
     return Promise.reject(error);

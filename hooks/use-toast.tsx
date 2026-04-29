@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useMemo, type ReactNode } from "react";
 import { FONT_FAMILY } from "@/lib/constants/font";
 
 type ToastType = "success" | "error";
@@ -23,6 +23,22 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   }, []);
+
+  // Listen for toast events dispatched by the axios interceptor
+  // (plan-limit / plan-feature errors), so any API call anywhere
+  // gets a uniform toast without the calling component having to
+  // hand-roll it.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { message?: string; type?: ToastType } | undefined;
+      if (detail?.message) {
+        showToast(detail.message, detail.type ?? "error");
+      }
+    };
+    window.addEventListener("corbit:toast", handler as EventListener);
+    return () => window.removeEventListener("corbit:toast", handler as EventListener);
+  }, [showToast]);
 
   const value = useMemo(() => ({ showToast }), [showToast]);
 
