@@ -246,7 +246,7 @@ export default function BillingPage() {
                 <span style={{ fontSize: 14, color: C.t2 }}> {t("sar")}/{ar ? "شهر" : "mo"}</span>
               </div>
               <div style={{ marginTop: 16, borderTop: `1px solid ${C.brd}`, paddingTop: 16 }}>
-                {plan.features.map((f: string, i: number) => (
+                {(Array.isArray(plan.features) ? plan.features : []).map((f: string, i: number) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, fontSize: 12.5 }}>
                     <span style={{ color: C.ok }}><Icon name="check" size={14} /></span>{f}
                   </div>
