@@ -715,33 +715,36 @@ export default function SettingsPage() {
               </div>
             </Card>
 
-            {/* SMS */}
-            <Card style={{ padding: 18 }}>
+            {/* SMS — UI shown for the management roadmap, but the per-org
+                wiring (provider creds + routing) isn't in place yet. The
+                platform-level mobile.net.sa channel is already working
+                for OTP and account credentials. */}
+            <Card style={{ padding: 18, opacity: 0.7 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <div style={{ width: 36, height: 36, borderRadius: 10, background: `${C.info}15`, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <Icon name="phone" size={18} />
                   </div>
-                  <SectionTitle>{ar ? "الرسائل القصيرة" : "SMS"}</SectionTitle>
+                  <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+                    {ar ? "الرسائل القصيرة" : "SMS"}
+                    <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 6, background: `${C.warn}20`, color: C.warn }}>قريباً</span>
+                  </h3>
                 </div>
-                <Toggle on={smsEnable} onToggle={() => setSmsEnable(!smsEnable)} />
+                <Toggle on={false} onToggle={() => {}} />
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
-                <div><FieldLabel C={C}>{ar ? "المزود" : "Provider"}</FieldLabel><Input value="mobile.net.sa" C={C} /></div>
-                <div><FieldLabel C={C}>{ar ? "معرف المرسل" : "Sender ID"}</FieldLabel><Input value="Corbit" C={C} /></div>
-              </div>
               <div style={{ fontSize: 11.5, color: C.t2, lineHeight: 1.7 }}>
                 {ar
-                  ? "يُستخدم لإرسال بيانات الدخول للعملاء الجدد. الرصيد يُدار من حساب mobile.net.sa مباشرة."
-                  : "Used to send login credentials to new clients. Balance is managed directly in the mobile.net.sa account."}
+                  ? "ستُستخدم كقناة احتياطية للحملات التسويقيّة عند فشل واتساب، وكذلك لإشعارات الحسابات و OTP. مفعّلة على مستوى المنصّة، وقريباً يُتاح الضبط لكل مؤسّسة على حدة."
+                  : "Will serve as a fallback for marketing campaigns when WhatsApp fails, plus account & OTP notifications. Already active platform-wide; per-org configuration is on the way."}
               </div>
             </Card>
           </div>
 
-          {/* Channel Preferences */}
-          <Card style={{ padding: 18 }}>
-            <SectionTitle>{ar ? "تفضيلات القنوات" : "Channel Preferences"}</SectionTitle>
+          {/* Channel Preferences — saving isn't wired up yet, so we
+              freeze the controls and tag the section. */}
+          <Card style={{ padding: 18, opacity: 0.7 }}>
+            <SectionTitleWithComingSoon C={C}>{ar ? "تفضيلات القنوات" : "Channel Preferences"}</SectionTitleWithComingSoon>
             <div style={grid2Style}>
               {/* Mode selection */}
               <div>
@@ -754,11 +757,10 @@ export default function SettingsPage() {
                   ].map((opt) => (
                     <div
                       key={opt.key}
-                      onClick={() => setChannelMode(opt.key)}
                       style={{
                         padding: "12px 14px",
                         borderRadius: 10,
-                        cursor: "pointer",
+                        cursor: "not-allowed",
                         border: `1px solid ${channelMode === opt.key ? C.pri : C.brd}`,
                         background: channelMode === opt.key ? `${C.pri}10` : "transparent",
                       }}
@@ -791,7 +793,7 @@ export default function SettingsPage() {
                   ].map((route, i) => (
                     <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${dk ? C.brd : "#F5F2ED"}` }}>
                       <span style={{ fontSize: 13 }}>{route.label}</span>
-                      <Select value={route.value} options={["WhatsApp", "SMS", ar ? "كلاهما" : "Both"]} C={C} />
+                      <span style={{ fontSize: 12, color: C.t2, padding: "5px 10px", borderRadius: 8, background: C.inp }}>{route.value}</span>
                     </div>
                   ))}
                 </div>
@@ -799,33 +801,7 @@ export default function SettingsPage() {
             </div>
           </Card>
 
-          <div style={grid2Style}>
-            {/* WA Profile */}
-            <Card style={{ padding: 18 }}>
-              <SectionTitle>{ar ? "ملف واتساب التجاري" : "WA Business Profile"}</SectionTitle>
-              <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
-                <div style={{ width: 48, height: 48, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", background: `${C.wa}15`, color: C.wa }}>
-                  <Icon name="msg" size={22} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>Corbit Tech</div>
-                  <div style={{ fontSize: 11, color: C.t2 }}>{ar ? "حساب أعمال موثق" : "Verified Business Account"}</div>
-                </div>
-                <Badge color={C.ok}>{ar ? "موثق" : "Verified"}</Badge>
-              </div>
-              {[
-                [ar ? "الفئة" : "Category", ar ? "تقنية المعلومات" : "IT Services"],
-                [ar ? "العنوان" : "Address", ar ? "الرياض، السعودية" : "Riyadh, Saudi Arabia"],
-                [ar ? "البريد" : "Email", "support@corbit.sa"],
-                [ar ? "الموقع" : "Website", "https://corbit.sa"],
-              ].map(([label, val], i) => (
-                <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${dk ? C.brd : "#F5F2ED"}`, fontSize: 12.5 }}>
-                  <span style={{ color: C.t2 }}>{label}</span>
-                  <span style={{ fontWeight: 500 }}>{val}</span>
-                </div>
-              ))}
-            </Card>
-
+          <div>
             {/* Channel Comparison */}
             <Card style={{ padding: 18 }}>
               <SectionTitle>{ar ? "مقارنة القنوات" : "Channel Comparison"}</SectionTitle>
