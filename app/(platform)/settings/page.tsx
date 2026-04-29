@@ -123,6 +123,7 @@ export default function SettingsPage() {
   const { data: whatsappData, mutate: mutateWhatsapp } = useSettings('whatsapp');
   const { data: webhooksData, mutate: mutateWebhooks } = useSettings('webhooks');
   const { data: autoMsgsData, mutate: mutateAutoMsgs } = useSettings('auto-messages');
+  const { data: bizHoursData, mutate: mutateBizHours } = useSettings('business-hours');
   const whatsappNumbers: any[] = (whatsappData?.numbers as any[]) ?? [];
   const webhooks: any[] = Array.isArray(webhooksData) ? (webhooksData as any[]) : ((webhooksData as any)?.data ?? []);
 
@@ -244,7 +245,9 @@ export default function SettingsPage() {
     }
   }, [autoMsgsData]);
 
-  /* business hours state */
+  /* business hours state. Day code mapping is by INDEX (0=sun…6=sat) so
+     we don't depend on the localized label. */
+  const DAY_CODES = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
   const [bizHours, setBizHours] = useState([
     { day: ar ? "الأحد" : "Sunday", on: true, from: "09:00", to: "17:00" },
     { day: ar ? "الاثنين" : "Monday", on: true, from: "09:00", to: "17:00" },
@@ -254,6 +257,31 @@ export default function SettingsPage() {
     { day: ar ? "الجمعة" : "Friday", on: false, from: "09:00", to: "17:00" },
     { day: ar ? "السبت" : "Saturday", on: false, from: "09:00", to: "17:00" },
   ]);
+
+  // Populate business hours from API. Backend returns array of
+  // {day, is_open, open_time, close_time} where day is the 3-letter code.
+  // Times come back as HH:MM:SS — trim to HH:MM for <input type="time">.
+  useEffect(() => {
+    const list = Array.isArray(bizHoursData) ? bizHoursData : (bizHoursData as any)?.data;
+    if (!Array.isArray(list)) return;
+    const byDay: Record<string, any> = {};
+    list.forEach((h: any) => { if (h?.day) byDay[h.day] = h; });
+
+    setBizHours((prev) =>
+      prev.map((bh, i) => {
+        const fromDb = byDay[DAY_CODES[i]];
+        if (!fromDb) return bh;
+        return {
+          day: bh.day,
+          on: !!fromDb.is_open,
+          from: String(fromDb.open_time ?? "09:00").slice(0, 5),
+          to: String(fromDb.close_time ?? "17:00").slice(0, 5),
+        };
+      })
+    );
+    // DAY_CODES is a stable literal; no need to depend on it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bizHoursData]);
 
   const tabs = [
     { key: "general", label: ar ? "عام" : "General" },
@@ -294,6 +322,18 @@ export default function SettingsPage() {
           ],
         });
         mutateAutoMsgs();
+
+        // Business hours go to /settings/business-hours. Map our state by
+        // index → 3-letter day_of_week code the backend expects.
+        await api.patch(`/settings/business-hours`, {
+          hours: bizHours.map((bh, i) => ({
+            day: DAY_CODES[i],
+            is_open: bh.on,
+            open_time: bh.from,
+            close_time: bh.to,
+          })),
+        });
+        mutateBizHours();
       } else if (tab === "notifications") {
         Object.assign(payload, { preferences: [
           { key: "newConversation", enabled: notifNew },
@@ -508,17 +548,19 @@ export default function SettingsPage() {
                 {bizHours.map((bh, i) => (
                   <div key={i} style={{ display: "grid", gridTemplateColumns: "100px 44px 1fr 20px 1fr", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: `1px solid ${dk ? C.brd : "#F5F2ED"}` }}>
                     <span style={{ fontSize: 12.5, fontWeight: 500, opacity: bh.on ? 1 : 0.5 }}>{bh.day}</span>
-                    <Toggle on={bh.on} onToggle={() => { const u = [...bizHours]; u[i] = { ...u[i], on: !u[i].on }; setBizHours(u); }} />
+                    <Toggle on={bh.on} onToggle={() => { const u = [...bizHours]; u[i] = { ...u[i], on: !u[i].on }; setBizHours(u); markChanged(); }} />
                     <input
                       type="time"
-                      defaultValue={bh.from}
+                      value={bh.from}
+                      onChange={(e) => { const u = [...bizHours]; u[i] = { ...u[i], from: e.target.value }; setBizHours(u); markChanged(); }}
                       disabled={!bh.on}
                       style={{ padding: "5px 8px", borderRadius: 8, border: `1px solid ${C.brd}`, background: C.inp, fontFamily: FONT_FAMILY, fontSize: 12, color: C.txt, opacity: bh.on ? 1 : 0.4 }}
                     />
                     <span style={{ textAlign: "center", fontSize: 11, color: C.t2 }}>-</span>
                     <input
                       type="time"
-                      defaultValue={bh.to}
+                      value={bh.to}
+                      onChange={(e) => { const u = [...bizHours]; u[i] = { ...u[i], to: e.target.value }; setBizHours(u); markChanged(); }}
                       disabled={!bh.on}
                       style={{ padding: "5px 8px", borderRadius: 8, border: `1px solid ${C.brd}`, background: C.inp, fontFamily: FONT_FAMILY, fontSize: 12, color: C.txt, opacity: bh.on ? 1 : 0.4 }}
                     />
