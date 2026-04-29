@@ -20,7 +20,7 @@ function SectionTitle({ children }: { children: string }) {
   return <h3 style={{ margin: "0 0 14px", fontSize: 14, fontWeight: 700 }}>{children}</h3>;
 }
 
-function FieldLabel({ children, C }: { children: string; C?: any }) {
+function FieldLabel({ children, C }: { children: React.ReactNode; C?: any }) {
   return <label style={{ fontSize: 11.5, color: C?.t2, display: "block", marginBottom: 4 }}>{children}</label>;
 }
 
@@ -368,7 +368,21 @@ export default function SettingsPage() {
           { key: "autoReports", enabled: autoReports },
         ] });
       } else if (tab === "security") {
-        Object.assign(payload, { twoFA, sso, ipWhitelist: ipWhite, sessionTimeout: sessTimeout });
+        // 2FA persists through dedicated endpoints — the bulk
+        // /settings/security PATCH ignores it. Also: backend rejects
+        // enable when the user has no phone on file (we'd lock them
+        // out of OTP login otherwise), and we surface that to the user.
+        try {
+          await api.post(twoFA ? '/settings/security/2fa/enable' : '/settings/security/2fa/disable');
+        } catch (e: any) {
+          setSaving(false);
+          const msg = e?.response?.data?.message || (ar ? 'تعذّر تحديث المصادقة الثنائية' : 'Failed to update 2FA');
+          showToast(msg, 'error');
+          return;
+        }
+        // SSO + Session Timeout aren't wired up server-side yet; we
+        // don't send them so the user doesn't get a misleading "saved"
+        // toast for fields that won't take effect.
       } else if (tab === "channels") {
         Object.assign(payload, { settings: { smsEnable, channelMode } });
       } else if (tab === "team") {
@@ -635,16 +649,19 @@ export default function SettingsPage() {
           {/* Authentication */}
           <Card style={{ padding: 18 }}>
             <SectionTitle>{ar ? "المصادقة" : "Authentication"}</SectionTitle>
-            <ToggleRow C={C} label={ar ? "المصادقة الثنائية" : "Two-Factor Authentication"} desc={ar ? "طلب رمز إضافي عند تسجيل الدخول" : "Require extra code on login"} on={twoFA} onToggle={() => setTwoFA(!twoFA)} icon="🔐" />
-            <ToggleRow C={C} label={ar ? "تسجيل الدخول الموحد" : "Single Sign-On (SSO)"} desc={ar ? "تسجيل الدخول عبر مزود هوية خارجي" : "Login via external identity provider"} on={sso} onToggle={() => setSSO(!sso)} icon="🔑" />
-            <ToggleRow C={C} label={ar ? "قائمة IP المسموحة" : "IP Whitelist"} desc={ar ? "تقييد الوصول لعناوين IP محددة" : "Restrict access to specific IPs"} on={ipWhite} onToggle={() => setIpWhite(!ipWhite)} icon="🛡️" />
-            <ToggleRow C={C} label={ar ? "مهلة الجلسة" : "Session Timeout"} desc={ar ? "تسجيل خروج تلقائي بعد فترة خمول" : "Auto-logout after inactivity"} on={sessTimeout} onToggle={() => setSessTimeout(!sessTimeout)} icon="⏱️" />
+            <ToggleRow C={C} label={ar ? "المصادقة الثنائية" : "Two-Factor Authentication"} desc={ar ? "طلب رمز SMS إضافي عند تسجيل الدخول. يتطلّب رقم جوّال مسجّل." : "Require an SMS code on login. Requires a phone on file."} on={twoFA} onToggle={() => { setTwoFA(!twoFA); markChanged(); }} icon="🔐" />
+            <ToggleRow C={C} comingSoon label={ar ? "تسجيل الدخول الموحد" : "Single Sign-On (SSO)"} desc={ar ? "تسجيل الدخول عبر مزود هوية خارجي" : "Login via external identity provider"} on={sso} onToggle={() => setSSO(!sso)} icon="🔑" />
+            <ToggleRow C={C} comingSoon label={ar ? "قائمة IP المسموحة" : "IP Whitelist"} desc={ar ? "تقييد الوصول لعناوين IP محددة" : "Restrict access to specific IPs"} on={ipWhite} onToggle={() => setIpWhite(!ipWhite)} icon="🛡️" />
+            <ToggleRow C={C} comingSoon label={ar ? "مهلة الجلسة" : "Session Timeout"} desc={ar ? "تسجيل خروج تلقائي بعد فترة خمول" : "Auto-logout after inactivity"} on={sessTimeout} onToggle={() => setSessTimeout(!sessTimeout)} icon="⏱️" />
 
-            <div style={{ marginTop: 10 }}>
-              <FieldLabel C={C}>{ar ? "سياسة كلمة المرور" : "Password Policy"}</FieldLabel>
+            <div style={{ marginTop: 10, opacity: 0.55 }}>
+              <FieldLabel C={C}>
+                {ar ? "سياسة كلمة المرور" : "Password Policy"}
+                <span style={{ fontSize: 9.5, fontWeight: 600, padding: "1px 6px", borderRadius: 6, background: `${C.warn}20`, color: C.warn, marginInlineStart: 6 }}>قريباً</span>
+              </FieldLabel>
               <div style={{ display: "flex", gap: 6 }}>
                 {(ar ? ["أساسية", "متوسطة", "قوية"] : ["Basic", "Medium", "Strong"]).map((p, i) => (
-                  <button key={i} style={{ padding: "6px 14px", borderRadius: 8, border: i === 2 ? `1.5px solid ${C.pri}` : `1.5px solid ${dk ? C.brd : "#D5D2CC"}`, background: i === 2 ? `${C.pri}12` : "transparent", color: i === 2 ? C.pri : C.t2, fontFamily: FONT_FAMILY, fontSize: 11, cursor: "pointer", fontWeight: i === 2 ? 600 : 400 }}>{p}</button>
+                  <button key={i} disabled style={{ padding: "6px 14px", borderRadius: 8, border: i === 2 ? `1.5px solid ${C.pri}` : `1.5px solid ${dk ? C.brd : "#D5D2CC"}`, background: i === 2 ? `${C.pri}12` : "transparent", color: i === 2 ? C.pri : C.t2, fontFamily: FONT_FAMILY, fontSize: 11, cursor: "not-allowed", fontWeight: i === 2 ? 600 : 400 }}>{p}</button>
                 ))}
               </div>
             </div>
@@ -652,25 +669,12 @@ export default function SettingsPage() {
 
           {/* Audit Log */}
           <Card style={{ padding: 18 }}>
-            <SectionTitle>{ar ? "سجل التدقيق" : "Audit Log"}</SectionTitle>
-            {[
-              { action: ar ? "تسجيل دخول" : "Login", user: "admin@corbit.sa", time: ar ? "منذ 5 دقائق" : "5 min ago", color: C.ok },
-              { action: ar ? "تغيير إعدادات" : "Settings Changed", user: "sarah@corbit.sa", time: ar ? "منذ 15 دقيقة" : "15 min ago", color: C.info },
-              { action: ar ? "إضافة عضو" : "Member Added", user: "admin@corbit.sa", time: ar ? "منذ ساعة" : "1 hour ago", color: "#7C3AED" },
-              { action: ar ? "تغيير كلمة المرور" : "Password Changed", user: "omar@corbit.sa", time: ar ? "منذ ساعتين" : "2 hours ago", color: C.warn },
-              { action: ar ? "تعطيل 2FA" : "2FA Disabled", user: "ahmed@corbit.sa", time: ar ? "منذ 3 ساعات" : "3 hours ago", color: C.err },
-              { action: ar ? "تسجيل خروج" : "Logout", user: "nora@corbit.sa", time: ar ? "منذ 4 ساعات" : "4 hours ago", color: C.t3 },
-              { action: ar ? "تحديث API Key" : "API Key Rotated", user: "admin@corbit.sa", time: ar ? "أمس" : "Yesterday", color: C.info },
-            ].map((entry, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, background: C.inp, marginBottom: 3 }}>
-                <div style={{ width: 6, height: 6, borderRadius: 3, background: entry.color, flexShrink: 0 }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500 }}>{entry.action}</div>
-                  <div style={{ fontSize: 11, color: C.t2 }}>{entry.user}</div>
-                </div>
-                <span style={{ fontSize: 11, color: C.t3, whiteSpace: "nowrap", flexShrink: 0 }}>{entry.time}</span>
-              </div>
-            ))}
+            <SectionTitleWithComingSoon C={C}>{ar ? "سجل التدقيق" : "Audit Log"}</SectionTitleWithComingSoon>
+            <div style={{ padding: "32px 16px", textAlign: "center", color: C.t2, fontSize: 12.5, lineHeight: 1.7 }}>
+              {ar
+                ? "سجلّ نشاط الفريق (تسجيل الدخول، تغيير الإعدادات، إنشاء/حذف الحسابات...) سيُتاح هنا قريباً."
+                : "Team activity log (logins, settings changes, member ops...) will be available here soon."}
+            </div>
           </Card>
         </div>
       )}
