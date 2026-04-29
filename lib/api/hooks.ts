@@ -216,6 +216,7 @@ export function useSettings(section: string) {
                section === 'sla' ? '/settings/sla' :
                section === 'conversations' ? '/settings/conversations' :
                section === 'sms' ? '/settings/sms' :
+               section === 'reply-mode' ? '/settings/reply-mode' :
                section === 'auto-messages' ? '/settings/auto-messages' :
                section === 'business-hours' ? '/settings/business-hours' :
                section === 'api-keys' ? '/settings/api-keys' :

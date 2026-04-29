@@ -155,6 +155,7 @@ export const API = {
     SLA: { GET: '/settings/sla', UPDATE: '/settings/sla' },
     CONVERSATIONS: { GET: '/settings/conversations', UPDATE: '/settings/conversations' },
     SMS: { GET: '/settings/sms', UPDATE: '/settings/sms' },
+    REPLY_MODE: { GET: '/settings/reply-mode', UPDATE: '/settings/reply-mode' },
     AUTO_MESSAGES: { GET: '/settings/auto-messages', UPDATE: '/settings/auto-messages' },
     BUSINESS_HOURS: { GET: '/settings/business-hours', UPDATE: '/settings/business-hours' },
     API_KEYS: {

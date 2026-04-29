@@ -142,6 +142,7 @@ export default function SettingsPage() {
   const { data: webhooksData, mutate: mutateWebhooks } = useSettings('webhooks');
   const { data: autoMsgsData, mutate: mutateAutoMsgs } = useSettings('auto-messages');
   const { data: bizHoursData, mutate: mutateBizHours } = useSettings('business-hours');
+  const { data: replyModeData, mutate: mutateReplyMode } = useSettings('reply-mode');
   const whatsappNumbers: any[] = (whatsappData?.numbers as any[]) ?? [];
   const webhooks: any[] = Array.isArray(webhooksData) ? (webhooksData as any[]) : ((webhooksData as any)?.data ?? []);
 
@@ -191,6 +192,7 @@ export default function SettingsPage() {
   const [welcomeText, setWelcomeText] = useState("");
   const [awayText, setAwayText] = useState("");
   const [queueText, setQueueText] = useState("");
+  const [replyMode, setReplyMode] = useState<"hybrid" | "bot_only" | "ai_only">("hybrid");
   const [notifNew, setNotifNew] = useState(true);
   const [notifMsg, setNotifMsg] = useState(true);
   const [notifAssign, setNotifAssign] = useState(true);
@@ -241,6 +243,15 @@ export default function SettingsPage() {
       if (securityData.sessionTimeout !== undefined) setSessTimeout(securityData.sessionTimeout);
     }
   }, [securityData]);
+
+  // Populate reply-mode from API. Falls back to hybrid for any
+  // unrecognized value so the UI never lands on an invalid state.
+  useEffect(() => {
+    const m = (replyModeData as any)?.mode ?? (replyModeData as any)?.data?.mode;
+    if (m === "hybrid" || m === "bot_only" || m === "ai_only") {
+      setReplyMode(m);
+    }
+  }, [replyModeData]);
 
   // Populate auto-messages (welcome / away / queue) from API.
   // Backend returns array: [{type, text, text_ar, is_enabled}].
@@ -352,6 +363,12 @@ export default function SettingsPage() {
           })),
         });
         mutateBizHours();
+
+        // Reply mode (per-org auto-reply engine choice) is its own
+        // tiny endpoint — separate from /settings/general so the
+        // backend can validate the enum on a focused payload.
+        await api.patch(`/settings/reply-mode`, { mode: replyMode });
+        mutateReplyMode();
       } else if (tab === "notifications") {
         Object.assign(payload, { preferences: [
           { key: "newConversation", enabled: notifNew },
@@ -471,6 +488,79 @@ export default function SettingsPage() {
                   onChange={(e) => { setDescription(e.target.value); markChanged(); }}
                   style={{ width: "100%", minHeight: 72, padding: "9px 12px", borderRadius: 10, background: C.inp, border: `1px solid ${C.brd}`, fontFamily: FONT_FAMILY, fontSize: 12.5, color: C.txt, outline: "none", resize: "vertical", boxSizing: "border-box" }}
                 />
+              </div>
+            </Card>
+
+            {/* Reply Mode — per-org engine selection */}
+            <Card style={{ padding: 18 }}>
+              <SectionTitle>{ar ? "وضع الردّ التلقائي" : "Auto-Reply Mode"}</SectionTitle>
+              <div style={{ fontSize: 11.5, color: C.t2, marginBottom: 12, lineHeight: 1.7 }}>
+                {ar
+                  ? "اختر كيف يردّ النظام على رسائل العملاء. رسائل الترحيب والغياب تعمل في كلّ الأوضاع."
+                  : "Choose how the system replies to customer messages. Welcome and away messages fire in every mode."}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {([
+                  {
+                    key: "hybrid",
+                    icon: "🔀",
+                    label: ar ? "هجين (مُوصى به)" : "Hybrid (recommended)",
+                    desc: ar
+                      ? "البوت يردّ على الكلمات المحفّزة، الذكاء الاصطناعي يكمل الباقي."
+                      : "Bot answers keyword matches; AI handles everything else.",
+                  },
+                  {
+                    key: "bot_only",
+                    icon: "🤖",
+                    label: ar ? "بوت فقط" : "Bot only",
+                    desc: ar
+                      ? "فقط البوتات تردّ. أيّ سؤال خارج الكلمات المحفّزة لن يُردّ عليه."
+                      : "Only bots reply. Anything outside the configured keywords gets no auto-reply.",
+                  },
+                  {
+                    key: "ai_only",
+                    icon: "🧠",
+                    label: ar ? "ذكاء اصطناعي فقط" : "AI only",
+                    desc: ar
+                      ? "كلّ الرسائل تروح للذكاء الاصطناعي. البوتات معطّلة حتى لو منشورة."
+                      : "Every message goes to the AI. Keyword bots are bypassed even if published.",
+                  },
+                ] as const).map((opt) => {
+                  const active = replyMode === opt.key;
+                  return (
+                    <div
+                      key={opt.key}
+                      onClick={() => { setReplyMode(opt.key); markChanged(); }}
+                      style={{
+                        padding: "12px 14px",
+                        borderRadius: 12,
+                        cursor: "pointer",
+                        border: `1.5px solid ${active ? C.pri : C.brd}`,
+                        background: active ? `${C.pri}10` : C.inp,
+                        transition: "all 0.15s",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                        <div
+                          style={{
+                            width: 18, height: 18, borderRadius: 9, marginTop: 2,
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            border: `2px solid ${active ? C.pri : C.t3}`,
+                            flexShrink: 0,
+                          }}
+                        >
+                          {active && <div style={{ width: 10, height: 10, borderRadius: 5, background: C.pri }} />}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>
+                            <span style={{ marginInlineEnd: 6 }}>{opt.icon}</span>{opt.label}
+                          </div>
+                          <div style={{ fontSize: 11.5, color: C.t2, lineHeight: 1.6 }}>{opt.desc}</div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </Card>
 
