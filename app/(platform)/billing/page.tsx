@@ -144,20 +144,23 @@ export default function BillingPage() {
     }
   };
 
-  const handleUpgradePlan = async (planId: number) => {
-    setUpgradeLoading(planId);
-    try {
-      await api.post('/billing/plans/upgrade', { planId });
-      showToast(ar ? "تم ترقية الخطة بنجاح" : "Plan upgraded successfully");
-      mutateOverview();
-      mutatePlans();
-    } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || "";
-      showToast(ar ? `فشل ترقية الخطة: ${msg}` : `Plan upgrade failed: ${msg}`, "error");
-    } finally {
-      setUpgradeLoading(null);
-      setConfirmUpgrade(null);
+  /**
+   * Plan changes are sales-gated (manual bank transfer + admin approval).
+   * Open Corbit's sales WhatsApp with a prefilled request — the rest of
+   * the flow is handled by the team there.
+   */
+  const SALES_WHATSAPP = "966148213721";
+  const handleRequestUpgrade = (plan: any) => {
+    const planName = plan?.name ?? "";
+    const planPrice = plan?.price ?? "";
+    const text = ar
+      ? `السلام عليكم،\nأرغب في الترقية إلى خطة ${planName} (${planPrice} ر.س/شهر).\nالرجاء توجيهي لخطوات الدفع.`
+      : `Hello,\nI'd like to upgrade to the ${planName} plan (${planPrice} SAR/month). Please share the payment steps.`;
+    const url = `https://wa.me/${SALES_WHATSAPP}?text=${encodeURIComponent(text)}`;
+    if (typeof window !== "undefined") {
+      window.open(url, "_blank", "noopener,noreferrer");
     }
+    setConfirmUpgrade(null);
   };
 
   const isLoading = loadingOverview || loadingPlans || loadingTxns;
@@ -295,26 +298,44 @@ export default function BillingPage() {
         </Card>
       )}
 
-      {/* ── Upgrade Confirmation Modal ── */}
+      {/* ── Plan Upgrade — Sales Contact Modal ── */}
       <Modal
         open={!!confirmUpgrade}
         onClose={() => setConfirmUpgrade(null)}
-        title={ar ? "تأكيد الترقية" : "Confirm Upgrade"}
-        submitLabel={upgradeLoading ? (ar ? "جاري الترقية..." : "Upgrading...") : (ar ? "تأكيد الترقية" : "Confirm Upgrade")}
-        submitLoading={!!upgradeLoading}
-        onSubmit={() => { if (confirmUpgrade) handleUpgradePlan(confirmUpgrade.id); }}
+        title={ar ? "طلب ترقية الخطة" : "Request Plan Upgrade"}
+        submitLabel={ar ? "تواصل عبر واتساب" : "Contact via WhatsApp"}
+        onSubmit={() => { if (confirmUpgrade) handleRequestUpgrade(confirmUpgrade); }}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 14, textAlign: "center" }}>
-          <div style={{ fontSize: 40 }}>🚀</div>
+          <div style={{ fontSize: 40 }}>💬</div>
           <div style={{ fontSize: 16, fontWeight: 700 }}>
-            {ar ? `هل تريد الترقية إلى خطة ${confirmUpgrade?.name || ""}؟` : `Upgrade to ${confirmUpgrade?.name || ""} plan?`}
+            {ar ? `الترقية إلى خطة ${confirmUpgrade?.name || ""}` : `Upgrade to ${confirmUpgrade?.name || ""} plan`}
           </div>
           <div style={{ fontSize: 24, fontWeight: 700 }}>
             <span style={{ background: GRADIENT, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{confirmUpgrade?.price || 0}</span>
             <span style={{ fontSize: 14, color: C.t2 }}> {t("sar")}/{ar ? "شهر" : "mo"}</span>
           </div>
-          <div style={{ fontSize: 13, color: C.t2 }}>
-            {ar ? "سيتم خصم المبلغ من رصيد المحفظة. يمكنك تغيير خطتك لاحقاً." : "The amount will be deducted from your wallet balance. You can change your plan later."}
+          <div style={{ textAlign: ar ? "right" : "left", padding: "14px 16px", borderRadius: 12, background: `${C.info}10`, border: `1px solid ${C.info}25` }}>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: C.txt }}>
+              {ar ? "خطوات الترقية:" : "Upgrade steps:"}
+            </div>
+            <div style={{ fontSize: 12.5, color: C.t2, lineHeight: 1.9 }}>
+              {ar ? (
+                <>
+                  1. تواصل مع فريق المبيعات عبر واتساب<br />
+                  2. سترسل لك تفاصيل التحويل البنكي<br />
+                  3. ارفع إيصال التحويل من <b>شحن الرصيد</b><br />
+                  4. بعد تأكيد التحويل، تُفعّل الباقة الجديدة فوراً
+                </>
+              ) : (
+                <>
+                  1. Contact sales via WhatsApp<br />
+                  2. Receive the bank transfer details<br />
+                  3. Upload the receipt from <b>Top Up</b><br />
+                  4. Once confirmed, the new plan activates immediately
+                </>
+              )}
+            </div>
           </div>
         </div>
       </Modal>
