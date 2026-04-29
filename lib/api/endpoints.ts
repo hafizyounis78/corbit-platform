@@ -180,4 +180,13 @@ export const API = {
       REMOVE_NUMBER: (id: string) => `/settings/whatsapp/numbers/${id}`,
     },
   },
+  SUPPORT: {
+    TICKETS: {
+      LIST: '/support/tickets',
+      CREATE: '/support/tickets',
+      SHOW: (id: string) => `/support/tickets/${id}`,
+      REPLY: (id: string) => `/support/tickets/${id}/reply`,
+      CLOSE: (id: string) => `/support/tickets/${id}/close`,
+    },
+  },
 };

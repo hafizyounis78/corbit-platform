@@ -24,6 +24,7 @@ export const navItems: NavItem[] = [
   { key: "integrations", path: "/integrations", labelKey: "integrations", icon: "link", roles: ["admin"] },
   { key: "teams",        path: "/teams",        labelKey: "teams",        icon: "team", roles: ["admin", "supervisor"] },
   { key: "billing",      path: "/billing",      labelKey: "billing",      icon: "card", roles: ["admin"] },
+  { key: "support",      path: "/support",      labelKey: "support",      icon: "book" },
   { key: "settings",     path: "/settings",     labelKey: "settings",     icon: "gear", roles: ["admin"] },
 ];
 

@@ -208,6 +208,16 @@ export function useUnreadCount() {
   return useApi('/notifications/unread-count');
 }
 
+// ─── Support tickets ─────────────────────────────────────
+export function useSupportTickets(status?: string) {
+  const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+  return useApi(`/support/tickets${qs}`, [status ?? '']);
+}
+
+export function useSupportTicket(id: string | null) {
+  return useApi(id ? `/support/tickets/${id}` : null, [id]);
+}
+
 // ─── Settings ─────────────────────────────────────────────
 export function useSettings(section: string) {
   const path = section === 'general' ? '/settings/general' :

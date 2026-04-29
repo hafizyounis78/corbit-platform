@@ -10,6 +10,7 @@ const translations = {
   settings: { ar: "الإعدادات", en: "Settings" },
   aiCenter: { ar: "مركز الذكاء", en: "AI Center" },
   teams: { ar: "الفرق", en: "Teams" },
+  support: { ar: "الدعم", en: "Support" },
   integrations: { ar: "التطبيقات", en: "Integrations" },
   intDesc: { ar: "اربط متجرك وأنظمتك مع واتساب", en: "Connect your store & systems with WhatsApp" },
   installed: { ar: "مثبّت", en: "Installed" },
