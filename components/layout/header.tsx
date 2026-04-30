@@ -8,6 +8,7 @@ import { Icon } from "@/components/icons/icon";
 import { navItems } from "@/data/nav-items";
 import { NotificationDropdown } from "./notification-dropdown";
 import { FONT_FAMILY } from "@/lib/constants/font";
+import { useUnreadCount } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
 
 interface HeaderProps {
@@ -28,6 +29,46 @@ export function Header({ onToggleSidebar }: HeaderProps) {
   const { colors: C, isDark, toggleTheme } = useTheme();
   const { t, lang, toggleLang } = useLocale();
   const [notifOpen, setNotifOpen] = useState(false);
+  // Unread badge + audio chime when count goes UP. Polling interval
+  // is set in useUnreadCount; we just diff the latest value against
+  // the previously-seen one. Skip the chime on the very first read
+  // (so a page reload with existing unreads doesn't beep at the user).
+  const { data: unreadData, mutate: mutateUnread } = useUnreadCount();
+  const unreadCount = (unreadData as any)?.count ?? (unreadData as any) ?? 0;
+  const lastSeenUnreadRef = useRef<number | null>(null);
+  useEffect(() => {
+    const prev = lastSeenUnreadRef.current;
+    if (prev !== null && unreadCount > prev) {
+      try {
+        // Tiny inline chime — no asset to ship, no permission needed.
+        // Web Audio API generates a 500ms two-tone beep on the fly.
+        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.frequency.setValueAtTime(880, ctx.currentTime);
+        o.frequency.setValueAtTime(1320, ctx.currentTime + 0.12);
+        g.gain.setValueAtTime(0.18, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+        o.start();
+        o.stop(ctx.currentTime + 0.4);
+      } catch {
+        // Audio context can fail before any user gesture; silently swallow.
+      }
+    }
+    lastSeenUnreadRef.current = unreadCount;
+  }, [unreadCount]);
+  // Refresh notifications when the dropdown closes (so the badge resets
+  // after Mark all read, etc.)
+  useEffect(() => { if (!notifOpen) mutateUnread(); }, [notifOpen, mutateUnread]);
+  // Poll the unread count every 20s. Keeps the badge live so an
+  // operator who just received a new conversation sees the count
+  // tick up + hears the chime within ~20s of arrival, even if they
+  // haven't navigated to /inbox.
+  useEffect(() => {
+    const id = setInterval(() => mutateUnread(), 20000);
+    return () => clearInterval(id);
+  }, [mutateUnread]);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -330,17 +371,29 @@ export function Header({ onToggleSidebar }: HeaderProps) {
             }}
           >
             <Icon name="bell" size={16} />
-            <span
-              style={{
-                position: "absolute",
-                top: 4,
-                right: 4,
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                background: C.err,
-              }}
-            />
+            {unreadCount > 0 && (
+              <span
+                style={{
+                  position: "absolute",
+                  top: -2,
+                  right: -2,
+                  minWidth: 16,
+                  height: 16,
+                  padding: "0 4px",
+                  borderRadius: 8,
+                  background: C.err,
+                  color: "#fff",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  border: `2px solid ${C.card}`,
+                }}
+              >
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
           </button>
           {notifOpen && (
             <NotificationDropdown onClose={() => setNotifOpen(false)} />
