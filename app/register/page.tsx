@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
 import { FONT_FAMILY } from "@/lib/constants/font";
-import { GRADIENT } from "@/lib/constants/colors";
+import { COLORS, GRADIENT } from "@/lib/constants/colors";
+import { WhatsBitIcon } from "@/components/shared/whatsbit-logo";
+import { FONT_LATIN } from "@/lib/constants/font";
 import api from "@/lib/api/client";
 import { API } from "@/lib/api/endpoints";
 
@@ -82,8 +84,8 @@ export default function RegisterPage() {
 
   if (isLoading) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", background: "#0C0E14", fontFamily: FONT_FAMILY }}>
-        <div style={{ color: "#8B8D97", fontSize: 15 }}>جاري التحميل...</div>
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", background: "#0B1D3A", fontFamily: FONT_FAMILY }}>
+        <div style={{ color: "#8B99AD", fontSize: 15 }}>جاري التحميل...</div>
       </div>
     );
   }
@@ -95,7 +97,7 @@ export default function RegisterPage() {
         justifyContent: "center",
         alignItems: "center",
         minHeight: "100vh",
-        background: "#0C0E14",
+        background: "#0B1D3A",
         fontFamily: FONT_FAMILY,
         direction: "rtl",
         padding: "24px 16px",
@@ -109,11 +111,21 @@ export default function RegisterPage() {
             borderRadius: "20px 20px 0 0",
             padding: "32px 32px 24px",
             textAlign: "center",
+            position: "relative",
+            overflow: "hidden",
           }}
         >
-          <div style={{ fontSize: 34, fontWeight: 800, color: "#fff", letterSpacing: -1 }}>CORBIT</div>
-          <div style={{ color: "rgba(255,255,255,0.85)", fontSize: 13, marginTop: 6 }}>المدار</div>
-          <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, marginTop: 4 }}>
+          <div style={{ position: "absolute", top: -30, right: -30, width: 140, height: 140, opacity: 0.18, pointerEvents: "none" }}>
+            <svg viewBox="0 0 140 140" fill="none"><circle cx="70" cy="70" r="58" stroke="#fff" strokeWidth="2" fill="none"/><circle cx="70" cy="70" r="40" stroke="#fff" strokeWidth="1.4" fill="none" strokeDasharray="4 7"/></svg>
+          </div>
+          <div style={{ display: "flex", justifyContent: "center", position: "relative", marginBottom: 10 }}>
+            <WhatsBitIcon size={56} variant="light" />
+          </div>
+          <div style={{ position: "relative", fontSize: 30, fontWeight: 800, letterSpacing: -0.8, fontFamily: FONT_LATIN, lineHeight: 1 }}>
+            <span style={{ color: "#fff" }}>Whats</span>
+            <span style={{ color: "#2ECC71", fontWeight: 800 }}>Bit</span>
+          </div>
+          <div style={{ color: "rgba(255,255,255,0.85)", fontSize: 12.5, marginTop: 8, position: "relative" }}>
             أنشئ حساب جديد لشركتك
           </div>
         </div>
@@ -122,10 +134,10 @@ export default function RegisterPage() {
         <form
           onSubmit={handleSubmit}
           style={{
-            background: "#141721",
+            background: "#112240",
             borderRadius: "0 0 20px 20px",
             padding: "28px 32px 32px",
-            border: "1px solid #1E2233",
+            border: "1px solid #1E3350",
             borderTop: "none",
           }}
         >
@@ -238,7 +250,7 @@ export default function RegisterPage() {
                 marginTop: 3,
                 width: 16,
                 height: 16,
-                accentColor: "#E8713A",
+                accentColor: COLORS.pri,
                 flexShrink: 0,
                 cursor: "pointer",
               }}
@@ -249,7 +261,7 @@ export default function RegisterPage() {
                 href="/terms"
                 target="_blank"
                 rel="noreferrer"
-                style={{ color: "#E8713A", textDecoration: "none", fontWeight: 600 }}
+                style={{ color: COLORS.pri, textDecoration: "none", fontWeight: 600 }}
               >
                 شروط الاستخدام
               </a>
@@ -258,7 +270,7 @@ export default function RegisterPage() {
                 href="/privacy"
                 target="_blank"
                 rel="noreferrer"
-                style={{ color: "#E8713A", textDecoration: "none", fontWeight: 600 }}
+                style={{ color: COLORS.pri, textDecoration: "none", fontWeight: 600 }}
               >
                 سياسة الخصوصية
               </a>
@@ -267,7 +279,7 @@ export default function RegisterPage() {
                 href="https://business.whatsapp.com/policy"
                 target="_blank"
                 rel="noreferrer"
-                style={{ color: "#E8713A", textDecoration: "none", fontWeight: 600 }}
+                style={{ color: COLORS.pri, textDecoration: "none", fontWeight: 600 }}
               >
                 سياسة WhatsApp Business
               </a>
@@ -323,7 +335,7 @@ export default function RegisterPage() {
             }}
           >
             لديك حساب بالفعل؟{" "}
-            <a href="/login" style={{ color: "#E8713A", textDecoration: "none", fontWeight: 600 }}>
+            <a href="/login" style={{ color: COLORS.pri, textDecoration: "none", fontWeight: 600 }}>
               سجّل دخولك
             </a>
           </div>

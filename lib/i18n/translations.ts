@@ -62,7 +62,7 @@ const translations = {
   sar: { ar: "ر.س", en: "SAR" },
   connected: { ar: "متصل", en: "Connected" },
   waNum: { ar: "أرقام واتساب", en: "WhatsApp Numbers" },
-  welcome: { ar: "مرحباً بك في المدار", en: "Welcome to CORBIT" },
+  welcome: { ar: "مرحباً بك في WhatsBit", en: "Welcome to WhatsBit" },
   tagline: { ar: "منصة واتساب الأعمال المتكاملة", en: "Integrated WhatsApp Business Platform" },
   allConv: { ar: "الكل", en: "All" },
   unread: { ar: "غير مقروءة", en: "Unread" },

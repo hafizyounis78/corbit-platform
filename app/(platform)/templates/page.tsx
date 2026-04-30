@@ -264,7 +264,7 @@ export default function TemplatesPage() {
                   <Icon name="phone" size={14} />
                 </div>
                 <div>
-                  <div style={{ color: "#fff", fontSize: 13, fontWeight: 600 }}>CORBIT</div>
+                  <div style={{ color: "#fff", fontSize: 13, fontWeight: 600 }}>WhatsBit</div>
                   <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 10 }}>
                     {isAr ? "\u0645\u062A\u0635\u0644" : "Online"}
                   </div>
@@ -1142,9 +1142,9 @@ export default function TemplatesPage() {
             <div style={{ borderRadius: 20, background: "#ECE5DD", overflow: "hidden", border: "6px solid #222" }}>
               {/* WA Header bar */}
               <div style={{ background: "#075E54", padding: "10px 14px", display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#128C7E", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 700 }}>C</div>
+                <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#128C7E", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 700 }}>W</div>
                 <div>
-                  <div style={{ color: "#fff", fontSize: 12, fontWeight: 600 }}>CORBIT</div>
+                  <div style={{ color: "#fff", fontSize: 12, fontWeight: 600 }}>WhatsBit</div>
                   <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 9 }}>{pLang === "ar" ? "متصل" : "Online"}</div>
                 </div>
               </div>

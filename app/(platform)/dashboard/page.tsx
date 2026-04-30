@@ -86,10 +86,41 @@ export default function DashboardPage() {
   return (
     <div style={{ padding: "0 24px 24px" }}>
       {/* Welcome Banner */}
-      <div style={{ padding: "28px 32px", borderRadius: 16, background: GRADIENT, marginBottom: 24, position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "absolute", top: -20, right: -20, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.08)" }} />
-        <h2 style={{ color: "#fff", fontSize: 24, fontWeight: 700, margin: 0, position: "relative" }}>{t("welcome")}</h2>
-        <p style={{ color: "rgba(255,255,255,0.85)", margin: "8px 0 0", fontSize: 14, position: "relative" }}>{t("tagline")}</p>
+      <div style={{ padding: "32px 36px", borderRadius: 18, background: GRADIENT, marginBottom: 24, position: "relative", overflow: "hidden" }}>
+        <svg style={{ position: "absolute", top: -40, right: -40, width: 240, height: 240, opacity: 0.22, pointerEvents: "none" }} viewBox="0 0 240 240" fill="none">
+          <circle cx="120" cy="120" r="100" stroke="#fff" strokeWidth="2.5" fill="none" />
+          <circle cx="120" cy="120" r="72" stroke="#fff" strokeWidth="1.6" fill="none" strokeDasharray="5 9" />
+          <circle cx="220" cy="120" r="6" fill="#fff" />
+          <circle cx="120" cy="20" r="4" fill="#fff" />
+          <circle cx="48" cy="48" r="3" fill="#fff" />
+        </svg>
+        <div style={{ position: "absolute", top: 18, left: 24, opacity: 0.18, pointerEvents: "none", display: "flex", flexDirection: "column", gap: 7 }}>
+          {Array.from({ length: 4 }).map((_, r) => (
+            <div key={r} style={{ display: "flex", gap: 7 }}>
+              {Array.from({ length: 7 }).map((_, c) => (
+                <div key={c} style={{ width: 3, height: 3, borderRadius: 1.5, background: "#fff" }} />
+              ))}
+            </div>
+          ))}
+        </div>
+        <div style={{ position: "absolute", bottom: 24, right: 32, display: "flex", flexDirection: "column", gap: 4, pointerEvents: "none" }}>
+          <div style={{ display: "flex", gap: 4 }}>
+            <div style={{ width: 18, height: 7, borderRadius: 2, background: "rgba(255,255,255,0.85)" }} />
+            <div style={{ width: 7, height: 7, borderRadius: 2, background: "rgba(255,255,255,0.55)" }} />
+            <div style={{ width: 24, height: 7, borderRadius: 2, background: "rgba(255,255,255,0.95)" }} />
+          </div>
+          <div style={{ display: "flex", gap: 4 }}>
+            <div style={{ width: 7, height: 7, borderRadius: 2, background: "rgba(255,255,255,0.6)" }} />
+            <div style={{ width: 28, height: 7, borderRadius: 2, background: "#fff" }} />
+            <div style={{ width: 7, height: 7, borderRadius: 2, background: "#0B1D3A" }} />
+          </div>
+          <div style={{ display: "flex", gap: 4 }}>
+            <div style={{ width: 22, height: 7, borderRadius: 2, background: "rgba(255,255,255,0.75)" }} />
+            <div style={{ width: 14, height: 7, borderRadius: 2, background: "rgba(255,255,255,0.5)" }} />
+          </div>
+        </div>
+        <h2 style={{ color: "#fff", fontSize: 26, fontWeight: 800, margin: 0, position: "relative", letterSpacing: -0.4 }}>{t("welcome")}</h2>
+        <p style={{ color: "rgba(255,255,255,0.92)", margin: "8px 0 0", fontSize: 14.5, position: "relative" }}>{t("tagline")}</p>
       </div>
 
       {/* Stats Grid */}

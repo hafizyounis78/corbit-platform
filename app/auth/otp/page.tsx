@@ -4,7 +4,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth/auth-context';
 import api from '@/lib/api/client';
 import { FONT_FAMILY } from '@/lib/constants/font';
-import { GRADIENT } from '@/lib/constants/colors';
+import { COLORS, GRADIENT } from '@/lib/constants/colors';
+import { WhatsBitIcon } from '@/components/shared/whatsbit-logo';
+import { FONT_LATIN } from '@/lib/constants/font';
 
 function OtpInner() {
   const router = useRouter();
@@ -120,27 +122,36 @@ function OtpInner() {
   return (
     <div style={{
       display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh',
-      background: '#0C0E14', fontFamily: FONT_FAMILY, direction: 'rtl',
+      background: '#0B1D3A', fontFamily: FONT_FAMILY, direction: 'rtl',
     }}>
       <div style={{ width: 420, maxWidth: '90vw' }}>
         <div style={{
-          background: GRADIENT, borderRadius: '20px 20px 0 0', padding: '36px 32px 26px',
-          textAlign: 'center',
+          background: GRADIENT, borderRadius: '20px 20px 0 0', padding: '32px 32px 26px',
+          textAlign: 'center', position: 'relative', overflow: 'hidden',
         }}>
-          <div style={{ fontSize: 32, fontWeight: 800, color: '#fff', letterSpacing: -1 }}>التحقّق</div>
-          <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, marginTop: 8 }}>
+          <div style={{ position: 'absolute', top: -30, right: -30, width: 140, height: 140, opacity: 0.18, pointerEvents: 'none' }}>
+            <svg viewBox="0 0 140 140" fill="none"><circle cx="70" cy="70" r="58" stroke="#fff" strokeWidth="2" fill="none"/><circle cx="70" cy="70" r="40" stroke="#fff" strokeWidth="1.4" fill="none" strokeDasharray="4 7"/></svg>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', position: 'relative', marginBottom: 10 }}>
+            <WhatsBitIcon size={48} variant="light" />
+          </div>
+          <div style={{ position: 'relative', fontSize: 24, fontWeight: 800, letterSpacing: -0.6, fontFamily: FONT_LATIN, lineHeight: 1, marginBottom: 6 }}>
+            <span style={{ color: '#fff' }}>Whats</span>
+            <span style={{ color: '#2ECC71', fontWeight: 800 }}>Bit</span>
+          </div>
+          <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, marginTop: 8, position: 'relative' }}>
             أدخل الرمز المرسل إلى جوّالك
           </div>
           {phoneMasked && (
-            <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 4, direction: 'ltr' }}>
+            <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 4, direction: 'ltr', position: 'relative' }}>
               {phoneMasked}
             </div>
           )}
         </div>
 
         <form onSubmit={submit} style={{
-          background: '#141721', borderRadius: '0 0 20px 20px', padding: '32px',
-          border: '1px solid #1E2233', borderTop: 'none',
+          background: '#112240', borderRadius: '0 0 20px 20px', padding: '32px',
+          border: '1px solid #1E3350', borderTop: 'none',
         }}>
           <div style={{ display: 'flex', justifyContent: 'center', gap: 8, direction: 'ltr', marginBottom: 20 }}>
             {code.map((d, i) => (
@@ -156,8 +167,8 @@ function OtpInner() {
                 maxLength={1}
                 style={{
                   width: 48, height: 56, textAlign: 'center', fontSize: 22, fontWeight: 600,
-                  borderRadius: 10, border: '1px solid #1E2233', background: '#1A1E2E',
-                  color: '#E8E6E3', fontFamily: FONT_FAMILY, outline: 'none',
+                  borderRadius: 10, border: '1px solid #1E3350', background: '#1A2E4A',
+                  color: '#E8ECF0', fontFamily: FONT_FAMILY, outline: 'none',
                 }}
               />
             ))}
@@ -165,7 +176,7 @@ function OtpInner() {
 
           {error && (
             <div style={{
-              background: '#E8485515', color: '#E84855', padding: '10px 14px', borderRadius: 10,
+              background: '#FF5A5F15', color: '#FF5A5F', padding: '10px 14px', borderRadius: 10,
               fontSize: 13, marginBottom: 12, textAlign: 'center',
             }}>{error}</div>
           )}
@@ -189,7 +200,7 @@ function OtpInner() {
             {verifying ? 'جاري التحقّق...' : 'تحقّق ودخول'}
           </button>
 
-          <div style={{ textAlign: 'center', marginTop: 18, fontSize: 12.5, color: '#8B8D97' }}>
+          <div style={{ textAlign: 'center', marginTop: 18, fontSize: 12.5, color: '#8B99AD' }}>
             ما وصلك الرمز؟{' '}
             <button
               type="button"
@@ -208,9 +219,9 @@ function OtpInner() {
 
           <div style={{
             textAlign: 'center', marginTop: 20, paddingTop: 18,
-            borderTop: '1px solid #1E2233', fontSize: 12.5, color: '#8B8D97',
+            borderTop: '1px solid #1E3350', fontSize: 12.5, color: '#8B99AD',
           }}>
-            <a href="/login" style={{ color: '#E8713A', textDecoration: 'none', fontWeight: 600 }}>
+            <a href="/login" style={{ color: COLORS.pri, textDecoration: 'none', fontWeight: 600 }}>
               العودة لتسجيل الدخول
             </a>
           </div>

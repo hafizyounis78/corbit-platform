@@ -6,8 +6,9 @@ import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { Icon } from "@/components/icons/icon";
 import { Avatar } from "@/components/ui/avatar";
+import { WhatsBitIcon } from "@/components/shared/whatsbit-logo";
 import { navItems, canAccessNav } from "@/data/nav-items";
-import { FONT_FAMILY } from "@/lib/constants/font";
+import { FONT_FAMILY, FONT_LATIN } from "@/lib/constants/font";
 import { GRADIENT } from "@/lib/constants/colors";
 import { useNavBadges, usePlanUsage } from "@/lib/api/hooks";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -67,30 +68,23 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
           borderBottom: "1px solid " + C.brd,
         }}
       >
-        <div
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 12,
-            background: GRADIENT,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 18,
-            fontWeight: 700,
-            color: "#fff",
-            flexShrink: 0,
-          }}
-        >
-          C
-        </div>
+        <WhatsBitIcon size={44} variant="light" />
         {open && (
           <div>
-            <div style={{ fontWeight: 700, fontSize: 18, letterSpacing: -0.5 }}>
-              CORBIT
+            <div
+              style={{
+                fontWeight: 700,
+                fontSize: 20,
+                letterSpacing: -0.5,
+                fontFamily: FONT_LATIN,
+                lineHeight: 1,
+              }}
+            >
+              <span style={{ color: "#fff" }}>Whats</span>
+              <span style={{ color: "#2ECC71", fontWeight: 800 }}>Bit</span>
             </div>
-            <div style={{ fontSize: 11, color: C.t2, marginTop: -2 }}>
-              المدار
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", marginTop: 4 }}>
+              {isAr ? "منصة واتساب أعمال متكاملة" : "Integrated WhatsApp Business"}
             </div>
           </div>
         )}

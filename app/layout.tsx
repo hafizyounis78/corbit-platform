@@ -3,8 +3,8 @@ import { Providers } from "./providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "CORBIT - منصة واتساب الأعمال المتكاملة",
-  description: "Integrated WhatsApp Business Platform",
+  title: "WhatsBit — منصة واتساب الأعمال المتكاملة",
+  description: "WhatsBit by Corbit — Integrated WhatsApp Business Platform",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

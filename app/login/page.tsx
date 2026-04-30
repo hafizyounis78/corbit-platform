@@ -3,7 +3,9 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth/auth-context';
 import { FONT_FAMILY } from '@/lib/constants/font';
-import { GRADIENT } from '@/lib/constants/colors';
+import { COLORS, GRADIENT } from '@/lib/constants/colors';
+import { WhatsBitIcon } from '@/components/shared/whatsbit-logo';
+import { FONT_LATIN } from '@/lib/constants/font';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -42,36 +44,53 @@ export default function LoginPage() {
   };
 
   if (isLoading) return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#0C0E14', fontFamily: FONT_FAMILY }}>
-      <div style={{ color: '#8B8D97', fontSize: 15 }}>جاري التحميل...</div>
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#0B1D3A', fontFamily: FONT_FAMILY }}>
+      <div style={{ color: '#8B99AD', fontSize: 15 }}>جاري التحميل...</div>
     </div>
   );
 
   return (
     <div style={{
       display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh',
-      background: '#0C0E14', fontFamily: FONT_FAMILY, direction: 'rtl',
+      background: '#0B1D3A', fontFamily: FONT_FAMILY, direction: 'rtl',
     }}>
       <div style={{ width: 420, maxWidth: '90vw' }}>
         {/* Logo Area */}
         <div style={{
-          background: GRADIENT, borderRadius: '20px 20px 0 0', padding: '40px 32px 30px',
-          textAlign: 'center',
+          background: GRADIENT, borderRadius: '20px 20px 0 0', padding: '40px 32px 32px',
+          textAlign: 'center', position: 'relative', overflow: 'hidden',
         }}>
-          <div style={{ fontSize: 36, fontWeight: 800, color: '#fff', letterSpacing: -1 }}>CORBIT</div>
-          <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, marginTop: 6 }}>المدار</div>
-          <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 4 }}>
+          <div style={{ position: 'absolute', top: -30, right: -30, width: 140, height: 140, opacity: 0.18, pointerEvents: 'none' }}>
+            <svg viewBox="0 0 140 140" fill="none"><circle cx="70" cy="70" r="58" stroke="#fff" strokeWidth="2" fill="none"/><circle cx="70" cy="70" r="40" stroke="#fff" strokeWidth="1.4" fill="none" strokeDasharray="4 7"/></svg>
+          </div>
+          <div style={{ position: 'absolute', bottom: 12, left: 16, opacity: 0.22, pointerEvents: 'none', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {Array.from({ length: 3 }).map((_, r) => (
+              <div key={r} style={{ display: 'flex', gap: 4 }}>
+                {Array.from({ length: 5 }).map((_, c) => (
+                  <div key={c} style={{ width: 4, height: 4, borderRadius: 1, background: '#fff' }} />
+                ))}
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', position: 'relative', marginBottom: 12 }}>
+            <WhatsBitIcon size={64} variant="light" />
+          </div>
+          <div style={{ position: 'relative', fontSize: 32, fontWeight: 800, letterSpacing: -0.8, fontFamily: FONT_LATIN, lineHeight: 1 }}>
+            <span style={{ color: '#fff' }}>Whats</span>
+            <span style={{ color: '#2ECC71', fontWeight: 800 }}>Bit</span>
+          </div>
+          <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12.5, marginTop: 8, position: 'relative' }}>
             منصة واتساب الأعمال المتكاملة
           </div>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} style={{
-          background: '#141721', borderRadius: '0 0 20px 20px', padding: '32px',
-          border: '1px solid #1E2233', borderTop: 'none',
+          background: '#112240', borderRadius: '0 0 20px 20px', padding: '32px',
+          border: '1px solid #1E3350', borderTop: 'none',
         }}>
           <div style={{ marginBottom: 20 }}>
-            <label style={{ display: 'block', color: '#8B8D97', fontSize: 12, marginBottom: 8, fontWeight: 500 }}>
+            <label style={{ display: 'block', color: '#8B99AD', fontSize: 12, marginBottom: 8, fontWeight: 500 }}>
               البريد الإلكتروني
             </label>
             <input
@@ -81,15 +100,15 @@ export default function LoginPage() {
               placeholder="admin@corbit.sa"
               required
               style={{
-                width: '100%', padding: '12px 14px', borderRadius: 10, border: '1px solid #1E2233',
-                background: '#1A1E2E', color: '#E8E6E3', fontSize: 14, fontFamily: FONT_FAMILY,
+                width: '100%', padding: '12px 14px', borderRadius: 10, border: '1px solid #1E3350',
+                background: '#1A2E4A', color: '#E8ECF0', fontSize: 14, fontFamily: FONT_FAMILY,
                 outline: 'none', boxSizing: 'border-box', direction: 'ltr', textAlign: 'right',
               }}
             />
           </div>
 
           <div style={{ marginBottom: 24 }}>
-            <label style={{ display: 'block', color: '#8B8D97', fontSize: 12, marginBottom: 8, fontWeight: 500 }}>
+            <label style={{ display: 'block', color: '#8B99AD', fontSize: 12, marginBottom: 8, fontWeight: 500 }}>
               كلمة المرور
             </label>
             <div style={{ position: 'relative' }}>
@@ -100,8 +119,8 @@ export default function LoginPage() {
                 placeholder="••••••••"
                 required
                 style={{
-                  width: '100%', padding: '12px 14px', borderRadius: 10, border: '1px solid #1E2233',
-                  background: '#1A1E2E', color: '#E8E6E3', fontSize: 14, fontFamily: FONT_FAMILY,
+                  width: '100%', padding: '12px 14px', borderRadius: 10, border: '1px solid #1E3350',
+                  background: '#1A2E4A', color: '#E8ECF0', fontSize: 14, fontFamily: FONT_FAMILY,
                   outline: 'none', boxSizing: 'border-box', direction: 'ltr', textAlign: 'right',
                 }}
               />
@@ -110,7 +129,7 @@ export default function LoginPage() {
                 onClick={() => setShowPw(!showPw)}
                 style={{
                   position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
-                  background: 'none', border: 'none', color: '#8B8D97', cursor: 'pointer', fontSize: 13,
+                  background: 'none', border: 'none', color: '#8B99AD', cursor: 'pointer', fontSize: 13,
                 }}
               >
                 {showPw ? '🙈' : '👁'}
@@ -120,7 +139,7 @@ export default function LoginPage() {
 
           {error && (
             <div style={{
-              background: '#E8485515', color: '#E84855', padding: '10px 14px', borderRadius: 10,
+              background: '#FF5A5F15', color: '#FF5A5F', padding: '10px 14px', borderRadius: 10,
               fontSize: 13, marginBottom: 16, textAlign: 'center',
             }}>
               {error}
@@ -144,7 +163,7 @@ export default function LoginPage() {
             <button
               type="button"
               style={{
-                background: 'none', border: 'none', color: '#E8713A', fontSize: 12,
+                background: 'none', border: 'none', color: COLORS.pri, fontSize: 12,
                 cursor: 'pointer', fontFamily: FONT_FAMILY,
               }}
             >
@@ -152,11 +171,11 @@ export default function LoginPage() {
             </button>
           </div>
 
-          <div style={{ textAlign: 'center', marginTop: 20, paddingTop: 20, borderTop: '1px solid #1E2233', fontSize: 13, color: '#8B8D97' }}>
+          <div style={{ textAlign: 'center', marginTop: 20, paddingTop: 20, borderTop: '1px solid #1E3350', fontSize: 13, color: '#8B99AD' }}>
             ليس لديك حساب؟{' '}
             <a
               href="/register"
-              style={{ color: '#E8713A', textDecoration: 'none', fontWeight: 600 }}
+              style={{ color: COLORS.pri, textDecoration: 'none', fontWeight: 600 }}
             >
               أنشئ حسابك الآن
             </a>

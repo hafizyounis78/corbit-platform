@@ -1,21 +1,22 @@
 import type { Metadata } from "next";
-import { FONT_FAMILY } from "@/lib/constants/font";
+import { FONT_FAMILY, FONT_LATIN } from "@/lib/constants/font";
 import { GRADIENT } from "@/lib/constants/colors";
+import { WhatsBitIcon } from "@/components/shared/whatsbit-logo";
 
 export const metadata: Metadata = {
-  title: "سياسة الخصوصية — Corbit",
-  description: "كيف تتعامل منصّة Corbit مع بياناتك وبيانات عملائك.",
+  title: "سياسة الخصوصية — WhatsBit",
+  description: "كيف تتعامل منصّة WhatsBit (من Corbit) مع بياناتك وبيانات عملائك.",
 };
 
 export default function PrivacyPage() {
   return (
     <div
       style={{
-        background: "#0C0E14",
+        background: "#0B1D3A",
         minHeight: "100vh",
         fontFamily: FONT_FAMILY,
         direction: "rtl",
-        color: "#E8E6E3",
+        color: "#E8ECF0",
         padding: "40px 20px 80px",
       }}
     >
@@ -23,24 +24,27 @@ export default function PrivacyPage() {
         <header style={{ marginBottom: 32 }}>
           <div
             style={{
-              display: "inline-block",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 10,
               background: GRADIENT,
               padding: "10px 18px",
-              borderRadius: 10,
-              fontWeight: 800,
-              fontSize: 20,
-              color: "#fff",
+              borderRadius: 12,
               letterSpacing: -0.5,
             }}
           >
-            CORBIT
+            <WhatsBitIcon size={28} variant="light" />
+            <span style={{ fontFamily: FONT_LATIN, fontWeight: 800, fontSize: 20, lineHeight: 1 }}>
+              <span style={{ color: "#fff" }}>Whats</span>
+              <span style={{ color: "#2ECC71" }}>Bit</span>
+            </span>
           </div>
           <h1 style={{ marginTop: 22, marginBottom: 6, fontSize: 28 }}>سياسة الخصوصية</h1>
-          <div style={{ color: "#8B8D97", fontSize: 13 }}>آخر تحديث: 22 أبريل 2026</div>
+          <div style={{ color: "#8B99AD", fontSize: 13 }}>آخر تحديث: 22 أبريل 2026</div>
         </header>
 
         <Section title="1 — مقدّمة">
-          في <b>Corbit</b> (المدار) نلتزم بحماية بيانات المشتركين وعملائهم.
+          في <b>WhatsBit</b> (من Corbit) نلتزم بحماية بيانات المشتركين وعملائهم.
           توضّح هذه السياسة أنواع البيانات التي نجمعها، أسباب جمعها،
           طريقة استخدامها، ومن يمكنه الوصول إليها، تماشياً مع
           نظام حماية البيانات الشخصية السعودي (PDPL) وسياسات Meta.
@@ -135,8 +139,8 @@ export default function PrivacyPage() {
           للدعم العام: <Link href="mailto:support@corbit.sa">support@corbit.sa</Link>.
         </Section>
 
-        <footer style={{ marginTop: 40, paddingTop: 24, borderTop: "1px solid #1E2233", fontSize: 12.5, color: "#8B8D97", textAlign: "center" }}>
-          © {new Date().getFullYear()} Corbit (المدار). جميع الحقوق محفوظة.
+        <footer style={{ marginTop: 40, paddingTop: 24, borderTop: "1px solid #1E3350", fontSize: 12.5, color: "#8B99AD", textAlign: "center" }}>
+          © {new Date().getFullYear()} Corbit. جميع الحقوق محفوظة. WhatsBit هو منتج من Corbit.
           {" · "}
           <Link href="/terms">شروط الاستخدام</Link>
           {" · "}
@@ -151,8 +155,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <section
       style={{
-        background: "#141721",
-        border: "1px solid #1E2233",
+        background: "#112240",
+        border: "1px solid #1E3350",
         borderRadius: 14,
         padding: "20px 22px",
         marginBottom: 14,
@@ -171,7 +175,7 @@ function Link({ href, children }: { href: string; children: React.ReactNode }) {
       href={href}
       target={external ? "_blank" : undefined}
       rel={external ? "noreferrer" : undefined}
-      style={{ color: "#E8713A", textDecoration: "none", fontWeight: 600 }}
+      style={{ color: "#16A34A", textDecoration: "none", fontWeight: 600 }}
     >
       {children}
     </a>

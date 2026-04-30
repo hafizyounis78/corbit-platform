@@ -1,21 +1,22 @@
 import type { Metadata } from "next";
-import { FONT_FAMILY } from "@/lib/constants/font";
+import { FONT_FAMILY, FONT_LATIN } from "@/lib/constants/font";
 import { GRADIENT } from "@/lib/constants/colors";
+import { WhatsBitIcon } from "@/components/shared/whatsbit-logo";
 
 export const metadata: Metadata = {
-  title: "شروط الاستخدام — Corbit",
-  description: "شروط استخدام منصة Corbit لخدمات واتساب الأعمال.",
+  title: "شروط الاستخدام — WhatsBit",
+  description: "شروط استخدام منصة WhatsBit (من Corbit) لخدمات واتساب الأعمال.",
 };
 
 export default function TermsPage() {
   return (
     <div
       style={{
-        background: "#0C0E14",
+        background: "#0B1D3A",
         minHeight: "100vh",
         fontFamily: FONT_FAMILY,
         direction: "rtl",
-        color: "#E8E6E3",
+        color: "#E8ECF0",
         padding: "40px 20px 80px",
       }}
     >
@@ -23,24 +24,27 @@ export default function TermsPage() {
         <header style={{ marginBottom: 32 }}>
           <div
             style={{
-              display: "inline-block",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 10,
               background: GRADIENT,
               padding: "10px 18px",
-              borderRadius: 10,
-              fontWeight: 800,
-              fontSize: 20,
-              color: "#fff",
+              borderRadius: 12,
               letterSpacing: -0.5,
             }}
           >
-            CORBIT
+            <WhatsBitIcon size={28} variant="light" />
+            <span style={{ fontFamily: FONT_LATIN, fontWeight: 800, fontSize: 20, lineHeight: 1 }}>
+              <span style={{ color: "#fff" }}>Whats</span>
+              <span style={{ color: "#2ECC71" }}>Bit</span>
+            </span>
           </div>
           <h1 style={{ marginTop: 22, marginBottom: 6, fontSize: 28 }}>شروط الاستخدام</h1>
-          <div style={{ color: "#8B8D97", fontSize: 13 }}>آخر تحديث: 22 أبريل 2026</div>
+          <div style={{ color: "#8B99AD", fontSize: 13 }}>آخر تحديث: 22 أبريل 2026</div>
         </header>
 
         <Section title="1 — مقدّمة">
-          مرحباً بك في منصّة <b>Corbit</b> (المدار). باستخدامك للمنصّة فإنك تُقرّ بأنك
+          مرحباً بك في منصّة <b>WhatsBit</b> (من Corbit). باستخدامك للمنصّة فإنك تُقرّ بأنك
           قرأت ووافقت على جميع الشروط الواردة أدناه، إضافةً إلى
           {" "}<Link href="https://business.whatsapp.com/policy">سياسة واتساب للأعمال</Link>{" "}
           و{" "}<Link href="https://developers.facebook.com/devpolicy/">سياسة مطوّري Meta</Link>.
@@ -110,8 +114,8 @@ export default function TermsPage() {
           {" "}<Link href="mailto:support@corbit.sa">support@corbit.sa</Link>.
         </Section>
 
-        <footer style={{ marginTop: 40, paddingTop: 24, borderTop: "1px solid #1E2233", fontSize: 12.5, color: "#8B8D97", textAlign: "center" }}>
-          © {new Date().getFullYear()} Corbit (المدار). جميع الحقوق محفوظة.
+        <footer style={{ marginTop: 40, paddingTop: 24, borderTop: "1px solid #1E3350", fontSize: 12.5, color: "#8B99AD", textAlign: "center" }}>
+          © {new Date().getFullYear()} Corbit. جميع الحقوق محفوظة. WhatsBit هو منتج من Corbit.
           {" · "}
           <Link href="/privacy">سياسة الخصوصية</Link>
           {" · "}
@@ -126,8 +130,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <section
       style={{
-        background: "#141721",
-        border: "1px solid #1E2233",
+        background: "#112240",
+        border: "1px solid #1E3350",
         borderRadius: 14,
         padding: "20px 22px",
         marginBottom: 14,
@@ -146,7 +150,7 @@ function Link({ href, children }: { href: string; children: React.ReactNode }) {
       href={href}
       target={external ? "_blank" : undefined}
       rel={external ? "noreferrer" : undefined}
-      style={{ color: "#E8713A", textDecoration: "none", fontWeight: 600 }}
+      style={{ color: "#16A34A", textDecoration: "none", fontWeight: 600 }}
     >
       {children}
     </a>
