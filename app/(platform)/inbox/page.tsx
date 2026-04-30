@@ -158,7 +158,12 @@ export default function InboxPage() {
     ? rawMsgs.map(mapApiMessage)
     : [];
 
-  const messages = apiMessages.length ? apiMessages : [];
+  // Display order is newest-first (top) → oldest (bottom). The backend
+  // returns oldest→newest in chronological order, so we reverse a copy
+  // here. Reversing in display only (not in the array passed to AI or
+  // analytics) keeps the conversation history intact for everything
+  // else — only the inbox UI flips for operator readability.
+  const messages = apiMessages.length ? [...apiMessages].reverse() : [];
 
   // API: fetch notes for selected conversation
   useEffect(() => {
@@ -187,17 +192,10 @@ export default function InboxPage() {
     }
   }, [filterTab]);
 
-  // Auto-scroll the chat to the newest message — same behavior as
-  // WhatsApp/Telegram. Driving scrollTop on the container directly is
-  // more reliable than scrollIntoView on a sentinel div: messages load
-  // async, message bubbles have variable heights, and a sentinel
-  // element measured before all rows render lands at the wrong y.
-  //
-  // The trick: skip until messages.length > 0 so we don't "use up"
-  // the convo-switch jump on an empty pre-load render. The marker
-  // (lastScrolledConvoRef) is set only AFTER we successfully jumped
-  // to bottom in a populated convo, so subsequent renders within the
-  // same convo correctly use smooth scroll for incremental messages.
+  // Order is newest-first (top), so when a conversation opens we want
+  // to jump to scrollTop=0 rather than scrollHeight. Skip until the
+  // messages array is populated so we don't "use up" the jump on the
+  // empty pre-load render.
   useEffect(() => {
     if (!selectedId || messages.length === 0) return;
 
@@ -207,15 +205,12 @@ export default function InboxPage() {
       const el = messagesScrollRef.current;
       if (!el) return;
       if (isFirstLoad) {
-        // Instant jump — animating from the previous convo's scroll
-        // position would briefly show the oldest messages.
-        el.scrollTop = el.scrollHeight;
+        el.scrollTop = 0;
         lastScrolledConvoRef.current = selectedId;
-      } else {
-        // New message arrived in the same convo → smooth so the bubble
-        // visibly lands.
-        el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
       }
+      // Within the same convo we let the user decide where to be — a
+      // new message arriving while they're scrolled into history
+      // shouldn't yank them back to the top.
     });
   }, [selectedId, messages.length]);
 
