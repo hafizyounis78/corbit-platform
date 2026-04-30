@@ -11,7 +11,11 @@ import { FONT_FAMILY } from "@/lib/constants/font";
 import { GRADIENT } from "@/lib/constants/colors";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { useSettings } from "@/lib/api/hooks";
-import { WhatsAppConnectPartner } from "@/components/settings/whatsapp-connect-partner";
+// Reverted to legacy paste-API-key flow on 2026-04-30 to unblock an
+// urgent paying tenant while we wait for 360dialog Partner credentials.
+// When Partner credentials arrive, swap this back to WhatsAppConnectPartner
+// (the wizard component + service layer are still in the tree, untouched).
+import { WhatsAppConnect } from "@/components/settings/whatsapp-connect";
 import api from "@/lib/api/client";
 
 /* ─── helpers ─── */
@@ -928,7 +932,7 @@ export default function SettingsPage() {
 
       {/* ═══════════ WHATSAPP TAB ═══════════ */}
       {tab === "whatsapp" && (
-        <WhatsAppConnectPartner showHeader={false} />
+        <WhatsAppConnect showHeader={false} />
       )}
 
       {/* ═══════════ TEAM TAB ═══════════ */}
