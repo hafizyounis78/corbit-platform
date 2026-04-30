@@ -705,14 +705,14 @@ export default function SettingsPage() {
           <Card style={{ padding: 18 }}>
             <SectionTitle>{ar ? "إشعارات المنصة" : "Platform Notifications"}</SectionTitle>
             <div style={{ fontSize: 11.5, color: C.t2, marginBottom: 12, lineHeight: 1.6 }}>
-              {ar ? "تظهر في الجرس أعلى الشاشة + يصدر صوت عند الوصول. تحذير SLA والرصيد المنخفض قيد التطوير." : "Shown in the bell at top + an audio chime on arrival. SLA warning and low balance still coming."}
+              {ar ? "تظهر في الجرس أعلى الشاشة + يصدر صوت عند الوصول." : "Shown in the bell at top + an audio chime on arrival."}
             </div>
             <ToggleRow C={C} label={ar ? "محادثة جديدة" : "New Conversation"} desc={ar ? "عند وصول محادثة جديدة" : "When a new conversation arrives"} on={notifNew} onToggle={() => setNotifNew(!notifNew)} icon="💬" />
             <ToggleRow C={C} label={ar ? "رسالة جديدة" : "New Message"} desc={ar ? "عند وصول رسالة في محادثة حالية" : "When a message arrives in existing conversation"} on={notifMsg} onToggle={() => setNotifMsg(!notifMsg)} icon="📩" />
             <ToggleRow C={C} label={ar ? "تعيين" : "Assignment"} desc={ar ? "عند تعيين محادثة لك" : "When a conversation is assigned to you"} on={notifAssign} onToggle={() => setNotifAssign(!notifAssign)} icon="👤" />
             <ToggleRow C={C} label={ar ? "تصعيد" : "Escalation"} desc={ar ? "عند تصعيد محادثة" : "When a conversation is escalated"} on={notifEsc} onToggle={() => setNotifEsc(!notifEsc)} icon="🚨" />
-            <ToggleRow C={C} comingSoon label={ar ? "تحذير SLA" : "SLA Warning"} desc={ar ? "عند اقتراب انتهاء وقت الاستجابة" : "When response time is nearing limit"} on={notifSla} onToggle={() => setNotifSla(!notifSla)} icon="⏰" />
-            <ToggleRow C={C} comingSoon label={ar ? "رصيد منخفض" : "Low Balance"} desc={ar ? "عند انخفاض رصيد الحساب" : "When account balance is low"} on={notifBal} onToggle={() => setNotifBal(!notifBal)} icon="💰" />
+            <ToggleRow C={C} label={ar ? "تحذير SLA" : "SLA Warning"} desc={ar ? "عند اقتراب انتهاء وقت الاستجابة" : "When response time is nearing limit"} on={notifSla} onToggle={() => setNotifSla(!notifSla)} icon="⏰" />
+            <ToggleRow C={C} label={ar ? "رصيد منخفض" : "Low Balance"} desc={ar ? "عند انخفاض رصيد الحساب" : "When account balance is low"} on={notifBal} onToggle={() => setNotifBal(!notifBal)} icon="💰" />
           </Card>
 
           {/* Notification Channels */}
