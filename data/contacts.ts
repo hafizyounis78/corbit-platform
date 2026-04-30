@@ -13,6 +13,14 @@ export interface Contact {
   lastActive: string;
   joined: string;
   city: string;
+  // Consent tracking — populated by the backend's contacts API. The
+  // four fields together let us prove (per Meta + GDPR) when and how
+  // a contact agreed to receive messages, and when they opted out.
+  // st === 'blocked' means the contact has opted out.
+  opted_in_at?: string | null;
+  opt_in_source?: 'manual' | 'import' | 'inbound_message' | 'web_form' | 'api' | string | null;
+  opted_out_at?: string | null;
+  opt_out_source?: 'whatsapp_keyword' | 'manual' | 'import' | string | null;
 }
 
 export function getContacts(lang: Locale): Contact[] {

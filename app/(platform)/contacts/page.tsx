@@ -171,6 +171,11 @@ export default function ContactsPage() {
     { key: "active", label: isAr ? "\u0646\u0634\u0637" : "Active" },
     { key: "inactive", label: isAr ? "\u063A\u064A\u0631 \u0646\u0634\u0637" : "Inactive" },
     { key: "vip", label: "VIP" },
+    // 'blocked' = the contact opted out (STOP keyword, manual flag, or
+    // imported as opted-out). Listing them in the UI makes it possible
+    // for a tenant to honour Meta's opt-out requirement at a glance \u2014
+    // and to spot accidental bulk-opt-outs from a bad import.
+    { key: "blocked", label: isAr ? "\u0645\u0644\u063A\u064A \u0627\u0644\u0627\u0634\u062A\u0631\u0627\u0643" : "Opted Out" },
   ];
 
   // contacts is already filtered locally, use it directly
@@ -191,11 +196,20 @@ export default function ContactsPage() {
   ];
 
   const rows = filtered.map((c) => [
-    // Name with Avatar
+    // Name with Avatar — adds an opt-out badge for blocked contacts so
+    // operators can't accidentally include them in a campaign segment.
+    // The CampaignService already excludes them at send time, but the
+    // visual cue saves the operator's confusion when their "all" segment
+    // shows N recipients in the picker but only sends to N-K.
     <div key={`name-${c.id}`} style={{ display: "flex", alignItems: "center", gap: 10 }}>
       <Avatar name={c.name} size={34} />
       <div>
-        <div style={{ fontWeight: 600, fontSize: 13 }}>{c.name}</div>
+        <div style={{ fontWeight: 600, fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
+          {c.name}
+          {(c.st === 'blocked' || c.opted_out_at) && (
+            <Badge color={COLORS.err}>{isAr ? "ملغي" : "Opted out"}</Badge>
+          )}
+        </div>
         <div style={{ fontSize: 11, color: C.t3 }}>{c.email}</div>
       </div>
     </div>,

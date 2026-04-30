@@ -129,6 +129,17 @@ export default function InboxPage() {
   // API: check 24h window status
   const { data: windowData } = useWindowStatus(selectedId);
   const windowOpen = (selected as any)?.windowOpen ?? windowData?.windowOpen ?? true;
+  // windowExpiresAt is an ISO string from the backend; deriving the
+  // remaining time at render time (rather than storing in state) keeps
+  // the value live without setting up another timer alongside Live
+  // Progress polling. The conversation re-fetches on send anyway.
+  const windowExpiresAt: string | null = windowData?.windowExpiresAt ?? null;
+  const windowRemaining: { hours: number; minutes: number } | null = (() => {
+    if (!windowOpen || !windowExpiresAt) return null;
+    const ms = new Date(windowExpiresAt).getTime() - Date.now();
+    if (ms <= 0) return null;
+    return { hours: Math.floor(ms / 3600000), minutes: Math.floor((ms % 3600000) / 60000) };
+  })();
   const [showInboxTemplatePicker, setShowInboxTemplatePicker] = useState(false);
   const [sendingInboxTemplate, setSendingInboxTemplate] = useState(false);
 
@@ -647,6 +658,23 @@ export default function InboxPage() {
               >
                 {isAr ? "إرسال قالب" : "Send Template"}
               </button>
+            </div>
+          )}
+          {/* Window-open indicator with countdown — Meta only allows
+              free-form replies inside this 24h window from the
+              customer's last message. Surfacing the remaining time
+              keeps operators aware of when they'll be forced into
+              templates only. Hidden when the window has fewer than
+              30 minutes left so the warning version (closed banner)
+              takes over visually before the cutoff. */}
+          {windowOpen && !isAiOn && windowRemaining && (windowRemaining.hours > 0 || windowRemaining.minutes >= 30) && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 10, background: dk ? "#0F1F15" : "#EBF7EF", border: "1px solid " + (dk ? "#1F3D2A" : "#C8E6CE"), marginBottom: 10, fontSize: 11.5 }}>
+              <div style={{ width: 6, height: 6, borderRadius: 3, background: COLORS.ok }} />
+              <span style={{ color: C.t2, flex: 1 }}>
+                {isAr
+                  ? `النافذة مفتوحة — متبقّي ${windowRemaining.hours > 0 ? `${windowRemaining.hours} ساعة` : ''}${windowRemaining.hours > 0 && windowRemaining.minutes > 0 ? ' و' : ''}${windowRemaining.minutes > 0 ? `${windowRemaining.minutes} دقيقة` : ''}`
+                  : `Window open — ${windowRemaining.hours > 0 ? `${windowRemaining.hours}h` : ''}${windowRemaining.minutes > 0 ? ` ${windowRemaining.minutes}m` : ''} left`}
+              </span>
             </div>
           )}
           <div style={{ display: "flex", alignItems: "flex-end", gap: 10, opacity: (isAiOn || !windowOpen) ? 0.4 : 1, pointerEvents: (isAiOn || !windowOpen) ? "none" : "auto" }}>
