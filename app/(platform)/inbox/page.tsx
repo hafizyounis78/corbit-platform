@@ -115,6 +115,8 @@ export default function InboxPage() {
   const [reportContext, setReportContext] = useState<IssueContext | null>(null);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
+  const prevSelectedIdRef = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const quickReplies = isAr ? QUICK_REPLIES_AR : QUICK_REPLIES_EN;
@@ -179,26 +181,37 @@ export default function InboxPage() {
     }
   }, [filterTab]);
 
-  // Two scroll behaviors:
-  //   - Switching to a different conversation → jump instantly to the
-  //     newest message. "smooth" here animates from the previous
-  //     conversation's scroll position, which makes the user briefly
-  //     see the OLDEST messages first — exactly the bug we're fixing.
-  //   - Same conversation, new message arrived → smooth scroll so the
-  //     user notices the new bubble landing.
-  // The setTimeout(0) waits for the messages list to actually render
-  // its rows so chatEndRef has its final position before we scroll to it.
+  // Auto-scroll the chat to the newest message — same behavior as
+  // WhatsApp/Telegram. Driving scrollTop on the container directly is
+  // more reliable than scrollIntoView on a sentinel div: messages
+  // load async, message bubbles have variable heights, and a sentinel
+  // element measured before all rows render lands at the wrong y.
+  //
+  // Two distinct cases:
+  //   1. The user just opened a different conversation → jump to
+  //      bottom instantly. Animating from the previous conversation's
+  //      scroll position is the bug we're fixing — the user briefly
+  //      stares at oldest messages while the smooth animation runs.
+  //   2. A new message arrived in the SAME conversation → smooth
+  //      scroll, so the new bubble visibly lands.
+  //
+  // requestAnimationFrame defers until React has flushed the DOM
+  // mutations from this render, so scrollHeight is final.
   useEffect(() => {
     if (!selectedId) return;
-    const t = setTimeout(() => {
-      chatEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
-    }, 0);
-    return () => clearTimeout(t);
-  }, [selectedId]);
+    const isConvoSwitch = prevSelectedIdRef.current !== selectedId;
+    prevSelectedIdRef.current = selectedId;
 
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages.length]);
+    requestAnimationFrame(() => {
+      const el = messagesScrollRef.current;
+      if (!el) return;
+      if (isConvoSwitch) {
+        el.scrollTop = el.scrollHeight;
+      } else {
+        el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+      }
+    });
+  }, [selectedId, messages.length]);
 
   // Resolved AI state for the selected conversation: prefer the user's
   // session-level override (so optimistic toggles don't flicker), fall
@@ -523,7 +536,7 @@ export default function InboxPage() {
         </div>
 
         {/* Messages */}
-        <div style={{ flex: 1, overflowY: "auto", padding: 22 }}>
+        <div ref={messagesScrollRef} style={{ flex: 1, overflowY: "auto", padding: 22 }}>
           {messagesLoading && (
             <div style={{ textAlign: "center", fontSize: 13, color: C.t2, padding: 20 }}>
               {isAr ? "جاري التحميل..." : "Loading..."}
