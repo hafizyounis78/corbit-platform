@@ -98,32 +98,16 @@ export default function IntegrationsPage() {
                   <h2 style={{ margin: "0 0 4px", fontSize: 18, fontWeight: 700 }}>{app.name}</h2>
                   <p style={{ margin: 0, fontSize: 12, color: C.t2 }}>{app.desc}</p>
                   <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
-                    <Badge color={conn ? C.ok : C.t3}>{conn ? t("connected2") : (ar ? "\u063a\u064a\u0631 \u0645\u062a\u0635\u0644" : "Not Connected")}</Badge>
+                    <Badge color={C.warn}>{ar ? "\u0642\u0631\u064a\u0628\u0627\u064b" : "Coming Soon"}</Badge>
                   </div>
                 </div>
-                {conn ? (
-                  <Button outline small style={{ color: C.err, borderColor: C.err }} onClick={async () => {
-                    try {
-                      await api.delete(`/integrations/${app.id}/disconnect`);
-                      mutate();
-                    } catch {}
-                    setConnected(connected.filter((x) => x !== app.id));
-                    showToast("\u2713");
-                  }}>
-                    {ar ? "\u0641\u0635\u0644" : "Disconnect"}
-                  </Button>
-                ) : (
-                  <Button primary onClick={async () => {
-                    try {
-                      await api.post(`/integrations/${app.id}/connect`, {});
-                      mutate();
-                    } catch {}
-                    setConnected([...connected, app.id]);
-                    showToast("\u2713");
-                  }}>
-                    {ar ? "\u0631\u0628\u0637" : "Connect"}
-                  </Button>
-                )}
+                {/* Integrations are flagged "Coming Soon" until each
+                    has a real connector wired to its provider \u2014 the
+                    UI used to let operators click Connect on a placeholder
+                    that did nothing visible, which created false
+                    expectations. Disabled badge replaces the live
+                    Connect/Disconnect controls until the integration ships. */}
+                <Badge color={C.warn}>{ar ? "\u0642\u0631\u064a\u0628\u0627\u064b" : "Coming Soon"}</Badge>
               </div>
             </Card>
             <Card style={{ padding: 20 }}>
@@ -214,22 +198,12 @@ export default function IntegrationsPage() {
                   </div>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Badge color={conn ? C.ok : C.t3}>{conn ? t("connected2") : (ar ? "\u0645\u062a\u0627\u062d" : "Available")}</Badge>
-                  {conn ? (
-                    <Button small outline>{t("edit")}</Button>
-                  ) : (
-                    <Button small primary onClick={async (e) => {
-                      e.stopPropagation();
-                      try {
-                        await api.post(`/integrations/${app.id}/connect`, {});
-                        mutate();
-                      } catch {}
-                      setConnected([...connected, app.id]);
-                      showToast("\u2713");
-                    }}>
-                      {ar ? "\u0631\u0628\u0637" : "Connect"}
-                    </Button>
-                  )}
+                  {/* Card grid Connect button replaced with a status
+                      badge \u2014 see detail view edit above for context. */}
+                  <Badge color={C.warn}>{ar ? "\u0642\u0631\u064a\u0628\u0627\u064b" : "Coming Soon"}</Badge>
+                  <span style={{ fontSize: 11, color: C.t3 }}>
+                    {ar ? "\u0628\u0627\u0644\u0637\u0631\u064a\u0642" : "Soon"}
+                  </span>
                 </div>
               </div>
             </Card>
