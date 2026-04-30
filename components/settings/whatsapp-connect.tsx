@@ -118,8 +118,8 @@ export function WhatsAppConnect({ showHeader = true }: { showHeader?: boolean })
           </h2>
           <p style={{ fontSize: 13, color: C.t2, margin: 0 }}>
             {isAr
-              ? "اربط رقم واتساب أعمالك بـ Corbit عبر 360dialog لتبدأ استقبال وإرسال الرسائل"
-              : "Connect your WhatsApp Business number via 360dialog to start sending and receiving"}
+              ? "اربط رقم واتساب أعمالك بـ Corbit لتبدأ استقبال وإرسال الرسائل"
+              : "Connect your WhatsApp Business number to Corbit to start sending and receiving"}
           </p>
         </div>
       )}
@@ -152,8 +152,8 @@ export function WhatsAppConnect({ showHeader = true }: { showHeader?: boolean })
           </div>
           <p style={{ fontSize: 13, color: C.t2, margin: "6px 0 12px" }}>
             {isAr
-              ? "اتّبع الخطوات أدناه لربط رقمك. الربط يستغرق ~5 دقائق إذا حسابك على 360dialog جاهز."
-              : "Follow the steps below to connect your number. Takes ~5 minutes if your 360dialog account is ready."}
+              ? "اتّبع الخطوات أدناه لربط رقمك. الربط يستغرق ~5 دقائق إذا كانت مفاتيحك جاهزة."
+              : "Follow the steps below to connect your number. Takes ~5 minutes once your keys are ready."}
           </p>
           <Button primary onClick={() => { reset(); setShowForm(true); }}>
             {isAr ? "ابدأ الربط" : "Start Connection"}
@@ -167,31 +167,18 @@ export function WhatsAppConnect({ showHeader = true }: { showHeader?: boolean })
         </h3>
 
         <Step n={1}
-          title={isAr ? "افتح حساب على 360dialog" : "Open a 360dialog account"}
-          body={isAr
-            ? "ادخل hub.360dialog.com وسجّل حساب جديد. اختر باقة Regular (49 USD/شهر). 360dialog هي مزوّد رسمي معتمد من Meta لـ WhatsApp Business API."
-            : "Go to hub.360dialog.com and register. Choose the Regular plan (49 USD/month). 360dialog is an official Meta-approved WhatsApp BSP."}
-          link={{ url: "https://hub.360dialog.com/auth/v2/register", label: isAr ? "افتح 360dialog" : "Open 360dialog" }}
-        />
-        <Step n={2}
           title={isAr ? "اربط رقم واتساب أعمالك" : "Connect your WhatsApp Business number"}
           body={isAr
             ? "في الـ Hub: اضغط Add Channel، أدخل رقم جوال خاص للأعمال (لا يكون مستخدماً في WhatsApp شخصي). اربطه مع Meta Business Manager. ستحتاج التحقّق من رقمك بكود SMS."
             : "In the Hub: click Add Channel, enter a dedicated business number (must NOT be in personal WhatsApp). Link it to your Meta Business Manager. You'll verify the number with an SMS code."}
         />
-        <Step n={3}
+        <Step n={2}
           title={isAr ? "انتظر موافقة Meta" : "Wait for Meta approval"}
           body={isAr
             ? "Meta تتحقّق من نشاطك التجاري. تستغرق من ساعة لعدّة أيّام. ستحتاج صورة من السجل التجاري + ربط نطاق شركتك. ستصلك رسالة لمّا يُعتمد."
             : "Meta verifies your business. Takes hours to days. You'll need a copy of your commercial registration + linking your domain. You'll get a notification when approved."}
         />
-        <Step n={4}
-          title={isAr ? "احصل على المفاتيح من 360dialog Hub" : "Get the keys from 360dialog Hub"}
-          body={isAr
-            ? 'بعد الموافقة، في hub.360dialog.com:\n• اذهب إلى Channels → اختر قناتك\n• انسخ "Phone Number ID" (الرقم الطويل)\n• انسخ "WABA ID" من قسم Business Account\n• اذهب إلى API Keys → Generate API Key (اطلب جديد لو فقدت القديم)'
-            : 'After approval, in hub.360dialog.com:\n• Go to Channels → select your channel\n• Copy "Phone Number ID" (long number)\n• Copy "WABA ID" from the Business Account section\n• Go to API Keys → Generate API Key (request new if lost)'}
-        />
-        <Step n={5}
+        <Step n={3}
           title={isAr ? "الصق المفاتيح هنا" : "Paste the keys here"}
           body={isAr
             ? 'اضغط زرّ "ابدأ الربط" أعلى الصفحة، الصق الـ 4 معلومات، اضغط "اختبار الاتّصال" للتأكّد، ثم "حفظ وتفعيل". ستبدأ تستقبل الرسائل في صندوق الوارد فوراً.'
@@ -199,26 +186,8 @@ export function WhatsAppConnect({ showHeader = true }: { showHeader?: boolean })
         />
       </Card>
 
-      <Card style={{ padding: 20, marginBottom: 18 }}>
-        <h3 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 700 }}>
-          {isAr ? "❓ أخطاء شائعة" : "❓ Common Issues"}
-        </h3>
-        <FAQ q={isAr ? "رقمي مرفوض عند 360dialog" : "My number was rejected by 360dialog"}
-          a={isAr ? "تأكّد إنّ الرقم غير مستخدم في WhatsApp شخصي. لو كان كذلك، احذفه من واتساب أوّلاً ثمّ أعد المحاولة." : "Make sure the number isn't in personal WhatsApp. If it is, delete it from WhatsApp first, then retry."}
-        />
-        <FAQ q={isAr ? "كم تستغرق موافقة Meta؟" : "How long does Meta approval take?"}
-          a={isAr ? "عادة 1-3 ساعات للحسابات الموثّقة، وأحياناً تصل ليومين لو احتاجت Meta توثيق إضافي." : "Usually 1-3 hours for verified businesses, sometimes up to 2 days if Meta needs extra docs."}
-        />
-        <FAQ q={isAr ? "هل أدفع 360dialog مباشرة أم لكم؟" : "Do I pay 360dialog directly or you?"}
-          a={isAr ? "تدفع 360dialog مباشرة (49$/شهر) لخدمة WhatsApp API. تدفع لـ Corbit اشتراك المنصّة." : "You pay 360dialog directly (49$/month) for WhatsApp API service. You pay Corbit for the platform subscription."}
-        />
-        <FAQ q={isAr ? "ماذا لو فقدت الـ API Key؟" : "What if I lose the API Key?"}
-          a={isAr ? "ادخل 360dialog Hub → API Keys → Generate New API Key. ثمّ ارجع هنا، اضغط Disconnect ثمّ Connect بالـ key الجديد." : "Go to 360dialog Hub → API Keys → Generate New. Then come back, Disconnect and Connect with the new key."}
-        />
-      </Card>
-
       <Modal open={showForm} onClose={() => { setShowForm(false); reset(); }}
-        title={isAr ? "ربط 360dialog" : "Connect 360dialog"}
+        title={isAr ? "ربط رقم واتساب" : "Connect WhatsApp Number"}
         submitLabel={connecting ? (isAr ? "جاري الحفظ..." : "Saving...") : (isAr ? "حفظ وتفعيل" : "Save & Activate")}
         onSubmit={handleConnect} submitLoading={connecting} submitDisabled={!testResult || connecting}
       >
@@ -229,7 +198,7 @@ export function WhatsAppConnect({ showHeader = true }: { showHeader?: boolean })
               onChange={(e) => { setForm({ ...form, api_key: e.target.value }); setTestResult(null); }}
               placeholder="D7sAB..." style={inputStyle} />
             <div style={{ fontSize: 11, color: C.t2, marginTop: 4 }}>
-              {isAr ? "من 360dialog Hub → API Keys" : "From 360dialog Hub → API Keys"}
+              {isAr ? "من لوحة المزوّد → API Keys" : "From the provider Hub → API Keys"}
             </div>
           </div>
           <div>
@@ -238,7 +207,7 @@ export function WhatsAppConnect({ showHeader = true }: { showHeader?: boolean })
               onChange={(e) => { setForm({ ...form, phone_number_id: e.target.value }); setTestResult(null); }}
               placeholder="1056090950928231" style={inputStyle} />
             <div style={{ fontSize: 11, color: C.t2, marginTop: 4 }}>
-              {isAr ? "من 360dialog Hub → Channels (الرقم الطويل)" : "From 360dialog Hub → Channels (the long ID)"}
+              {isAr ? "من لوحة المزوّد → Channels (الرقم الطويل)" : "From the provider Hub → Channels (the long ID)"}
             </div>
           </div>
           <div>
@@ -247,7 +216,7 @@ export function WhatsAppConnect({ showHeader = true }: { showHeader?: boolean })
               onChange={(e) => setForm({ ...form, waba_id: e.target.value })}
               placeholder="2793198167707516" style={inputStyle} />
             <div style={{ fontSize: 11, color: C.t2, marginTop: 4 }}>
-              {isAr ? "من 360dialog Hub → WhatsApp Business Account ID" : "From 360dialog Hub → WhatsApp Business Account ID"}
+              {isAr ? "من لوحة المزوّد → WhatsApp Business Account ID" : "From the provider Hub → WhatsApp Business Account ID"}
             </div>
           </div>
           <div>
@@ -301,7 +270,7 @@ export function WhatsAppConnect({ showHeader = true }: { showHeader?: boolean })
   );
 }
 
-function Step({ n, title, body, link }: { n: number; title: string; body: string; link?: { url: string; label: string } }) {
+function Step({ n, title, body }: { n: number; title: string; body: string }) {
   const { colors: C } = useTheme();
   return (
     <div style={{ display: "flex", gap: 12, marginBottom: 16, paddingBottom: 16, borderBottom: `1px solid ${C.brd}` }}>
@@ -314,23 +283,7 @@ function Step({ n, title, body, link }: { n: number; title: string; body: string
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: C.txt, marginBottom: 6 }}>{title}</div>
         <div style={{ fontSize: 12.5, color: C.t2, lineHeight: 1.7, whiteSpace: "pre-line" }}>{body}</div>
-        {link && (
-          <a href={link.url} target="_blank" rel="noopener noreferrer"
-            style={{ display: "inline-block", marginTop: 8, fontSize: 12, color: C.pri, textDecoration: "underline" }}>
-            {link.label} ↗
-          </a>
-        )}
       </div>
     </div>
-  );
-}
-
-function FAQ({ q, a }: { q: string; a: string }) {
-  const { colors: C } = useTheme();
-  return (
-    <details style={{ marginBottom: 8, padding: "8px 0", borderBottom: `1px solid ${C.brd}` }}>
-      <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600, color: C.txt }}>{q}</summary>
-      <div style={{ fontSize: 12.5, color: C.t2, marginTop: 6, lineHeight: 1.7, paddingInlineStart: 6 }}>{a}</div>
-    </details>
   );
 }

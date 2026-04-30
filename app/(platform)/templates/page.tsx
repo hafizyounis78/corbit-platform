@@ -625,7 +625,7 @@ export default function TemplatesPage() {
       <Modal
         open={!!errorDetailsTarget}
         onClose={() => setErrorDetailsTarget(null)}
-        title={isAr ? "\u062A\u0641\u0627\u0635\u064A\u0644 \u0627\u0644\u0631\u0641\u0636 \u0645\u0646 360dialog" : "Rejection details from 360dialog"}
+        title={isAr ? "\u062A\u0641\u0627\u0635\u064A\u0644 \u0627\u0644\u0631\u0641\u0636" : "Rejection details"}
         hideFooter
         wide
       >
@@ -651,7 +651,7 @@ export default function TemplatesPage() {
                 </div>
               )}
               <div>
-                <div style={{ fontSize: 12, color: C.t2, marginBottom: 4 }}>{isAr ? "\u0627\u0644\u0627\u0633\u062A\u062C\u0627\u0628\u0629 \u0627\u0644\u0643\u0627\u0645\u0644\u0629 \u0645\u0646 360dialog" : "Full response from 360dialog"}</div>
+                <div style={{ fontSize: 12, color: C.t2, marginBottom: 4 }}>{isAr ? "\u0627\u0644\u0627\u0633\u062A\u062C\u0627\u0628\u0629 \u0627\u0644\u0643\u0627\u0645\u0644\u0629 \u0645\u0646 \u0627\u0644\u0645\u0632\u0648\u0651\u062F" : "Full provider response"}</div>
                 <pre
                   style={{
                     margin: 0,

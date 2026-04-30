@@ -76,8 +76,8 @@ export function WhatsAppConnectPartner({ showHeader = true }: { showHeader?: boo
           </h2>
           <p style={{ fontSize: 13, color: C.t2, margin: 0 }}>
             {isAr
-              ? 'Corbit تتولّى ربط رقمك مع Meta عبر شراكتها مع 360dialog. ما يحتاج تفتح حساب 360dialog بنفسك.'
-              : 'Corbit handles your number registration with Meta through our 360dialog Partner relationship. No 360dialog account needed on your side.'}
+              ? 'Corbit تتولّى ربط رقمك مع Meta. ما يحتاج تفتح حساب لدى أيّ مزوّد بنفسك.'
+              : 'Corbit handles your number registration with Meta. No third-party provider account needed on your side.'}
           </p>
         </div>
       )}

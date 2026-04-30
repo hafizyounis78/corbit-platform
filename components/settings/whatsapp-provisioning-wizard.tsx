@@ -519,8 +519,8 @@ function ConsentsStep({
       key: 'dpa',
       title: isAr ? 'اتفاقيّة معالجة البيانات (DPA)' : 'Data Processing Agreement (DPA)',
       body: isAr
-        ? 'بالموافقة، تفوّض شركة Corbit بمعالجة بياناتك ضمن خدمات WhatsApp Business، وتقرّ بأنّ 360dialog هي معالج البيانات الأساسي وفقاً لسياسات Meta. تحتفظ بحقّك في سحب الموافقة في أيّ وقت.'
-        : 'You authorize Corbit to process your data within WhatsApp Business services, and acknowledge 360dialog as the data processor in accordance with Meta policies. You retain the right to withdraw consent at any time.',
+        ? 'بالموافقة، تفوّض شركة Corbit بمعالجة بياناتك ضمن خدمات WhatsApp Business وفقاً لسياسات Meta، عبر مزوّدها التقنيّ المعتمد. تحتفظ بحقّك في سحب الموافقة في أيّ وقت.'
+        : 'You authorize Corbit to process your data within WhatsApp Business services in accordance with Meta policies, through its approved technical provider. You retain the right to withdraw consent at any time.',
     },
     {
       key: 'tos',
@@ -660,7 +660,7 @@ function ProvisioningStatusCard({ draft }: { draft: Draft }) {
   const map: Record<string, { color: string; ar: string; en: string }> = {
     submitted:      { color: '#3B82F6', ar: 'تم الإرسال — بانتظار مراجعة Corbit', en: 'Submitted — awaiting Corbit review' },
     pending_review: { color: '#3B82F6', ar: 'قيد المراجعة من Corbit',                en: 'Under Corbit review' },
-    provisioning:   { color: '#F59E0B', ar: 'قيد التفعيل عبر 360dialog',             en: 'Provisioning via 360dialog' },
+    provisioning:   { color: '#F59E0B', ar: 'قيد التفعيل',                            en: 'Provisioning' },
     active:         { color: '#10B981', ar: 'مفعّل ✓',                                en: 'Active ✓' },
     rejected:       { color: '#EF4444', ar: 'مرفوض — راجع السبب',                    en: 'Rejected — see reason' },
     cancelled:      { color: '#9CA3AF', ar: 'ملغى',                                    en: 'Cancelled' },
