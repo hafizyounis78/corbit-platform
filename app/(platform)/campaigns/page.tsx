@@ -9,7 +9,7 @@ import { Button, Card, CardHeader, Badge, TabBar, DataTable, Modal, SearchInput,
 import { Icon } from "@/components/icons/icon";
 import { getStatusColor } from "@/lib/utils/status-color";
 import type { Campaign } from "@/data/campaigns";
-import { useCampaigns, useCampaignStats, useTemplates as useTemplatesApi, useSegments as useSegmentsApi } from "@/lib/api/hooks";
+import { useCampaigns, useCampaignStats, useCampaignProgress, useTemplates as useTemplatesApi, useSegments as useSegmentsApi } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
 import { COLORS, GRADIENT } from "@/lib/constants/colors";
 import { FONT_FAMILY } from "@/lib/constants/font";
@@ -170,7 +170,7 @@ export default function CampaignsPage() {
 
   // ── Detail View ──
   if (selected) {
-    return <DetailView campaign={selected} onBack={() => setSelectedId(null)} />;
+    return <DetailView campaign={selected} onBack={() => setSelectedId(null)} onRefresh={mutate} />;
   }
 
   // ── List View ──
@@ -636,17 +636,60 @@ export default function CampaignsPage() {
 
 // ── Detail View Component ──
 
-function DetailView({ campaign: c, onBack }: { campaign: Campaign; onBack: () => void }) {
+function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; onBack: () => void; onRefresh?: () => void }) {
   const { colors: C } = useTheme();
   const { isAr } = useLocale();
   const { showToast } = useToast();
   const isMobile = useIsMobile();
+
+  // Poll /progress only while the campaign is actually doing work.
+  // 'active' = batch running, 'paused' = paused but still has pending
+  // rows worth refreshing once on display. 'completed'/'draft' are
+  // terminal — no polling.
+  const isLive = c.st === 'active' || c.st === 'sending' || c.st === 'paused';
+  const { data: progress } = useCampaignProgress(c.id as any, isLive);
+
+  // Action button busy-state — prevents double-click during the 100-200ms
+  // round trip to the backend.
+  const [busy, setBusy] = useState<string | null>(null);
 
   const statusLabel = (st: string) => {
     const map: Record<string, string> = isAr
       ? { active: "نشطة", completed: "مكتملة", scheduled: "مجدولة", draft: "مسودة", paused: "متوقفة", sending: "جاري الإرسال", cancelled: "ملغاة" }
       : { active: "Active", completed: "Completed", scheduled: "Scheduled", draft: "Draft", paused: "Paused", sending: "Sending", cancelled: "Cancelled" };
     return map[st] || st;
+  };
+
+  // When polling, the live counters from /progress override the stale
+  // values from the list query. Falls back to the campaign object's
+  // own counters (which the API already exposes via CampaignResource).
+  const live = progress || {
+    sent: (c as any).sent ?? 0,
+    failed: (c as any).failed ?? 0,
+    pending: (c as any).pending ?? 0,
+    total: c.recipients ?? 0,
+    progressPct: 0,
+  };
+  const totalForBar = live.total || c.recipients || 1;
+  const sentPct = Math.round(((live.sent + live.failed) / totalForBar) * 100);
+
+  const callAction = async (action: 'send' | 'pause' | 'resume') => {
+    if (busy) return;
+    setBusy(action);
+    try {
+      await api.post(`/campaigns/${c.id}/${action}`);
+      const msgMap: Record<string, [string, string]> = {
+        send:   [isAr ? "بدأ الإرسال" : "Sending started",     isAr ? "تعذّر بدء الإرسال" : "Failed to start sending"],
+        pause:  [isAr ? "تم إيقاف الحملة مؤقتاً" : "Campaign paused", isAr ? "تعذّر الإيقاف" : "Failed to pause"],
+        resume: [isAr ? "تم استئناف الحملة" : "Campaign resumed",     isAr ? "تعذّر الاستئناف" : "Failed to resume"],
+      };
+      showToast(msgMap[action][0]);
+      onRefresh?.();
+    } catch (e: any) {
+      showToast(e?.response?.data?.message || (isAr ? "حدث خطأ" : "Something went wrong"));
+    } finally {
+      setBusy(null);
+    }
   };
 
   const kpis = useMemo(
@@ -710,7 +753,35 @@ function DetailView({ campaign: c, onBack }: { campaign: Campaign; onBack: () =>
               </span>
             </div>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {/* Stage-specific actions: Send for draft/scheduled, Pause
+                while active, Resume while paused. The list page's
+                Duplicate/Edit/Export are still available below for
+                terminal states. */}
+            {(c.st === 'draft' || c.st === 'scheduled') && (
+              <Button primary onClick={() => callAction('send')} disabled={busy !== null}>
+                <Icon name="send" size={13} />
+                {busy === 'send'
+                  ? (isAr ? "\u062C\u0627\u0631\u064A \u0627\u0644\u0628\u062F\u0621..." : "Starting...")
+                  : (isAr ? "\u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u0622\u0646" : "Send now")}
+              </Button>
+            )}
+            {c.st === 'active' && (
+              <Button outline onClick={() => callAction('pause')} disabled={busy !== null}>
+                <Icon name="pause" size={13} />
+                {busy === 'pause'
+                  ? (isAr ? "\u062C\u0627\u0631\u064A \u0627\u0644\u0625\u064A\u0642\u0627\u0641..." : "Pausing...")
+                  : (isAr ? "\u0625\u064A\u0642\u0627\u0641 \u0645\u0624\u0642\u062A" : "Pause")}
+              </Button>
+            )}
+            {c.st === 'paused' && (
+              <Button primary onClick={() => callAction('resume')} disabled={busy !== null}>
+                <Icon name="send" size={13} />
+                {busy === 'resume'
+                  ? (isAr ? "\u062C\u0627\u0631\u064A \u0627\u0644\u0627\u0633\u062A\u0626\u0646\u0627\u0641..." : "Resuming...")
+                  : (isAr ? "\u0627\u0633\u062A\u0626\u0646\u0627\u0641" : "Resume")}
+              </Button>
+            )}
             <Button outline onClick={() => showToast(isAr ? "\u062A\u0639\u062F\u064A\u0644 \u0627\u0644\u062D\u0645\u0644\u0629" : "Edit campaign")}>
               <Icon name="pencil" size={13} />
               {isAr ? "\u062A\u0639\u062F\u064A\u0644" : "Edit"}
@@ -734,6 +805,64 @@ function DetailView({ campaign: c, onBack }: { campaign: Campaign; onBack: () =>
           </div>
         </div>
       </div>
+
+      {/* Live Progress — only while the campaign is doing work. The
+          status banner above already shows draft/scheduled/completed;
+          this card adds the moving parts (counters + bar) for active
+          and paused. */}
+      {isLive && (
+        <Card style={{ marginBottom: 24, padding: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 9,
+                  background: c.st === 'paused' ? `${COLORS.warn}18` : `${COLORS.pri}18`,
+                  color:      c.st === 'paused' ? COLORS.warn : COLORS.pri,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Icon name={c.st === 'paused' ? "pause" : "send"} size={16} />
+              </div>
+              <div>
+                <div style={{ fontWeight: 600, color: C.txt, fontSize: 14 }}>
+                  {c.st === 'paused'
+                    ? (isAr ? "متوقفة مؤقتاً" : "Paused")
+                    : (isAr ? "جاري الإرسال" : "Sending in progress")}
+                </div>
+                <div style={{ fontSize: 12, color: C.t2 }}>
+                  {isAr
+                    ? `${live.sent.toLocaleString()} من ${(live.total || c.recipients).toLocaleString()} رسالة`
+                    : `${live.sent.toLocaleString()} of ${(live.total || c.recipients).toLocaleString()} messages`}
+                  {live.failed > 0 && (
+                    <span style={{ color: COLORS.err, marginInlineStart: 8 }}>
+                      · {live.failed.toLocaleString()} {isAr ? "فاشل" : "failed"}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: C.txt }}>
+              {sentPct}%
+            </div>
+          </div>
+          <div style={{ width: "100%", height: 10, borderRadius: 5, background: C.inp, overflow: "hidden" }}>
+            <div
+              style={{
+                height: "100%",
+                borderRadius: 5,
+                width: `${sentPct}%`,
+                background: c.st === 'paused' ? COLORS.warn : COLORS.pri,
+                transition: "width 0.6s ease-out",
+              }}
+            />
+          </div>
+        </Card>
+      )}
 
       {/* KPI Cards Grid */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>

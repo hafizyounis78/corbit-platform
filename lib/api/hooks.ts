@@ -75,6 +75,49 @@ export function useCampaignStats() {
   return useApi('/campaigns/stats');
 }
 
+export function useCampaign(id: string | number | null) {
+  return useApi(id ? `/campaigns/${id}` : null, [id]);
+}
+
+/**
+ * Polls /campaigns/:id/progress every 2.5s while `enabled` is true.
+ * Caller flips `enabled` based on campaign.status === 'active' so we
+ * stop hitting the backend the moment the campaign reaches a terminal
+ * state. The first fetch fires immediately so the UI doesn't flash
+ * stale numbers between mount and the first interval tick.
+ */
+export function useCampaignProgress(
+  id: string | number | null,
+  enabled: boolean,
+  intervalMs: number = 2500,
+) {
+  const [data, setData] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!id || !enabled) return;
+    let cancelled = false;
+
+    const tick = async () => {
+      try {
+        const res = await api.get(`/campaigns/${id}/progress`);
+        if (!cancelled) {
+          setData(res.data?.data ?? res.data);
+          setError(null);
+        }
+      } catch (e: any) {
+        if (!cancelled) setError(e.response?.data?.message || e.message);
+      }
+    };
+
+    tick();
+    const handle = setInterval(tick, intervalMs);
+    return () => { cancelled = true; clearInterval(handle); };
+  }, [id, enabled, intervalMs]);
+
+  return { data, error };
+}
+
 // ─── Contacts ─────────────────────────────────────────────
 export function useContacts(params?: { status?: string; search?: string; tags?: string; page?: number }) {
   const qs = new URLSearchParams();
