@@ -234,6 +234,30 @@ export function useWhatsAppStatus() {
   return useApi('/onboarding/whatsapp/status');
 }
 
+/**
+ * Sales Channel Partner provisioning. Returns the org's active draft
+ * + history. The wizard polls this on mount to resume mid-flow.
+ */
+export function useWhatsAppProvisioning() {
+  return useApi<{
+    draft: {
+      id: string;
+      status: string;
+      editable: boolean;
+      business: { name: string|null; nameAr: string|null; crNumber: string|null; category: string|null; address: string|null; city: string|null; country: string; website: string|null };
+      owner: { name: string|null; idType: string|null; idNumber: string|null; email: string|null; phone: string|null };
+      number: { phoneNumber: string|null; displayName: string|null; displayNameAr: string|null; isExistingNumber: boolean; verificationMethod: string|null };
+      documents: Array<{ id: string; type: string; fileName: string; uploadedAt: string|null }>;
+      consents: Array<{ type: string; documentVersion: string; signerName: string; signedAt: string|null }>;
+      rejectionReason: string|null;
+      submittedAt: string|null;
+      activatedAt: string|null;
+    };
+    history: any[];
+    consentVersions: { dpa: string; tos: string; privacy: string };
+  }>('/whatsapp/provisioning');
+}
+
 export function usePlanUsage() {
   return useApi<{
     plan: { name: string; name_ar: string; price: number } | null;

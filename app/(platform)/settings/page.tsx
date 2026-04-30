@@ -11,7 +11,7 @@ import { FONT_FAMILY } from "@/lib/constants/font";
 import { GRADIENT } from "@/lib/constants/colors";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { useSettings } from "@/lib/api/hooks";
-import { WhatsAppConnect } from "@/components/settings/whatsapp-connect";
+import { WhatsAppConnectPartner } from "@/components/settings/whatsapp-connect-partner";
 import api from "@/lib/api/client";
 
 /* ─── helpers ─── */
@@ -928,7 +928,7 @@ export default function SettingsPage() {
 
       {/* ═══════════ WHATSAPP TAB ═══════════ */}
       {tab === "whatsapp" && (
-        <WhatsAppConnect showHeader={false} />
+        <WhatsAppConnectPartner showHeader={false} />
       )}
 
       {/* ═══════════ TEAM TAB ═══════════ */}
