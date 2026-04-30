@@ -717,14 +717,14 @@ export default function SettingsPage() {
 
           {/* Notification Channels */}
           <Card style={{ padding: 18 }}>
-            <SectionTitleWithComingSoon C={C}>{ar ? "قنوات الإشعارات" : "Notification Channels"}</SectionTitleWithComingSoon>
+            <SectionTitle>{ar ? "قنوات الإشعارات" : "Notification Channels"}</SectionTitle>
             <div style={{ fontSize: 11.5, color: C.t2, marginBottom: 12, lineHeight: 1.6 }}>
-              {ar ? "كوربت يستخدم واتساب كقناة وحيدة. خيارات البريد والصوت والجوال قيد التطوير." : "Corbit is WhatsApp-first. Email/sound/mobile channels are on the roadmap."}
+              {ar ? "البريد والـ SMS يعملان على التنبيهات الحرجة فقط (رصيد منخفض، انتهاء باقة، تصعيد)." : "Email + SMS run only for critical alerts (low balance, plan expiry, escalation)."}
             </div>
             <ToggleRow C={C} comingSoon label={ar ? "إشعارات المتصفح" : "Browser Push"} desc={ar ? "إشعارات منبثقة في المتصفح" : "Browser push notifications"} on={pushBrowser} onToggle={() => setPushBrowser(!pushBrowser)} icon="🔔" />
-            <ToggleRow C={C} comingSoon label={ar ? "البريد الإلكتروني" : "Email"} desc={ar ? "إرسال إشعارات عبر البريد" : "Send notifications via email"} on={pushEmail} onToggle={() => setPushEmail(!pushEmail)} icon="📧" />
+            <ToggleRow C={C} label={ar ? "البريد الإلكتروني" : "Email"} desc={ar ? "إرسال إشعارات البريد للأنواع المحدّدة" : "Send selected notifications via email"} on={pushEmail} onToggle={() => setPushEmail(!pushEmail)} icon="📧" />
             <ToggleRow C={C} label={ar ? "الصوت" : "Sound"} desc={ar ? "تشغيل صوت عند وصول إشعار" : "Play sound on notification"} on={pushSound} onToggle={() => setPushSound(!pushSound)} icon="🔊" />
-            <ToggleRow C={C} comingSoon label={ar ? "إشعارات الجوال" : "Mobile Push"} desc={ar ? "إشعارات على تطبيق الجوال" : "Push to mobile app"} on={pushMobile} onToggle={() => setPushMobile(!pushMobile)} icon="📱" />
+            <ToggleRow C={C} label={ar ? "SMS للجوّال" : "SMS to phone"} desc={ar ? "رسالة SMS للتنبيهات الحرجة فقط" : "SMS for critical alerts only"} on={pushMobile} onToggle={() => setPushMobile(!pushMobile)} icon="📱" />
 
             <div style={{ marginTop: 12 }}>
               <ToggleRow C={C} comingSoon label={ar ? "ساعات الهدوء" : "Quiet Hours"} desc={ar ? "إيقاف الإشعارات خلال فترة محددة" : "Mute notifications during a specific period"} on={quietHours} onToggle={() => setQuietHours(!quietHours)} icon="🌙" />
