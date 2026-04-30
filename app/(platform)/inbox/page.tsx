@@ -179,9 +179,26 @@ export default function InboxPage() {
     }
   }, [filterTab]);
 
+  // Two scroll behaviors:
+  //   - Switching to a different conversation → jump instantly to the
+  //     newest message. "smooth" here animates from the previous
+  //     conversation's scroll position, which makes the user briefly
+  //     see the OLDEST messages first — exactly the bug we're fixing.
+  //   - Same conversation, new message arrived → smooth scroll so the
+  //     user notices the new bubble landing.
+  // The setTimeout(0) waits for the messages list to actually render
+  // its rows so chatEndRef has its final position before we scroll to it.
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    if (!selectedId) return;
+    const t = setTimeout(() => {
+      chatEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+    }, 0);
+    return () => clearTimeout(t);
+  }, [selectedId]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages.length]);
 
   // Resolved AI state for the selected conversation: prefer the user's
   // session-level override (so optimistic toggles don't flicker), fall
