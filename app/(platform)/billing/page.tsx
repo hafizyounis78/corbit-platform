@@ -85,9 +85,13 @@ export default function BillingPage() {
     monthCost: raw.monthCost ?? "0",
   };
 
+  // Plans tab is hidden until upgrades go through the proper sales flow
+  // — direct in-app upgrade was disabled in the 2026-04-29 sales-gating
+  // change, so leaving the tab visible would tease an action the user
+  // can't actually take. Re-enable by restoring the plans entry below
+  // when the in-app upgrade path ships.
   const tabs = [
     { key: "overview", label: t("overview") },
-    { key: "plans", label: t("plans") },
     { key: "usage", label: t("usage") },
     { key: "transactions", label: t("txns") },
   ];
