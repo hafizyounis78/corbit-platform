@@ -26,54 +26,116 @@ const FEATURES: FeatureCheck[] = [
 const WARN_PCT = 70;
 const DANGER_PCT = 90;
 
+type Banner = {
+  variant: 'expired' | 'expiring' | 'overflow' | 'danger' | 'warn';
+  messageAr: string;
+  messageEn: string;
+  /** Expired banners can't be dismissed — the operator must see it */
+  dismissible: boolean;
+  ctaAr: string;
+  ctaEn: string;
+};
+
 export function PlanWarningBanner() {
   const { colors: C } = useTheme();
   const { isAr } = useLocale();
   const { data } = usePlanUsage();
   const [dismissed, setDismissed] = useState(false);
 
-  if (dismissed) return null;
-
   const usage  = ((data as any)?.usage  ?? {}) as Record<string, number>;
   const limits = ((data as any)?.limits ?? {}) as Record<string, number>;
+  const expiry = (data as any)?.expiry as { expiresAt: string|null; daysLeft: number|null; isActive: boolean; expiringSoon: boolean } | undefined;
 
-  // Find the feature with the highest usage % (only ones with a real cap)
-  const breaches = FEATURES
-    .map((f) => {
-      const used  = Number(usage[f.usageKey] ?? 0);
-      const limit = Number(limits[f.limitKey] ?? 0);
-      if (limit === -1 || limit === 0) return null;
-      const pct = (used / limit) * 100;
-      return { feature: f, used, limit, pct };
-    })
-    .filter((x): x is NonNullable<typeof x> => x !== null && x.pct >= WARN_PCT)
-    .sort((a, b) => b.pct - a.pct);
+  // Banner priority is intentional: expiry > overflow > danger > warn.
+  // Expiry trumps usage because an expired plan locks every premium
+  // feature regardless of how much room you've left in your usage caps,
+  // so showing "70% campaigns used" while the plan is dead would confuse
+  // the operator about why nothing's sending.
+  const banner: Banner | null = (() => {
+    // 1) Plan expired — non-dismissible, takes the screen.
+    if (expiry && expiry.isActive === false) {
+      return {
+        variant: 'expired',
+        messageAr: 'انتهت صلاحيّة باقتك. الإرسال عبر واتساب موقوف. لتجديد الاشتراك تواصل مع المبيعات.',
+        messageEn: 'Your plan has expired. WhatsApp sending is suspended. Contact sales to renew.',
+        dismissible: false,
+        ctaAr: 'تجديد الاشتراك',
+        ctaEn: 'Renew',
+      };
+    }
 
-  if (breaches.length === 0) return null;
+    // 2) Expiring within the warning window (default 7 days).
+    if (expiry && expiry.expiringSoon && expiry.daysLeft !== null) {
+      const days = expiry.daysLeft;
+      const dayWordAr = days === 1 ? 'يوم' : 'أيّام';
+      const dayWordEn = days === 1 ? 'day' : 'days';
+      return {
+        variant: 'expiring',
+        messageAr: `ستنتهي صلاحيّة باقتك خلال ${days} ${dayWordAr}. جدّد الآن لتجنّب توقّف الخدمة.`,
+        messageEn: `Your plan expires in ${days} ${dayWordEn}. Renew now to avoid service interruption.`,
+        dismissible: true,
+        ctaAr: 'التجديد',
+        ctaEn: 'Renew',
+      };
+    }
 
-  const top = breaches[0];
-  const danger = top.pct >= DANGER_PCT;
-  const overflowed = top.pct >= 100;
+    // 3) Fall through to feature usage warnings.
+    const breaches = FEATURES
+      .map((f) => {
+        const used  = Number(usage[f.usageKey] ?? 0);
+        const limit = Number(limits[f.limitKey] ?? 0);
+        if (limit === -1 || limit === 0) return null;
+        const pct = (used / limit) * 100;
+        return { feature: f, used, limit, pct };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null && x.pct >= WARN_PCT)
+      .sort((a, b) => b.pct - a.pct);
 
-  const color = danger ? "#ef4444" : "#f59e0b";
-  const bg    = danger ? "#fee2e2" : "#fef3c7";
-  const txt   = danger ? "#991b1b" : "#92400e";
+    if (breaches.length === 0) return null;
 
-  const featureLabel = isAr ? top.feature.labelAr : top.feature.labelEn;
+    const top = breaches[0];
+    const overflowed = top.pct >= 100;
+    const danger = top.pct >= DANGER_PCT;
+    const featureLabel = isAr ? top.feature.labelAr : top.feature.labelEn;
 
-  let messageAr: string;
-  let messageEn: string;
+    if (overflowed) {
+      return {
+        variant: 'overflow',
+        messageAr: `تجاوزت حدّ ${featureLabel} في باقتك (${top.used.toLocaleString()} / ${top.limit.toLocaleString()}). الخدمة مستمرّة، لكن رقّ الباقة لتجنّب توقّفها لاحقاً.`,
+        messageEn: `You've exceeded your plan's ${featureLabel} cap (${top.used.toLocaleString()} / ${top.limit.toLocaleString()}). Service continues — upgrade to avoid a future cutoff.`,
+        dismissible: true,
+        ctaAr: 'ترقية الآن',
+        ctaEn: 'Upgrade now',
+      };
+    }
+    if (danger) {
+      return {
+        variant: 'danger',
+        messageAr: `تبقّى لك ${(top.limit - top.used).toLocaleString()} من ${featureLabel} (${Math.round(top.pct)}% مستهلك).`,
+        messageEn: `${(top.limit - top.used).toLocaleString()} ${featureLabel} remaining (${Math.round(top.pct)}% used).`,
+        dismissible: true,
+        ctaAr: 'ترقية الآن',
+        ctaEn: 'Upgrade now',
+      };
+    }
+    return {
+      variant: 'warn',
+      messageAr: `تستهلك ${Math.round(top.pct)}% من ${featureLabel} في باقتك.`,
+      messageEn: `You've used ${Math.round(top.pct)}% of your ${featureLabel}.`,
+      dismissible: true,
+      ctaAr: 'ترقية الآن',
+      ctaEn: 'Upgrade now',
+    };
+  })();
 
-  if (overflowed) {
-    messageAr = `تجاوزت حدّ ${featureLabel} في باقتك (${top.used.toLocaleString()} / ${top.limit.toLocaleString()}). الخدمة مستمرّة، لكن رقّ الباقة لتجنّب توقّفها لاحقاً.`;
-    messageEn = `You've exceeded your plan's ${featureLabel} cap (${top.used.toLocaleString()} / ${top.limit.toLocaleString()}). Service continues — upgrade to avoid a future cutoff.`;
-  } else if (danger) {
-    messageAr = `تبقّى لك ${(top.limit - top.used).toLocaleString()} من ${featureLabel} (${Math.round(top.pct)}% مستهلك).`;
-    messageEn = `${(top.limit - top.used).toLocaleString()} ${featureLabel} remaining (${Math.round(top.pct)}% used).`;
-  } else {
-    messageAr = `تستهلك ${Math.round(top.pct)}% من ${featureLabel} في باقتك.`;
-    messageEn = `You've used ${Math.round(top.pct)}% of your ${featureLabel}.`;
-  }
+  if (!banner) return null;
+  if (dismissed && banner.dismissible) return null;
+
+  const isRed = banner.variant === 'expired' || banner.variant === 'overflow' || banner.variant === 'danger';
+  const color = isRed ? '#ef4444' : '#f59e0b';
+  const bg    = isRed ? '#fee2e2' : '#fef3c7';
+  const txt   = isRed ? '#991b1b' : '#92400e';
+  const icon  = banner.variant === 'expired' ? '🚫' : isRed ? '🚨' : '⚠️';
 
   return (
     <div
@@ -89,9 +151,9 @@ export function PlanWarningBanner() {
         flexWrap: "wrap",
       }}
     >
-      <span style={{ fontSize: 16 }}>{danger ? "🚨" : "⚠️"}</span>
+      <span style={{ fontSize: 16 }}>{icon}</span>
       <span style={{ flex: 1, minWidth: 200 }}>
-        {isAr ? messageAr : messageEn}
+        {isAr ? banner.messageAr : banner.messageEn}
       </span>
       <Link
         href="/billing"
@@ -105,22 +167,24 @@ export function PlanWarningBanner() {
           textDecoration: "none",
         }}
       >
-        {isAr ? "ترقية الآن" : "Upgrade now"}
+        {isAr ? banner.ctaAr : banner.ctaEn}
       </Link>
-      <button
-        onClick={() => setDismissed(true)}
-        aria-label="dismiss"
-        style={{
-          background: "transparent",
-          border: "none",
-          cursor: "pointer",
-          color: txt,
-          padding: 4,
-          opacity: 0.7,
-        }}
-      >
-        <Icon name="x" size={16} />
-      </button>
+      {banner.dismissible && (
+        <button
+          onClick={() => setDismissed(true)}
+          aria-label="dismiss"
+          style={{
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            color: txt,
+            padding: 4,
+            opacity: 0.7,
+          }}
+        >
+          <Icon name="x" size={16} />
+        </button>
+      )}
     </div>
   );
 }

@@ -237,6 +237,12 @@ export function useWhatsAppStatus() {
 export function usePlanUsage() {
   return useApi<{
     plan: { name: string; name_ar: string; price: number } | null;
+    expiry: {
+      expiresAt: string | null;
+      daysLeft: number | null;
+      isActive: boolean;
+      expiringSoon: boolean;
+    };
     limits: Record<string, number | boolean>;
     usage: Record<string, number>;
   }>('/billing/plan-usage');
