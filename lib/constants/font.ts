@@ -1,2 +1,2 @@
-export const FONT_FAMILY = "'Cairo', 'Poppins', sans-serif";
-export const FONT_LATIN = "'Poppins', 'Cairo', sans-serif";
+export const FONT_FAMILY = "'IBM Plex Sans Arabic', 'Poppins', sans-serif";
+export const FONT_LATIN = "'IBM Plex Sans Arabic', 'Poppins', sans-serif";
