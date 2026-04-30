@@ -116,7 +116,13 @@ export default function InboxPage() {
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
-  const prevSelectedIdRef = useRef<number | null>(null);
+  // We mark a conversation as "scrolled to bottom" only on the render
+  // that actually has messages. Tracking selectedId alone fails because
+  // selectedId changes BEFORE messages arrive — the first render is
+  // empty, the effect fires, scrollHeight is tiny, then messages
+  // arrive and the effect fires again thinking we're already in
+  // "smooth scroll" mode (since the id matches).
+  const lastScrolledConvoRef = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const quickReplies = isAr ? QUICK_REPLIES_AR : QUICK_REPLIES_EN;
@@ -183,31 +189,31 @@ export default function InboxPage() {
 
   // Auto-scroll the chat to the newest message — same behavior as
   // WhatsApp/Telegram. Driving scrollTop on the container directly is
-  // more reliable than scrollIntoView on a sentinel div: messages
-  // load async, message bubbles have variable heights, and a sentinel
+  // more reliable than scrollIntoView on a sentinel div: messages load
+  // async, message bubbles have variable heights, and a sentinel
   // element measured before all rows render lands at the wrong y.
   //
-  // Two distinct cases:
-  //   1. The user just opened a different conversation → jump to
-  //      bottom instantly. Animating from the previous conversation's
-  //      scroll position is the bug we're fixing — the user briefly
-  //      stares at oldest messages while the smooth animation runs.
-  //   2. A new message arrived in the SAME conversation → smooth
-  //      scroll, so the new bubble visibly lands.
-  //
-  // requestAnimationFrame defers until React has flushed the DOM
-  // mutations from this render, so scrollHeight is final.
+  // The trick: skip until messages.length > 0 so we don't "use up"
+  // the convo-switch jump on an empty pre-load render. The marker
+  // (lastScrolledConvoRef) is set only AFTER we successfully jumped
+  // to bottom in a populated convo, so subsequent renders within the
+  // same convo correctly use smooth scroll for incremental messages.
   useEffect(() => {
-    if (!selectedId) return;
-    const isConvoSwitch = prevSelectedIdRef.current !== selectedId;
-    prevSelectedIdRef.current = selectedId;
+    if (!selectedId || messages.length === 0) return;
+
+    const isFirstLoad = lastScrolledConvoRef.current !== selectedId;
 
     requestAnimationFrame(() => {
       const el = messagesScrollRef.current;
       if (!el) return;
-      if (isConvoSwitch) {
+      if (isFirstLoad) {
+        // Instant jump — animating from the previous convo's scroll
+        // position would briefly show the oldest messages.
         el.scrollTop = el.scrollHeight;
+        lastScrolledConvoRef.current = selectedId;
       } else {
+        // New message arrived in the same convo → smooth so the bubble
+        // visibly lands.
         el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
       }
     });
