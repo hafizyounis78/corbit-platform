@@ -16,15 +16,23 @@ import { useAuth } from "@/lib/auth/auth-context";
 interface SidebarProps {
   open: boolean;
   onToggle: () => void;
+  isMobile?: boolean;
 }
 
-export function Sidebar({ open, onToggle }: SidebarProps) {
+export function Sidebar({ open, onToggle, isMobile = false }: SidebarProps) {
   const pathname = usePathname();
   const { colors: C } = useTheme();
-  const { t, isAr } = useLocale();
+  const { t, isAr, rtl } = useLocale();
   const { data: badges } = useNavBadges();
   const { data: planData } = usePlanUsage();
   const { user, logout } = useAuth();
+  // On mobile the sidebar floats over the content as a drawer, on
+  // desktop it shrinks/expands inline. The desktop "collapsed" rail
+  // (72px) is hidden entirely on mobile — when the drawer closes we
+  // pull it fully off-screen instead.
+  const drawerOpen = isMobile ? open : true;
+  const widthDesktop = open ? 260 : 72;
+  const widthMobile = 280;
 
   const plan = (planData as any)?.plan;
   const usage = (planData as any)?.usage ?? {};
@@ -44,11 +52,37 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
     return item.badge;
   };
 
-  return (
-    <div
-      style={{
-        width: open ? 260 : 72,
-        minWidth: open ? 260 : 72,
+  // Pre-compute mobile vs desktop styles so the markup stays one block.
+  // On mobile we always render fully-open content (260px width) but
+  // translate the whole panel off-screen when closed; on desktop we
+  // animate the inline width as before.
+  const mobileTranslate = drawerOpen
+    ? "translateX(0)"
+    : rtl
+      ? "translateX(100%)"
+      : "translateX(-100%)";
+
+  const containerStyle: React.CSSProperties = isMobile
+    ? {
+        width: widthMobile,
+        minWidth: widthMobile,
+        background: C.side,
+        borderInlineEnd: "1px solid " + C.brd,
+        display: "flex",
+        flexDirection: "column",
+        position: "fixed",
+        top: 0,
+        bottom: 0,
+        insetInlineStart: 0,
+        transform: mobileTranslate,
+        transition: "transform 0.3s",
+        overflow: "hidden",
+        zIndex: 40,
+        boxShadow: drawerOpen ? "0 8px 32px rgba(0,0,0,0.35)" : "none",
+      }
+    : {
+        width: widthDesktop,
+        minWidth: widthDesktop,
         background: C.side,
         borderInlineEnd: "1px solid " + C.brd,
         display: "flex",
@@ -56,8 +90,14 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
         transition: "width 0.3s",
         overflow: "hidden",
         zIndex: 20,
-      }}
-    >
+      };
+
+  // Inside the drawer we always want the "expanded" labels visible —
+  // a 280px-wide drawer with icon-only nav would feel broken.
+  const showLabels = isMobile ? true : open;
+
+  return (
+    <div style={containerStyle}>
       {/* Logo */}
       <div
         style={{
@@ -69,7 +109,7 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
         }}
       >
         <WhatsBitIcon size={44} variant="light" />
-        {open && (
+        {showLabels && (
           <div>
             <div
               style={{
@@ -104,8 +144,8 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
                 display: "flex",
                 alignItems: "center",
                 gap: 12,
-                padding: open ? "10px 14px" : "10px",
-                justifyContent: open ? "flex-start" : "center",
+                padding: showLabels ? "10px 14px" : "10px",
+                justifyContent: showLabels ? "flex-start" : "center",
                 marginBottom: 2,
                 borderRadius: 10,
                 border: "none",
@@ -121,8 +161,8 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
               <span style={{ flexShrink: 0, opacity: isActive ? 1 : 0.6 }}>
                 <Icon name={n.icon} size={18} />
               </span>
-              {open && <span>{t(n.labelKey)}</span>}
-              {badgeCount && open && (
+              {showLabels && <span>{t(n.labelKey)}</span>}
+              {badgeCount && showLabels && (
                 <span
                   style={{
                     marginInlineStart: "auto",
@@ -150,8 +190,8 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
                 display: "flex",
                 alignItems: "center",
                 gap: 12,
-                padding: open ? "10px 14px" : "10px",
-                justifyContent: open ? "flex-start" : "center",
+                padding: showLabels ? "10px 14px" : "10px",
+                justifyContent: showLabels ? "flex-start" : "center",
                 marginTop: 8,
                 borderRadius: 10,
                 cursor: "pointer",
@@ -168,7 +208,7 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
               <span style={{ flexShrink: 0, opacity: pathname === "/super-admin" ? 1 : 0.6 }}>
                 <Icon name="shield" size={18} />
               </span>
-              {open && <span>{isAr ? "المشرف العام" : "Super Admin"}</span>}
+              {showLabels && <span>{isAr ? "المشرف العام" : "Super Admin"}</span>}
             </Link>
 
             <Link
@@ -178,8 +218,8 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
                 display: "flex",
                 alignItems: "center",
                 gap: 12,
-                padding: open ? "10px 14px" : "10px",
-                justifyContent: open ? "flex-start" : "center",
+                padding: showLabels ? "10px 14px" : "10px",
+                justifyContent: showLabels ? "flex-start" : "center",
                 marginTop: 2,
                 borderRadius: 10,
                 cursor: "pointer",
@@ -194,14 +234,14 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
               <span style={{ flexShrink: 0, opacity: pathname === "/super-admin/sms-welcome" ? 1 : 0.6 }}>
                 <Icon name="msg" size={18} />
               </span>
-              {open && <span>{isAr ? "رسائل SMS ترحيبيّة" : "Welcome SMS"}</span>}
+              {showLabels && <span>{isAr ? "رسائل SMS ترحيبيّة" : "Welcome SMS"}</span>}
             </Link>
           </>
         ) : null}
       </nav>
 
       {/* Plan badge — links to /billing */}
-      {open && plan && (
+      {showLabels && plan && (
         <Link
           href="/billing"
           style={{
@@ -248,7 +288,7 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
       )}
 
       {/* User */}
-      {open && (
+      {showLabels && (
         <div style={{ padding: 16, borderTop: "1px solid " + C.brd }}>
           <div
             style={{

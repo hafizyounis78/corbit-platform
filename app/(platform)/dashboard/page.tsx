@@ -10,6 +10,7 @@ import { Donut } from "@/components/charts/donut";
 import { MiniBar } from "@/components/charts/mini-bar";
 import { Icon } from "@/components/icons/icon";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-media-query";
 import { useRouter } from "next/navigation";
 import { useDashboardStats } from "@/lib/api/hooks";
 
@@ -18,6 +19,7 @@ export default function DashboardPage() {
   const { colors: C } = useTheme();
   const { t, isAr, lang } = useLocale();
   const { showToast } = useToast();
+  const isMobile = useIsMobile();
   const router = useRouter();
   const { data: apiData, isLoading: apiLoading } = useDashboardStats();
 
@@ -84,9 +86,9 @@ export default function DashboardPage() {
   }
 
   return (
-    <div style={{ padding: "0 24px 24px" }}>
+    <div style={{ padding: isMobile ? "0 12px 16px" : "0 24px 24px" }}>
       {/* Welcome Banner */}
-      <div style={{ padding: "32px 36px", borderRadius: 18, background: GRADIENT, marginBottom: 24, position: "relative", overflow: "hidden" }}>
+      <div style={{ padding: isMobile ? "20px 18px" : "32px 36px", borderRadius: 18, background: GRADIENT, marginBottom: isMobile ? 16 : 24, position: "relative", overflow: "hidden" }}>
         <svg style={{ position: "absolute", top: -40, right: -40, width: 240, height: 240, opacity: 0.22, pointerEvents: "none" }} viewBox="0 0 240 240" fill="none">
           <circle cx="120" cy="120" r="100" stroke="#fff" strokeWidth="2.5" fill="none" />
           <circle cx="120" cy="120" r="72" stroke="#fff" strokeWidth="1.6" fill="none" strokeDasharray="5 9" />
@@ -140,7 +142,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Main Content */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.2fr 1fr", gap: 16 }}>
         {/* Recent Conversations */}
         <Card>
           <CardHeader title={t("recentConv")} actionLabel={t("viewAll")} onAction={() => router.push("/inbox")} />
@@ -232,7 +234,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Bottom Stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginTop: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 16, marginTop: 16 }}>
         {([
           [t("sla"), slaValue, C.ok, slaDisplay],
           [t("csat"), csatValue, C.pri, csatDisplay],

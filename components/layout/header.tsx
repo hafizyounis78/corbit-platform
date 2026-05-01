@@ -13,6 +13,7 @@ import api from "@/lib/api/client";
 
 interface HeaderProps {
   onToggleSidebar: () => void;
+  isMobile?: boolean;
 }
 
 interface SearchResult {
@@ -23,7 +24,7 @@ interface SearchResult {
   url: string;
 }
 
-export function Header({ onToggleSidebar }: HeaderProps) {
+export function Header({ onToggleSidebar, isMobile = false }: HeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { colors: C, isDark, toggleTheme } = useTheme();
@@ -148,12 +149,13 @@ export function Header({ onToggleSidebar }: HeaderProps) {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "0 24px",
+        padding: isMobile ? "0 12px" : "0 24px",
         background: C.card,
         borderBottom: "1px solid " + C.brd,
+        gap: 8,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: isMobile ? 1 : "0 0 auto" }}>
         <button
           onClick={onToggleSidebar}
           style={{
@@ -162,16 +164,28 @@ export function Header({ onToggleSidebar }: HeaderProps) {
             color: C.t2,
             cursor: "pointer",
             padding: 4,
+            flexShrink: 0,
           }}
         >
           <Icon name="menu" size={18} />
         </button>
-        <h1 style={{ fontSize: 17, fontWeight: 700, letterSpacing: -0.3 }}>
+        <h1
+          style={{
+            fontSize: isMobile ? 15 : 17,
+            fontWeight: 700,
+            letterSpacing: -0.3,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            minWidth: 0,
+          }}
+        >
           {pageTitle}
         </h1>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        {/* Search */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+        {/* Search — desktop only; the icon button below opens it on phones */}
+        {!isMobile && (
         <div
           ref={searchRef}
           style={{
@@ -310,15 +324,19 @@ export function Header({ onToggleSidebar }: HeaderProps) {
             </div>
           )}
         </div>
+        )}
 
-        {/* Language */}
+        {/* Language — icon-only on mobile to save room next to theme/bell */}
         <button
           onClick={toggleLang}
           style={{
             display: "flex",
             alignItems: "center",
+            justifyContent: "center",
             gap: 6,
-            padding: "7px 12px",
+            padding: isMobile ? 0 : "7px 12px",
+            width: isMobile ? 36 : "auto",
+            height: isMobile ? 36 : "auto",
             borderRadius: 10,
             border: "1px solid " + C.brd,
             background: "transparent",
@@ -329,8 +347,8 @@ export function Header({ onToggleSidebar }: HeaderProps) {
             fontWeight: 600,
           }}
         >
-          <Icon name="globe" size={14} />
-          {lang === "ar" ? "EN" : "عربي"}
+          <Icon name="globe" size={isMobile ? 16 : 14} />
+          {!isMobile && (lang === "ar" ? "EN" : "عربي")}
         </button>
 
         {/* Theme */}

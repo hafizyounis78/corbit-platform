@@ -123,6 +123,13 @@ export default function InboxPage() {
   // arrive and the effect fires again thinking we're already in
   // "smooth scroll" mode (since the id matches).
   const lastScrolledConvoRef = useRef<number | null>(null);
+  // Sticky-scroll intent: tracks whether the user was pinned to the
+  // bottom right before each render. We can't compute this inside
+  // the messages effect because by then the DOM already reflects the
+  // new message — scrollHeight has grown and the user looks "above"
+  // the bottom even though they hadn't moved. The scroll listener
+  // updates this flag continuously while they actually scroll.
+  const stickToBottomRef = useRef<boolean>(true);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const quickReplies = isAr ? QUICK_REPLIES_AR : QUICK_REPLIES_EN;
@@ -158,11 +165,11 @@ export default function InboxPage() {
     ? rawMsgs.map(mapApiMessage)
     : [];
 
-  // Display order is newest-first (top) → oldest (bottom). The backend
-  // returns oldest→newest in chronological order, so we reverse a copy
-  // here. Reversing in display only (not in the array passed to AI or
-  // analytics) keeps the conversation history intact for everything
-  // else — only the inbox UI flips for operator readability.
+  // Display order is oldest (top) → newest (bottom), matching every
+  // chat app the user has ever used (WhatsApp/Telegram/iMessage). The
+  // backend returns newest-first, so we reverse a copy for the UI
+  // only. The unmodified array still flows into AI/analytics so
+  // history stays in its original order for everything else.
   const messages = apiMessages.length ? [...apiMessages].reverse() : [];
 
   // API: fetch notes for selected conversation
@@ -192,27 +199,53 @@ export default function InboxPage() {
     }
   }, [filterTab]);
 
-  // Order is newest-first (top), so when a conversation opens we want
-  // to jump to scrollTop=0 rather than scrollHeight. Skip until the
-  // messages array is populated so we don't "use up" the jump on the
-  // empty pre-load render.
+  // Order is oldest→newest, so opening a conversation should land
+  // the user on the latest message — same as any chat app. Skip
+  // until the messages array is populated so we don't "use up" the
+  // jump on the empty pre-load render.
+  //
+  // We use scrollIntoView on a tail anchor (chatEndRef) instead of
+  // setting scrollTop=scrollHeight directly: the browser waits until
+  // layout is final before honouring it, so it works even when
+  // images/long bubbles are still reflowing on the first paint.
   useEffect(() => {
     if (!selectedId || messages.length === 0) return;
 
     const isFirstLoad = lastScrolledConvoRef.current !== selectedId;
 
-    requestAnimationFrame(() => {
-      const el = messagesScrollRef.current;
-      if (!el) return;
+    if (isFirstLoad || stickToBottomRef.current) {
+      const scrollToEnd = () => {
+        chatEndRef.current?.scrollIntoView({ block: "end" });
+        // Belt-and-braces: also pin the container itself, in case the
+        // anchor is inside a non-positioned ancestor and the browser
+        // refuses to scroll for it.
+        const c = messagesScrollRef.current;
+        if (c) c.scrollTop = c.scrollHeight;
+      };
+      // Two RAFs: the first lets React paint the new bubbles, the
+      // second runs once layout for those bubbles is complete.
+      requestAnimationFrame(() => requestAnimationFrame(scrollToEnd));
       if (isFirstLoad) {
-        el.scrollTop = 0;
         lastScrolledConvoRef.current = selectedId;
+        // Opening a fresh conversation always pins to bottom.
+        stickToBottomRef.current = true;
       }
-      // Within the same convo we let the user decide where to be — a
-      // new message arriving while they're scrolled into history
-      // shouldn't yank them back to the top.
-    });
+    }
   }, [selectedId, messages.length]);
+
+  // Track whether the user is "at the bottom" continuously, not just
+  // at message-update time. 80px slack is generous enough that the
+  // last bubble being half-visible still counts as pinned.
+  useEffect(() => {
+    const el = messagesScrollRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      stickToBottomRef.current = distanceFromBottom < 80;
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [selectedId]);
 
   // Resolved AI state for the selected conversation: prefer the user's
   // session-level override (so optimistic toggles don't flicker), fall
@@ -469,7 +502,7 @@ export default function InboxPage() {
       </div>
     );
     return (
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", background: dk ? "#0A0C14" : "#F5F3EF", minWidth: 0 }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", background: dk ? "#0A0C14" : "#F5F3EF", minWidth: 0, minHeight: 0 }}>
         {/* Chat Header */}
         <div style={{ padding: "12px 22px", background: C.card, borderBottom: "1px solid " + (dk ? C.brd : "#EAE7E2"), display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: C.shadow, flexWrap: "wrap", gap: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -892,7 +925,7 @@ export default function InboxPage() {
   // ===================== LAYOUT =====================
   if (isMobile) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+      <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", minHeight: 0, flex: 1 }}>
         {mobileView === "list" && renderConversationList()}
         {mobileView === "chat" && renderChatPanel()}
         {mobileView === "detail" && renderDetailPanel()}
@@ -901,7 +934,7 @@ export default function InboxPage() {
   }
 
   return (
-    <div style={{ display: "flex", flex: 1, overflow: "hidden", height: "calc(100vh - 65px)" }}>
+    <div style={{ display: "flex", flex: 1, overflow: "hidden", minHeight: 0 }}>
       {renderConversationList()}
       {renderChatPanel()}
       {showDetail && !isTablet && renderDetailPanel()}
