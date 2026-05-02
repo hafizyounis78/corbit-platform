@@ -12,6 +12,7 @@ import { useContacts, useContactStats, useContactTags, useSegments } from "@/lib
 import api from "@/lib/api/client";
 import { SmartSegmentsBar } from "@/components/contacts/smart-segments-bar";
 import { CustomerInsightsBar } from "@/components/contacts/customer-insights-bar";
+import { ContactDetailDrawer } from "@/components/contacts/contact-detail-drawer";
 import { COLORS, GRADIENT } from "@/lib/constants/colors";
 import { FONT_FAMILY } from "@/lib/constants/font";
 
@@ -55,6 +56,9 @@ export default function ContactsPage() {
   // composable on top of the segment.
   const [activeSegment, setActiveSegment] = useState<string | null>(null);
   const [segmentContactIds, setSegmentContactIds] = useState<Set<string>>(new Set());
+  // Detail drawer state — non-null id slides the drawer in; click-outside
+  // or close button sets back to null.
+  const [drawerContactId, setDrawerContactId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 50;
   const [showAddModal, setShowAddModal] = useState(false);
@@ -248,7 +252,17 @@ export default function ContactsPage() {
     // The CampaignService already excludes them at send time, but the
     // visual cue saves the operator's confusion when their "all" segment
     // shows N recipients in the picker but only sends to N-K.
-    <div key={`name-${c.id}`} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+    // Clicking the name cell opens the detail drawer. We keep the
+    // pencil/edit button on the action column for the inline-edit
+    // workflow operators were used to.
+    <div
+      key={`name-${c.id}`}
+      onClick={() => setDrawerContactId(String(c.id))}
+      style={{
+        display: "flex", alignItems: "center", gap: 10,
+        cursor: "pointer",
+      }}
+    >
       <Avatar name={c.name} size={34} />
       <div>
         <div style={{ fontWeight: 600, fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
@@ -610,6 +624,17 @@ export default function ContactsPage() {
           conceptually to a Smart Segment above so an operator can drill
           straight into the matching segment. */}
       <CustomerInsightsBar />
+
+      {/* Detail drawer slides in from the side when the operator clicks
+          a contact name. Mounted at the page level so its backdrop
+          covers everything. The mutate() callback refetches the table
+          after destructive actions (block, etc) so the row updates
+          without a manual refresh. */}
+      <ContactDetailDrawer
+        contactId={drawerContactId}
+        onClose={() => setDrawerContactId(null)}
+        onMutated={() => mutate()}
+      />
 
       {/* ── Add Contact Modal ── */}
       <Modal

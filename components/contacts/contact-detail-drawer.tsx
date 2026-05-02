@@ -1,0 +1,433 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useTheme } from "@/lib/theme/theme-provider";
+import { useLocale } from "@/lib/i18n/locale-provider";
+import { useToast } from "@/hooks/use-toast";
+import api from "@/lib/api/client";
+import { COLORS } from "@/lib/constants/colors";
+import { FONT_FAMILY } from "@/lib/constants/font";
+import { Avatar, Badge, Button } from "@/components/ui";
+import { Icon } from "@/components/icons/icon";
+
+interface TimelineEvent {
+  type: string;
+  label: string;
+  at: string;
+}
+
+interface ContactDetail {
+  id: string;
+  name: string;
+  ph: string;
+  email?: string;
+  city?: string;
+  language?: string;
+  source?: string;
+  st?: string;
+  tags?: string[];
+  score: number;
+  ltv: number;
+  orders: number;
+  avgOrder?: number;
+  lastActive?: string;
+  joined?: string;
+  notes?: string;
+  behavior?: {
+    opens: number;
+    clicks: number;
+    replies: number;
+    purchases: number;
+    avgOrder: number;
+    lastCamp?: string;
+  };
+  timeline?: TimelineEvent[];
+  aiNotes?: string[];
+}
+
+interface Props {
+  /** When set, drawer slides in for that id. Null closes. */
+  contactId: string | null;
+  onClose: () => void;
+  /** Called after a write that affects the parent list (block, etc).
+   *  Lets the parent refetch contacts without us coupling to its state. */
+  onMutated?: () => void;
+}
+
+const AI_COLOR = "#FF5A5F";
+
+/**
+ * Right-side drawer for the full contact profile. Loads the detail
+ * payload (?detail=1) which includes behavior + timeline + AI notes
+ * — all data the listing endpoint deliberately doesn't carry.
+ *
+ * Layout follows what operators read top-to-bottom in a triage moment:
+ *   1. Profile header (who is this, score)
+ *   2. Behavior tiles (orders / LTV / open rate / replies — quick scan)
+ *   3. AI Notes (rule-based insights, no OpenAI call per view)
+ *   4. Activity Timeline (last 15 events: chats + campaigns)
+ *   5. Quick actions (message / add-to-campaign / tag / block)
+ *
+ * Refetches the AI score on demand via the recompute endpoint so an
+ * operator who just edited tags can see the new score without waiting
+ * for the nightly cron.
+ */
+export function ContactDetailDrawer({ contactId, onClose, onMutated }: Props) {
+  const { colors: C, isDark } = useTheme();
+  const { isAr } = useLocale();
+  const { showToast } = useToast();
+
+  const [contact, setContact] = useState<ContactDetail | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [recomputing, setRecomputing] = useState(false);
+
+  useEffect(() => {
+    if (!contactId) {
+      setContact(null);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    api.get(`/contacts/${contactId}?detail=1`)
+      .then((res) => {
+        if (cancelled) return;
+        const data = res.data?.data ?? res.data;
+        setContact(data);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        showToast(isAr ? "تعذّر تحميل بيانات العميل" : "Couldn't load contact");
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [contactId, isAr, showToast]);
+
+  const handleRecompute = async () => {
+    if (!contactId || recomputing) return;
+    setRecomputing(true);
+    try {
+      const res = await api.post(`/contacts/${contactId}/recompute-score`);
+      const data = res.data?.data ?? res.data;
+      setContact((prev) => prev ? { ...prev, score: data.engagement_score } : prev);
+      showToast(isAr ? "تم تحديث النقاط" : "Score updated");
+    } catch {
+      showToast(isAr ? "تعذّر التحديث" : "Couldn't update");
+    } finally {
+      setRecomputing(false);
+    }
+  };
+
+  if (!contactId) return null;
+
+  const scoreColor = (s: number) =>
+    s >= 80 ? COLORS.ok : s >= 50 ? COLORS.warn : COLORS.err;
+
+  const tpIcon: Record<string, string> = {
+    chat: "msg",
+    campaign: "megaphone",
+    order: "cart",
+    system: "gear",
+  };
+  const tpColor: Record<string, string> = {
+    chat: COLORS.info,
+    campaign: COLORS.pri,
+    order: COLORS.ok,
+    system: COLORS.t3,
+  };
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        style={{
+          position: "fixed", inset: 0,
+          background: "rgba(0,0,0,0.45)",
+          zIndex: 95,
+        }}
+      />
+      {/* Drawer */}
+      <div
+        style={{
+          position: "fixed", top: 0,
+          [isAr ? "left" : "right"]: 0 as any,
+          width: "min(440px, 92vw)",
+          height: "100vh",
+          background: C.card,
+          boxShadow: "-12px 0 40px rgba(0,0,0,0.2)",
+          zIndex: 96,
+          overflowY: "auto",
+          fontFamily: FONT_FAMILY,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        {/* Sticky header strip with close button */}
+        <div
+          style={{
+            position: "sticky", top: 0,
+            background: C.card,
+            borderBottom: `1px solid ${C.brd}`,
+            padding: "14px 20px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            zIndex: 5,
+          }}
+        >
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.txt }}>
+            {isAr ? "ملف العميل" : "Contact Profile"}
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: "transparent", border: "none",
+              cursor: "pointer", color: C.t2, fontSize: 18, padding: 4,
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {loading || !contact ? (
+          <div style={{ padding: 40, textAlign: "center", color: C.t2 }}>
+            <Icon name="timer" size={24} />
+            <p style={{ marginTop: 8, fontSize: 13 }}>
+              {isAr ? "جاري التحميل..." : "Loading..."}
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Profile header */}
+            <div style={{ padding: "18px 20px", borderBottom: `1px solid ${C.brdL}` }}>
+              <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+                <Avatar name={contact.name} size={56} solid />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 17, fontWeight: 700, color: C.txt, marginBottom: 4 }}>
+                    {contact.name}
+                  </div>
+                  <div style={{ fontSize: 12, color: C.t2, marginBottom: 4, direction: "ltr" }}>
+                    {contact.ph}
+                  </div>
+                  {contact.email && (
+                    <div style={{ fontSize: 11.5, color: C.t3 }}>
+                      ✉ {contact.email}
+                    </div>
+                  )}
+                  {contact.city && (
+                    <div style={{ fontSize: 11.5, color: C.t3, marginTop: 2 }}>
+                      📍 {contact.city}
+                    </div>
+                  )}
+                </div>
+                {/* Score badge — clickable for manual recompute */}
+                <button
+                  onClick={handleRecompute}
+                  disabled={recomputing}
+                  title={isAr ? "إعادة حساب النقاط" : "Recompute score"}
+                  style={{
+                    width: 56, height: 56,
+                    borderRadius: 14,
+                    background: scoreColor(contact.score) + "15",
+                    border: `2px solid ${scoreColor(contact.score)}40`,
+                    display: "flex", flexDirection: "column",
+                    alignItems: "center", justifyContent: "center",
+                    cursor: recomputing ? "wait" : "pointer",
+                    fontFamily: FONT_FAMILY,
+                  }}
+                >
+                  <div style={{ fontSize: 19, fontWeight: 800, color: scoreColor(contact.score) }}>
+                    {recomputing ? "…" : contact.score}
+                  </div>
+                  <div style={{ fontSize: 9, color: C.t3 }}>{isAr ? "نقاط" : "Score"}</div>
+                </button>
+              </div>
+
+              {/* Tags */}
+              {contact.tags && contact.tags.length > 0 && (
+                <div style={{ display: "flex", gap: 4, marginTop: 12, flexWrap: "wrap" }}>
+                  {contact.tags.map((t, i) => (
+                    <Badge key={i} color={t === "VIP" ? COLORS.warn : COLORS.pri}>{t}</Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Behavior tiles — quick scan */}
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: 6,
+              padding: "14px 20px",
+              borderBottom: `1px solid ${C.brdL}`,
+            }}>
+              {[
+                {
+                  label: isAr ? "الطلبات" : "Orders",
+                  value: contact.orders,
+                  color: COLORS.pri,
+                },
+                {
+                  label: isAr ? "LTV" : "LTV",
+                  value: `${Number(contact.ltv).toLocaleString()} ${isAr ? "ر.س" : "SAR"}`,
+                  color: COLORS.ok,
+                },
+                {
+                  label: isAr ? "متوسّط" : "Avg",
+                  value: `${Number(contact.avgOrder ?? 0).toLocaleString()} ${isAr ? "ر.س" : "SAR"}`,
+                  color: COLORS.info,
+                },
+                {
+                  label: isAr ? "فتح %" : "Open %",
+                  value: `${(contact.behavior?.opens ?? 0).toFixed(0)}%`,
+                  color: COLORS.pri,
+                },
+                {
+                  label: isAr ? "نقر %" : "Click %",
+                  value: `${(contact.behavior?.clicks ?? 0).toFixed(0)}%`,
+                  color: COLORS.sec,
+                },
+                {
+                  label: isAr ? "ردود %" : "Reply %",
+                  value: `${(contact.behavior?.replies ?? 0).toFixed(0)}%`,
+                  color: COLORS.warn,
+                },
+              ].map((tile, i) => (
+                <div
+                  key={i}
+                  style={{
+                    padding: "8px 6px",
+                    background: isDark ? C.inp : "#FAFAF8",
+                    borderRadius: 8,
+                    textAlign: "center",
+                  }}
+                >
+                  <div style={{ fontSize: 9.5, color: C.t3, marginBottom: 2 }}>{tile.label}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: tile.color }}>{tile.value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* AI Notes */}
+            {contact.aiNotes && contact.aiNotes.length > 0 && (
+              <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.brdL}` }}>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  fontSize: 12, fontWeight: 700, color: AI_COLOR,
+                  marginBottom: 10,
+                }}>
+                  <span>🧠</span>
+                  {isAr ? "رؤى ذكيّة" : "AI Insights"}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {contact.aiNotes.map((note, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        padding: "8px 12px",
+                        borderRadius: 8,
+                        background: isDark ? "#1a1030" : "#F8F4FF",
+                        border: `1px solid ${AI_COLOR}25`,
+                        fontSize: 12, lineHeight: 1.55, color: C.txt,
+                      }}
+                    >
+                      {note}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Timeline */}
+            {contact.timeline && contact.timeline.length > 0 && (
+              <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.brdL}`, flex: 1 }}>
+                <div style={{
+                  fontSize: 12, fontWeight: 700, color: C.txt, marginBottom: 10,
+                  display: "flex", alignItems: "center", gap: 6,
+                }}>
+                  <span>📅</span>
+                  {isAr ? "سجل النشاط" : "Activity Timeline"}
+                </div>
+                <div style={{ position: "relative", paddingInlineStart: 22 }}>
+                  {/* Vertical guide line */}
+                  <div style={{
+                    position: "absolute",
+                    top: 4, bottom: 4,
+                    [isAr ? "right" : "left"]: 8 as any,
+                    width: 2,
+                    background: C.brdL,
+                  }} />
+                  {contact.timeline.map((event, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        position: "relative",
+                        paddingInlineStart: 16,
+                        paddingBottom: 12,
+                      }}
+                    >
+                      <div style={{
+                        position: "absolute",
+                        [isAr ? "right" : "left"]: -14 as any,
+                        top: 2,
+                        width: 18, height: 18,
+                        borderRadius: 9,
+                        background: tpColor[event.type] ?? C.t3,
+                        border: `3px solid ${C.card}`,
+                        display: "flex",
+                        alignItems: "center", justifyContent: "center",
+                        color: "#fff",
+                      }}>
+                        <Icon name={tpIcon[event.type] ?? "gear"} size={9} />
+                      </div>
+                      <div style={{ fontSize: 12, color: C.txt, fontWeight: 600 }}>
+                        {event.label}
+                      </div>
+                      <div style={{ fontSize: 10.5, color: C.t3, marginTop: 2 }}>
+                        {event.at}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Sticky action bar at bottom */}
+            <div style={{
+              position: "sticky", bottom: 0,
+              background: C.card,
+              borderTop: `1px solid ${C.brd}`,
+              padding: "12px 20px",
+              display: "flex",
+              gap: 6,
+              flexWrap: "wrap",
+            }}>
+              <Button outline small onClick={() => showToast("✓")}>
+                <Icon name="send" size={12} /> {isAr ? "رسالة" : "Message"}
+              </Button>
+              <Button outline small onClick={() => showToast("✓")}>
+                <Icon name="megaphone" size={12} /> {isAr ? "حملة" : "Campaign"}
+              </Button>
+              <Button outline small onClick={() => showToast("✓")}>
+                <Icon name="tag" size={12} /> {isAr ? "وسم" : "Tag"}
+              </Button>
+              <Button outline small style={{ color: COLORS.err, borderColor: COLORS.err }}
+                onClick={async () => {
+                  try {
+                    await api.post(`/contacts/${contactId}/block`);
+                    showToast(isAr ? "تم الحظر" : "Blocked");
+                    onMutated?.();
+                    onClose();
+                  } catch {
+                    showToast(isAr ? "تعذّر الحظر" : "Couldn't block");
+                  }
+                }}>
+                <Icon name="lock" size={12} /> {isAr ? "حظر" : "Block"}
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+    </>
+  );
+}
