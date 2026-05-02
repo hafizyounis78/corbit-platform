@@ -218,9 +218,14 @@ export default function ContactsPage() {
   // narrow further to ids returned by the segment endpoint. This composes
   // cleanly with the search/tab/tag filters above so an operator can do
   // "Hot Leads tagged VIP" in two clicks.
+  //
+  // The Contact.id type is `number` from a stale data definition, while
+  // the backend actually emits UUID strings. We coerce to string at the
+  // comparison so the lookup matches without us having to retype the
+  // shared Contact interface (which would ripple through other pages).
   const filtered = useMemo(() => {
     if (!activeSegment || segmentContactIds.size === 0) return contacts;
-    return contacts.filter((c) => segmentContactIds.has(c.id));
+    return contacts.filter((c) => segmentContactIds.has(String(c.id)));
   }, [contacts, activeSegment, segmentContactIds]);
 
   const toggleTag = (tag: string) => {
