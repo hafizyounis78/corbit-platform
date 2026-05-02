@@ -137,6 +137,36 @@ export function useContactTags() {
   return useApi('/contacts/tags');
 }
 
+// AI Smart Segments — 8 fixed segments with live counts. The backend
+// route is POST (no body required) so we use a dedicated tiny fetcher
+// rather than the GET-only useApi.
+export function useAiSegments() {
+  const [data, setData] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await api.post('/contacts/ai/segments');
+      setData(res.data?.data ?? res.data);
+    } catch (e: any) {
+      setError(e.response?.data?.message || e.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+  return { data, error, isLoading, mutate: fetchData };
+}
+
+// Org-wide insight summary for the bottom-of-page Insights bar.
+export function useAiInsights() {
+  return useApi('/contacts/ai/insights');
+}
+
 // ─── Templates ────────────────────────────────────────────
 export function useTemplates(params?: { status?: string; search?: string; page?: number }) {
   const qs = new URLSearchParams();

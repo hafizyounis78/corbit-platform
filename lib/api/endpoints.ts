@@ -56,6 +56,10 @@ export const API = {
     UNBLOCK: (id: string) => `/contacts/${id}/unblock`,
     IMPORT: '/contacts/import',
     EXPORT: '/contacts/export',
+    AI_SEGMENTS: '/contacts/ai/segments',
+    AI_SEGMENT_CONTACTS: (key: string) => `/contacts/ai/segments/${key}`,
+    AI_INSIGHTS: '/contacts/ai/insights',
+    RECOMPUTE_SCORE: (id: string) => `/contacts/${id}/recompute-score`,
   },
   SEGMENTS: {
     LIST: '/segments',

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { useToast } from "@/hooks/use-toast";
@@ -10,6 +10,8 @@ import { Icon } from "@/components/icons/icon";
 import type { Contact } from "@/data/contacts";
 import { useContacts, useContactStats, useContactTags, useSegments } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
+import { SmartSegmentsBar } from "@/components/contacts/smart-segments-bar";
+import { CustomerInsightsBar } from "@/components/contacts/customer-insights-bar";
 import { COLORS, GRADIENT } from "@/lib/constants/colors";
 import { FONT_FAMILY } from "@/lib/constants/font";
 
@@ -46,6 +48,13 @@ export default function ContactsPage() {
   const [search, setSearch] = useState("");
   const [serverSearch, setServerSearch] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  // Operator-selected smart segment ("hot_leads", "at_risk", etc) — null
+  // means the regular tabs/tags filtering applies. When set we ask the
+  // backend for that segment's contact ids and filter the visible list
+  // to that subset client-side, which keeps the existing tag/tab filters
+  // composable on top of the segment.
+  const [activeSegment, setActiveSegment] = useState<string | null>(null);
+  const [segmentContactIds, setSegmentContactIds] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 50;
   const [showAddModal, setShowAddModal] = useState(false);
@@ -98,7 +107,11 @@ export default function ContactsPage() {
   const totalCount = paginationMeta?.total || (Array.isArray(apiContacts) ? apiContacts.length : 0);
   const totalPages = paginationMeta?.last_page || Math.ceil(totalCount / PAGE_SIZE) || 1;
 
-  // Map API fields
+  // Map API fields. The Customer Score / LTV columns read from
+  // `engagement_score` and `lifetime_value` on the backend (filled by
+  // ContactScorer's nightly cron + on-demand recompute), with the older
+  // `score`/`ltv` aliases kept as a transition fallback for any cached
+  // payloads still in flight.
   const pageContacts: Contact[] = useMemo(() => {
     const list = Array.isArray(apiContacts) ? apiContacts : [];
     return list.map((c: any) => ({
@@ -106,11 +119,11 @@ export default function ContactsPage() {
       ph: c.ph || c.phone || "",
       st: c.st || c.status || "",
       tags: (c.tags || []).map((t: any) => typeof t === 'string' ? t : t.tag || t.name || ''),
-      score: c.score ?? 0,
-      ltv: c.ltv ?? 0,
-      orders: c.orders ?? 0,
-      lastActive: c.lastActive || c.last_active || "",
-      joined: c.joined || "",
+      score: c.engagement_score ?? c.score ?? 0,
+      ltv: Number(c.lifetime_value ?? c.ltv ?? 0),
+      orders: c.total_orders ?? c.orders ?? 0,
+      lastActive: c.lastActive || c.last_active_at || c.last_active || "",
+      joined: c.joined_at || c.joined || "",
       city: c.city || "",
       email: c.email || "",
       name: c.name || "",
@@ -131,6 +144,29 @@ export default function ContactsPage() {
 
   // When tab or tags change, reset to page 1
   useEffect(() => { setPage(1); }, [activeTab, selectedTags]);
+
+  // When the operator clicks a Smart Segment tile, fetch its contact ids
+  // and switch the table into "segment view". Clicking the same tile again
+  // clears it. We keep the API call here (rather than inside the bar)
+  // because the parent owns the filter state.
+  const handleSegmentClick = useCallback(async (key: string) => {
+    if (activeSegment === key) {
+      setActiveSegment(null);
+      setSegmentContactIds(new Set());
+      return;
+    }
+    setActiveSegment(key);
+    try {
+      const res = await api.get(`/contacts/ai/segments/${key}`);
+      const list = res.data?.data?.contacts ?? res.data?.contacts ?? [];
+      setSegmentContactIds(new Set(list.map((c: any) => c.id)));
+      setPage(1);
+    } catch (e) {
+      // Falls back to no filtering if the segment fetch fails — the
+      // tile stays selected so the operator can retry.
+      setSegmentContactIds(new Set());
+    }
+  }, [activeSegment]);
 
   // Search: Enter key triggers server search
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
@@ -178,8 +214,14 @@ export default function ContactsPage() {
     { key: "blocked", label: isAr ? "\u0645\u0644\u063A\u064A \u0627\u0644\u0627\u0634\u062A\u0631\u0627\u0643" : "Opted Out" },
   ];
 
-  // contacts is already filtered locally, use it directly
-  const filtered = contacts;
+  // contacts is already filtered locally; if a Smart Segment is active,
+  // narrow further to ids returned by the segment endpoint. This composes
+  // cleanly with the search/tab/tag filters above so an operator can do
+  // "Hot Leads tagged VIP" in two clicks.
+  const filtered = useMemo(() => {
+    if (!activeSegment || segmentContactIds.size === 0) return contacts;
+    return contacts.filter((c) => segmentContactIds.has(c.id));
+  }, [contacts, activeSegment, segmentContactIds]);
 
   const toggleTag = (tag: string) => {
     setSelectedTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
@@ -371,6 +413,49 @@ export default function ContactsPage() {
         </Card>
       )}
 
+      {/* AI Smart Segments — 8 tiles with live counts. Clicking filters
+          the table below to the segment's contacts. */}
+      <SmartSegmentsBar
+        onSegmentClick={handleSegmentClick}
+        activeSegment={activeSegment}
+      />
+
+      {/* Active-segment indicator strip — gives the operator a clear way
+          to clear the segment filter without scrolling back up. */}
+      {activeSegment && (
+        <div style={{
+          padding: "8px 14px",
+          marginBottom: 12,
+          borderRadius: 10,
+          background: C.pri + "12",
+          border: `1px solid ${C.pri}30`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          fontSize: 12.5,
+        }}>
+          <span style={{ color: C.pri, fontWeight: 600 }}>
+            {isAr
+              ? `جاري عرض الشريحة: ${activeSegment} (${segmentContactIds.size} جهة)`
+              : `Showing segment: ${activeSegment} (${segmentContactIds.size} contacts)`}
+          </span>
+          <button
+            onClick={() => { setActiveSegment(null); setSegmentContactIds(new Set()); }}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: C.pri,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: FONT_FAMILY,
+              fontSize: 12,
+            }}
+          >
+            {isAr ? "✕ مسح الشريحة" : "✕ Clear segment"}
+          </button>
+        </div>
+      )}
+
       {/* Filter Bar */}
       <Card style={{ marginBottom: 16 }}>
         <div style={{
@@ -514,6 +599,12 @@ export default function ContactsPage() {
           </div>
         )}
       </Card>
+
+      {/* Org-wide AI Customer Insights — actionable cards with churn
+          risk, loyalty opportunities, and hot leads counts. Each links
+          conceptually to a Smart Segment above so an operator can drill
+          straight into the matching segment. */}
+      <CustomerInsightsBar />
 
       {/* ── Add Contact Modal ── */}
       <Modal
