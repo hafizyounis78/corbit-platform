@@ -523,11 +523,37 @@ export default function InboxPage() {
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-            {/* Sentiment */}
-            <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 8, background: sentColor + "12", fontSize: 11, fontWeight: 600, color: sentColor }}>
+            {/* Sentiment + manual recompute. The chip itself is clickable
+                so an operator who just took over the conversation can
+                say "re-analyse now" instead of waiting for the next
+                inbound to fire the auto job. The job server-side throttles
+                duplicate clicks so we don't worry about spamming it. */}
+            <button
+              onClick={async () => {
+                try {
+                  const res = await api.post(`/conversations/${selectedId}/ai/analyze`);
+                  const data = res.data?.data ?? res.data;
+                  if (data?.sentiment || data?.intent) {
+                    showToast(isAr ? "تم تحليل المحادثة ✓" : "Analysis updated ✓");
+                    mutateConvos();
+                  }
+                } catch {
+                  showToast(isAr ? "تعذّر التحليل" : "Couldn't analyse");
+                }
+              }}
+              title={isAr ? "إعادة تحليل" : "Re-analyse"}
+              style={{
+                display: "flex", alignItems: "center", gap: 4,
+                padding: "4px 10px", borderRadius: 8,
+                background: sentColor + "12",
+                border: `1px solid ${sentColor}30`,
+                fontSize: 11, fontWeight: 600, color: sentColor,
+                cursor: "pointer", fontFamily: FONT_FAMILY,
+              }}
+            >
               <span style={{ width: 6, height: 6, borderRadius: 3, background: sentColor }} />
               {sentLabel}
-            </div>
+            </button>
             {/* AI Toggle */}
             <div
               onClick={toggleAi}
