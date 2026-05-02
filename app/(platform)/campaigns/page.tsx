@@ -13,6 +13,7 @@ import { useCampaigns, useCampaignStats, useCampaignProgress, useTemplates as us
 import api from "@/lib/api/client";
 import { COLORS, GRADIENT } from "@/lib/constants/colors";
 import { FONT_FAMILY } from "@/lib/constants/font";
+import { CampaignAIBuilderModal } from "@/components/campaigns/ai-builder-modal";
 
 export default function CampaignsPage() {
   const { colors: C } = useTheme();
@@ -26,6 +27,11 @@ export default function CampaignsPage() {
   const [serverSearch, setServerSearch] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  // V2 Smart Builder modal — pre-fills the create modal from a preset
+  // or a free-text prompt. Decoupled from the regular create flow so
+  // the operator can still hit the "New Campaign" button for a blank
+  // sheet when they don't want AI.
+  const [showAIBuilder, setShowAIBuilder] = useState(false);
   const [newCampaign, setNewCampaign] = useState({
     name: "",
     template: "",
@@ -192,10 +198,18 @@ export default function CampaignsPage() {
             {isAr ? "\u0625\u062F\u0627\u0631\u0629 \u0648\u0645\u062A\u0627\u0628\u0639\u0629 \u062D\u0645\u0644\u0627\u062A\u0643 \u0627\u0644\u062A\u0633\u0648\u064A\u0642\u064A\u0629" : "Manage and track your marketing campaigns"}
           </p>
         </div>
-        <Button primary onClick={() => { setNewCampaign({ name: "", template: "", segment: "", scheduledDate: "", scheduledTime: "09:00", sendNow: true, budget: "" }); setFormErrors({}); setIsSubmitting(false); setShowCreateModal(true); }}>
-          <Icon name="megaphone" size={14} />
-          {isAr ? "\u062D\u0645\u0644\u0629 \u062C\u062F\u064A\u062F\u0629" : "New Campaign"}
-        </Button>
+        <div style={{ display: "flex", gap: 8 }}>
+          {/* Smart Builder \u2014 primary CTA for V2. Operators who want a
+              blank sheet can still use "New Campaign" to the right. */}
+          <Button outline onClick={() => setShowAIBuilder(true)} style={{ color: "#FF5A5F", borderColor: "#FF5A5F" }}>
+            <Icon name="brain" size={14} />
+            {isAr ? "\uD83E\uDDE0 \u0645\u0646\u0634\u0626 \u0630\u0643\u064A" : "\uD83E\uDDE0 AI Builder"}
+          </Button>
+          <Button primary onClick={() => { setNewCampaign({ name: "", template: "", segment: "", scheduledDate: "", scheduledTime: "09:00", sendNow: true, budget: "" }); setFormErrors({}); setIsSubmitting(false); setShowCreateModal(true); }}>
+            <Icon name="megaphone" size={14} />
+            {isAr ? "\u062D\u0645\u0644\u0629 \u062C\u062F\u064A\u062F\u0629" : "New Campaign"}
+          </Button>
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -375,6 +389,35 @@ export default function CampaignsPage() {
           </div>
         </div>
       </Modal>
+
+      {/* ── Smart Builder Modal — V2 ── */}
+      {/* Shown when the operator clicks the AI Builder button. Lets them
+          pick a preset (free, no AI call) or type free-text (gated by
+          the daily AI quota). When the operator clicks Continue on the
+          preview screen, we close this modal and open the regular
+          create modal pre-filled with the draft so they can review and
+          launch with the existing flow. */}
+      <CampaignAIBuilderModal
+        open={showAIBuilder}
+        onClose={() => setShowAIBuilder(false)}
+        onDraftReady={(draft) => {
+          // Map AI builder draft to the existing create modal's shape.
+          // Some fields (template, scheduledDate) have no equivalent in
+          // the AI proposal yet — left blank so the operator picks them.
+          setNewCampaign({
+            name: draft.name,
+            template: "",
+            segment: draft.segment_key ?? "",
+            scheduledDate: "",
+            scheduledTime: draft.suggested_send_time || "09:00",
+            sendNow: false,
+            budget: "",
+          });
+          setFormErrors({});
+          setIsSubmitting(false);
+          setShowCreateModal(true);
+        }}
+      />
 
       {/* ── Create Campaign Modal ── */}
       <Modal
