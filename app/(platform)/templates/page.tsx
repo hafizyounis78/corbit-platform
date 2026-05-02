@@ -8,6 +8,7 @@ import { useIsMobile } from "@/hooks/use-media-query";
 import { Button, Card, CardHeader, Badge, TabBar, SearchInput, Modal, Pagination } from "@/components/ui";
 import { Icon } from "@/components/icons/icon";
 import { ProgressBar } from "@/components/charts/progress-bar";
+import { WhatsAppPhonePreview } from "@/components/templates/whatsapp-phone-preview";
 import { getStatusColor } from "@/lib/utils/status-color";
 import type { Template } from "@/data/templates";
 import { useTemplates, useTemplateStats } from "@/lib/api/hooks";
@@ -1123,6 +1124,38 @@ export default function TemplatesPage() {
               </div>
             )}
             {(() => {
+              const pLang = newTemplate.language === "ar" ? "ar" : newTemplate.language === "en" ? "en" : previewLang;
+              const pBody = pLang === "ar" ? newTemplate.body_ar : newTemplate.body;
+              const pHeader = newTemplate.header;
+              const pFooter = newTemplate.footer;
+              const isRtl = pLang === "ar";
+
+              // Use the shared WhatsApp preview component — same visual
+              // we'll plug into other places (template detail page, AI
+              // builder draft preview). Keeping the legacy inline render
+              // as a fall-back below for the exact phone-frame styling
+              // operators are used to; the new component is rendered
+              // first so once design signs off we can drop the legacy
+              // block entirely.
+              return (
+                <div>
+                  <WhatsAppPhonePreview
+                    header={pHeader}
+                    body={pBody}
+                    footer={pFooter}
+                    buttons={(newTemplate.buttons || []).map((b) => ({
+                      text: b.text,
+                      kind: b.type === "url" ? "url" : b.type === "phone" ? "phone" : "quick_reply",
+                    }))}
+                    rtl={isRtl}
+                  />
+                </div>
+              );
+            })()}
+            {/* Legacy inline preview kept commented for the moment so
+                we can A/B against the new component visually. Remove
+                once design confirms the new one matches. */}
+            {false && (() => {
               const pLang = newTemplate.language === "ar" ? "ar" : newTemplate.language === "en" ? "en" : previewLang;
               const pBody = pLang === "ar" ? newTemplate.body_ar : newTemplate.body;
               const pHeader = newTemplate.header;
