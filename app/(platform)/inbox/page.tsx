@@ -114,6 +114,13 @@ export default function InboxPage() {
   // message is later deleted.
   const [reportContext, setReportContext] = useState<IssueContext | null>(null);
 
+  // Per-message AI translations. Keyed by message id. Stored locally
+  // so the operator's session shows translations inline without us
+  // having to persist them back into the messages table — the source
+  // of truth is still the original text the customer sent.
+  const [translations, setTranslations] = useState<Record<string, { text: string; targetLang: string }>>({});
+  const [translating, setTranslating] = useState<Record<string, boolean>>({});
+
   const chatEndRef = useRef<HTMLDivElement>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   // We mark a conversation as "scrolled to bottom" only on the render
@@ -137,6 +144,46 @@ export default function InboxPage() {
   // Get selected conversation ID for API calls
   const selected: Conversation = convos[selectedIdx] || convos[0];
   const selectedId = (selected as any)?.id || null;
+
+  const requestTranslation = useCallback(async (msgId: string, originalText: string) => {
+    if (!selectedId || translating[msgId]) return;
+    if (translations[msgId]) {
+      setTranslations((prev) => {
+        const next = { ...prev };
+        delete next[msgId];
+        return next;
+      });
+      return;
+    }
+    setTranslating((prev) => ({ ...prev, [msgId]: true }));
+    try {
+      // Heuristic target: if the message looks Arabic, translate to
+      // English; otherwise to Arabic. Operator can re-tap to dismiss.
+      const isArabic = /[؀-ۿ]/.test(originalText);
+      const target = isArabic ? "en" : "ar";
+      const res = await api.post(`/conversations/${selectedId}/messages/${msgId}/translate`, { target });
+      const data = (res?.data?.data ?? res?.data) || {};
+      const text = data.content || "";
+      if (text) {
+        setTranslations((prev) => ({ ...prev, [msgId]: { text, targetLang: data.targetLang || target } }));
+      } else {
+        showToast(isAr ? "تعذّر الترجمة" : "Translation failed", "error");
+      }
+    } catch (err: any) {
+      const status = err?.response?.status;
+      if (status === 403) {
+        showToast(isAr ? "الترجمة معطّلة في مركز AI" : "Translation is disabled in AI Center", "error");
+      } else {
+        showToast(isAr ? "تعذّر الترجمة" : "Translation failed", "error");
+      }
+    } finally {
+      setTranslating((prev) => {
+        const next = { ...prev };
+        delete next[msgId];
+        return next;
+      });
+    }
+  }, [selectedId, translations, translating, showToast, isAr]);
 
   // API: fetch messages for selected conversation
   const { data: apiMessagesRaw, isLoading: messagesLoading, mutate: mutateMessages } = useMessages(selectedId);
@@ -619,32 +666,73 @@ export default function InboxPage() {
                     </div>
                   )}
                   <div style={{ fontSize: 13.5, lineHeight: 1.7 }}>{m.text}</div>
+                  {m.id && translations[String(m.id)] && (
+                    <div
+                      style={{
+                        marginTop: 8,
+                        paddingTop: 8,
+                        borderTop: `1px dashed ${(!cu && !bo) ? "rgba(255,255,255,0.35)" : (dk ? C.brd : "#E0DDD8")}`,
+                        fontSize: 12.5,
+                        lineHeight: 1.7,
+                        opacity: 0.9,
+                        direction: translations[String(m.id)].targetLang === "ar" ? "rtl" : "ltr",
+                        textAlign: translations[String(m.id)].targetLang === "ar" ? "right" : "left",
+                      }}
+                    >
+                      <div style={{ fontSize: 10, fontWeight: 700, marginBottom: 3, opacity: 0.7, letterSpacing: 0.3 }}>
+                        {translations[String(m.id)].targetLang === "ar" ? "🌐 العربية" : "🌐 English"}
+                      </div>
+                      {translations[String(m.id)].text}
+                    </div>
+                  )}
                   <div style={{ fontSize: 10, marginTop: 5, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end", color: (!cu && !bo) ? "rgba(255,255,255,0.7)" : C.t3 }}>
                     {m.time}
                     {!cu && <span style={{ color: C.info }}><Icon name="dcheck" size={10} /></span>}
                   </div>
                 </div>
                 {canReport && (
-                  <button
-                    onClick={() => setReportContext({
-                      type: "message",
-                      conversationId: selectedId!,
-                      messageId: m.id!,
-                      preview: m.text,
-                      sentAt: m.time,
-                    })}
-                    title={isAr ? "تبليغ عن هذه الرسالة" : "Report this message"}
-                    style={{
-                      width: 26, height: 26, borderRadius: 13, border: `1px solid ${C.brd}`,
-                      background: C.card, color: C.t3, cursor: "pointer", padding: 0,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      flexShrink: 0, marginTop: 6, fontSize: 12, transition: "all 0.15s",
-                    }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = C.err; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = C.t3; }}
-                  >
-                    🚩
-                  </button>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6 }}>
+                    <button
+                      onClick={() => requestTranslation(String(m.id), m.text)}
+                      title={
+                        translations[String(m.id)]
+                          ? (isAr ? "إخفاء الترجمة" : "Hide translation")
+                          : (isAr ? "ترجمة الرسالة" : "Translate message")
+                      }
+                      disabled={!!translating[String(m.id)]}
+                      style={{
+                        width: 26, height: 26, borderRadius: 13, border: `1px solid ${C.brd}`,
+                        background: translations[String(m.id)] ? AI_COLOR : C.card,
+                        color: translations[String(m.id)] ? "#fff" : C.t3,
+                        cursor: translating[String(m.id)] ? "wait" : "pointer", padding: 0,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        flexShrink: 0, fontSize: 12, transition: "all 0.15s",
+                        opacity: translating[String(m.id)] ? 0.6 : 1,
+                      }}
+                    >
+                      {translating[String(m.id)] ? "…" : "🌐"}
+                    </button>
+                    <button
+                      onClick={() => setReportContext({
+                        type: "message",
+                        conversationId: selectedId!,
+                        messageId: m.id!,
+                        preview: m.text,
+                        sentAt: m.time,
+                      })}
+                      title={isAr ? "تبليغ عن هذه الرسالة" : "Report this message"}
+                      style={{
+                        width: 26, height: 26, borderRadius: 13, border: `1px solid ${C.brd}`,
+                        background: C.card, color: C.t3, cursor: "pointer", padding: 0,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        flexShrink: 0, fontSize: 12, transition: "all 0.15s",
+                      }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = C.err; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = C.t3; }}
+                    >
+                      🚩
+                    </button>
+                  </div>
                 )}
               </div>
             );
