@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-media-query";
 import { useRouter } from "next/navigation";
 import { useDashboardStats } from "@/lib/api/hooks";
+import { OnboardingChecklist } from "@/components/onboarding/onboarding-checklist";
 
 
 export default function DashboardPage() {
@@ -87,6 +88,10 @@ export default function DashboardPage() {
 
   return (
     <div style={{ padding: isMobile ? "0 12px 16px" : "0 24px 24px" }}>
+      {/* Onboarding checklist — renders only when there's an incomplete
+          step and the tenant hasn't dismissed it. Self-hides afterwards. */}
+      <OnboardingChecklist />
+
       {/* Welcome Banner */}
       <div style={{ padding: isMobile ? "20px 18px" : "32px 36px", borderRadius: 18, background: GRADIENT, marginBottom: isMobile ? 16 : 24, position: "relative", overflow: "hidden" }}>
         <svg style={{ position: "absolute", top: -40, right: -40, width: 240, height: 240, opacity: 0.22, pointerEvents: "none" }} viewBox="0 0 240 240" fill="none">
