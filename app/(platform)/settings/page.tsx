@@ -123,6 +123,223 @@ function AutoMessageBlock({
   );
 }
 
+/* ─── Audit Log block ─── */
+
+interface AuditEntry {
+  id: string;
+  user_id: string | null;
+  action: string;
+  resource_type: string | null;
+  resource_id: string | null;
+  details: string | Record<string, any> | null;
+  ip_address: string | null;
+  created_at: string;
+}
+
+// Friendly labels for the action vocabulary defined in the backend
+// AuditLogService. Keeping the mapping client-side (instead of in
+// translation files) makes adding new actions a one-line change here.
+const ACTION_LABELS_AR: Record<string, string> = {
+  "auth.login.success":         "تسجيل دخول ناجح",
+  "auth.login.failed":          "محاولة دخول فاشلة",
+  "auth.logout":                "تسجيل خروج",
+  "auth.password.changed":      "تغيير كلمة المرور",
+  "auth.2fa.enabled":           "تفعيل المصادقة الثنائية",
+  "auth.2fa.disabled":          "تعطيل المصادقة الثنائية",
+  "team.user.invited":          "إضافة عضو",
+  "team.user.removed":          "حذف عضو",
+  "team.user.role_changed":     "تغيير صلاحية عضو",
+  "org.plan.changed":           "تغيير الباقة",
+  "org.suspended":              "إيقاف المؤسّسة",
+  "org.activated":              "إعادة تفعيل المؤسّسة",
+  "org.settings.updated":       "تحديث إعدادات المؤسّسة",
+  "billing.transfer.approved":  "اعتماد تحويل بنكي",
+  "billing.transfer.rejected":  "رفض تحويل بنكي",
+  "billing.wallet.topped_up":   "شحن المحفظة",
+  "template.submitted":         "إرسال قالب للمراجعة",
+  "template.deleted":           "حذف قالب",
+  "bot.created":                "إنشاء بوت",
+  "bot.updated":                "تعديل بوت",
+  "bot.deleted":                "حذف بوت",
+  "campaign.launched":          "إطلاق حملة",
+  "campaign.paused":            "إيقاف حملة مؤقّتاً",
+  "campaign.cancelled":         "إلغاء حملة",
+  "conversation.reassigned":    "نقل محادثة",
+  "contact.bulk_deleted":       "حذف جهات اتصال جماعي",
+  "contact.opted_out":          "إلغاء اشتراك جهة",
+};
+
+const ACTION_LABELS_EN: Record<string, string> = {
+  "auth.login.success":         "Login success",
+  "auth.login.failed":          "Login failed",
+  "auth.logout":                "Logout",
+  "auth.password.changed":      "Password changed",
+  "auth.2fa.enabled":           "2FA enabled",
+  "auth.2fa.disabled":          "2FA disabled",
+  "team.user.invited":          "Member invited",
+  "team.user.removed":          "Member removed",
+  "team.user.role_changed":     "Role changed",
+  "org.plan.changed":           "Plan changed",
+  "org.suspended":              "Organization suspended",
+  "org.activated":              "Organization activated",
+  "org.settings.updated":       "Org settings updated",
+  "billing.transfer.approved":  "Transfer approved",
+  "billing.transfer.rejected":  "Transfer rejected",
+  "billing.wallet.topped_up":   "Wallet topped up",
+  "template.submitted":         "Template submitted",
+  "template.deleted":           "Template deleted",
+  "bot.created":                "Bot created",
+  "bot.updated":                "Bot updated",
+  "bot.deleted":                "Bot deleted",
+  "campaign.launched":          "Campaign launched",
+  "campaign.paused":            "Campaign paused",
+  "campaign.cancelled":         "Campaign cancelled",
+  "conversation.reassigned":    "Conversation reassigned",
+  "contact.bulk_deleted":       "Contacts bulk deleted",
+  "contact.opted_out":          "Contact opted out",
+};
+
+// Failed-login + suspension are highlighted; success events stay neutral.
+function actionTone(action: string, C: any): string {
+  if (action.endsWith(".failed") || action.endsWith(".rejected") || action === "org.suspended") return C.err;
+  if (action.endsWith(".changed") || action.endsWith(".disabled") || action.endsWith(".removed")) return C.warn;
+  return C.t2;
+}
+
+function fmtTime(iso: string, ar: boolean): string {
+  try {
+    return new Date(iso).toLocaleString(ar ? "ar-SA" : "en-US", {
+      year: "numeric", month: "short", day: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
+}
+
+function AuditLogPanel({ C, ar, dk }: { C: any; ar: boolean; dk: boolean }) {
+  const [entries, setEntries] = useState<AuditEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const limit = 20;
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    api.get(`/settings/security/audit-log?page=${page}&limit=${limit}`)
+      .then((res) => {
+        if (cancelled) return;
+        const payload = res.data?.data ?? res.data;
+        setEntries(payload?.data ?? []);
+        setTotal(payload?.total ?? 0);
+        setError(null);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setError(e?.response?.data?.message || (ar ? "تعذّر تحميل السجلّ" : "Failed to load log"));
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [page, ar]);
+
+  const labels = ar ? ACTION_LABELS_AR : ACTION_LABELS_EN;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+
+  return (
+    <Card style={{ padding: 18 }}>
+      <SectionTitle>{ar ? "سجل التدقيق" : "Audit Log"}</SectionTitle>
+      <div style={{ fontSize: 11.5, color: C.t2, marginBottom: 12, lineHeight: 1.6 }}>
+        {ar
+          ? "كل عمليّة حسّاسة على حسابك (تسجيل دخول، تغيير صلاحيّات، اعتماد تحويلات، إلخ) محفوظة هنا للمساءلة والامتثال."
+          : "Every sensitive action on your account (logins, role changes, transfer approvals, etc.) is recorded here for accountability and compliance."}
+      </div>
+
+      {loading && (
+        <div style={{ padding: "24px 0", textAlign: "center", fontSize: 12, color: C.t2 }}>
+          {ar ? "جاري التحميل..." : "Loading..."}
+        </div>
+      )}
+
+      {!loading && error && (
+        <div style={{ padding: 12, borderRadius: 8, background: C.err + "15", color: C.err, fontSize: 12 }}>
+          {error}
+        </div>
+      )}
+
+      {!loading && !error && entries.length === 0 && (
+        <div style={{ padding: "24px 0", textAlign: "center", fontSize: 12.5, color: C.t2 }}>
+          {ar ? "لا توجد عمليّات مسجّلة بعد." : "No recorded events yet."}
+        </div>
+      )}
+
+      {!loading && !error && entries.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {entries.map((e) => {
+            const tone = actionTone(e.action, C);
+            const label = labels[e.action] ?? e.action;
+            const details = typeof e.details === "string" ? safeJsonParse(e.details) : e.details;
+            return (
+              <div
+                key={e.id}
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  background: dk ? C.inp : "#FAF9F6",
+                  border: `1px solid ${C.brdL}`,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4,
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 12.5, fontWeight: 600, color: tone }}>{label}</span>
+                  <span style={{ fontSize: 10.5, color: C.t3, fontFamily: "monospace" }}>{fmtTime(e.created_at, ar)}</span>
+                </div>
+                {(e.ip_address || (details && Object.keys(details).length > 0)) && (
+                  <div style={{ fontSize: 11, color: C.t2, display: "flex", gap: 12, flexWrap: "wrap" }}>
+                    {e.ip_address && <span style={{ fontFamily: "monospace" }}>IP: {e.ip_address}</span>}
+                    {details && Object.entries(details).slice(0, 3).map(([k, v]) => (
+                      <span key={k}>{k}: {String(v).slice(0, 40)}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {!loading && !error && totalPages > 1 && (
+        <div style={{ marginTop: 12, display: "flex", justifyContent: "center", alignItems: "center", gap: 12 }}>
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            style={{ padding: "5px 12px", borderRadius: 8, border: `1px solid ${C.brd}`, background: "transparent", cursor: page === 1 ? "not-allowed" : "pointer", color: C.txt, fontFamily: FONT_FAMILY, fontSize: 11, opacity: page === 1 ? 0.5 : 1 }}
+          >
+            {ar ? "السابق" : "Prev"}
+          </button>
+          <span style={{ fontSize: 11.5, color: C.t2 }}>
+            {ar ? `صفحة ${page} من ${totalPages}` : `Page ${page} of ${totalPages}`}
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages}
+            style={{ padding: "5px 12px", borderRadius: 8, border: `1px solid ${C.brd}`, background: "transparent", cursor: page >= totalPages ? "not-allowed" : "pointer", color: C.txt, fontFamily: FONT_FAMILY, fontSize: 11, opacity: page >= totalPages ? 0.5 : 1 }}
+          >
+            {ar ? "التالي" : "Next"}
+          </button>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function safeJsonParse(s: string): Record<string, any> | null {
+  try { return JSON.parse(s); } catch { return null; }
+}
+
 /* ─── page ─── */
 
 export default function SettingsPage() {
@@ -757,14 +974,7 @@ export default function SettingsPage() {
           </Card>
 
           {/* Audit Log */}
-          <Card style={{ padding: 18 }}>
-            <SectionTitleWithComingSoon C={C}>{ar ? "سجل التدقيق" : "Audit Log"}</SectionTitleWithComingSoon>
-            <div style={{ padding: "32px 16px", textAlign: "center", color: C.t2, fontSize: 12.5, lineHeight: 1.7 }}>
-              {ar
-                ? "سجلّ نشاط الفريق (تسجيل الدخول، تغيير الإعدادات، إنشاء/حذف الحسابات...) سيُتاح هنا قريباً."
-                : "Team activity log (logins, settings changes, member ops...) will be available here soon."}
-            </div>
-          </Card>
+          <AuditLogPanel C={C} ar={ar} dk={dk} />
         </div>
       )}
 
