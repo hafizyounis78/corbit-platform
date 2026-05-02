@@ -167,6 +167,22 @@ export function useAiInsights() {
   return useApi('/contacts/ai/insights');
 }
 
+// ─── Campaign analytics ──────────────────────────────────
+//
+// The detail view fetches the Behavior Funnel + segment performance +
+// cost summary in one round-trip. Skips the call entirely when no
+// campaignId is selected so the hook is safe to mount unconditionally.
+export function useCampaignFunnel(campaignId: string | null) {
+  return useApi(campaignId ? `/campaigns/${campaignId}/funnel` : null, [campaignId]);
+}
+
+// 6 deterministic preset cards for the Campaign Builder modal.
+// Cached for the page lifetime; the presets don't change between
+// requests so we don't refetch.
+export function useCampaignBuilderPresets() {
+  return useApi('/campaigns/ai/builder/presets');
+}
+
 // ─── Templates ────────────────────────────────────────────
 export function useTemplates(params?: { status?: string; search?: string; page?: number }) {
   const qs = new URLSearchParams();

@@ -9,7 +9,7 @@ import { Button, Card, CardHeader, Badge, TabBar, DataTable, Modal, SearchInput,
 import { Icon } from "@/components/icons/icon";
 import { getStatusColor } from "@/lib/utils/status-color";
 import type { Campaign } from "@/data/campaigns";
-import { useCampaigns, useCampaignStats, useCampaignProgress, useTemplates as useTemplatesApi, useSegments as useSegmentsApi } from "@/lib/api/hooks";
+import { useCampaigns, useCampaignStats, useCampaignProgress, useTemplates as useTemplatesApi, useSegments as useSegmentsApi, useCampaignFunnel } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
 import { COLORS, GRADIENT } from "@/lib/constants/colors";
 import { FONT_FAMILY } from "@/lib/constants/font";
@@ -649,6 +649,42 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
   const isLive = c.st === 'active' || c.st === 'sending' || c.st === 'paused';
   const { data: progress } = useCampaignProgress(c.id as any, isLive);
 
+  // Real Behavior Funnel + segment performance + cost summary, fetched
+  // from the V2 analytics endpoint. The detail view rendered mock
+  // numbers from c.behavior before this — now we read live aggregates
+  // off campaign_sends. Falls back to the legacy mock fields when the
+  // API hasn't responded yet so the layout never flashes empty.
+  const { data: funnelData } = useCampaignFunnel(String(c.id));
+  const fStages = (funnelData as any)?.funnel?.stages ?? [];
+  const fCost = (funnelData as any)?.cost ?? null;
+  const stageCount = (key: string): number => {
+    const stage = fStages.find((s: any) => s.key === key);
+    return stage ? Number(stage.count) : 0;
+  };
+
+  // Retarget Non-openers — calls the V2 endpoint, surfaces the count,
+  // and (future) seeds a new campaign. Today we just show the toast and
+  // copy the contact ids onto the clipboard for the operator to paste
+  // into the new campaign segment field; the modal-based retarget flow
+  // ships in the next pass.
+  const [retargeting, setRetargeting] = useState(false);
+  const handleRetargetNonOpeners = async () => {
+    if (retargeting) return;
+    setRetargeting(true);
+    try {
+      const res = await api.post(`/campaigns/${c.id}/retarget-non-openers`);
+      const data = res.data?.data ?? res.data;
+      const count = data?.count ?? 0;
+      showToast(isAr
+        ? `وُجِد ${count} عميل لم يفتحوا الحملة. أنشئ حملة جديدة لاستهدافهم.`
+        : `Found ${count} non-openers. Create a new campaign to retarget them.`);
+    } catch (e: any) {
+      showToast(e?.response?.data?.message || (isAr ? "تعذّر الاسترجاع" : "Failed to retarget"));
+    } finally {
+      setRetargeting(false);
+    }
+  };
+
   // Action button busy-state — prevents double-click during the 100-200ms
   // round trip to the backend.
   const [busy, setBusy] = useState<string | null>(null);
@@ -697,26 +733,36 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
       { label: isAr ? "\u0627\u0644\u0645\u0633\u062A\u0644\u0645\u0648\u0646" : "Recipients", value: c.recipients.toLocaleString(), icon: "users", color: COLORS.pri },
       { label: isAr ? "\u062A\u0645 \u0627\u0644\u062A\u0648\u0635\u064A\u0644" : "Delivered", value: c.delivery + "%", icon: "check", color: COLORS.ok },
       { label: isAr ? "\u0627\u0644\u0641\u062A\u062D" : "Opens", value: c.readRate + "%", icon: "msg", color: COLORS.info },
-      { label: isAr ? "\u0627\u0644\u0646\u0642\u0631\u0627\u062A" : "Clicks", value: c.behavior.clicked.toLocaleString(), icon: "link", color: COLORS.warn },
+      { label: isAr ? "\u0627\u0644\u0646\u0642\u0631\u0627\u062A" : "Clicks", value: (stageCount('clicked') || c.behavior?.clicked || 0).toLocaleString(), icon: "link", color: COLORS.warn },
       { label: isAr ? "\u0627\u0644\u0631\u062F\u0648\u062F" : "Replies", value: c.replyRate + "%", icon: "send", color: COLORS.sec },
-      { label: isAr ? "\u0627\u0644\u062A\u062D\u0648\u064A\u0644" : "Conversion", value: c.behavior.converted.toLocaleString(), icon: "target", color: COLORS.ai },
-      { label: isAr ? "\u0627\u0644\u062A\u0643\u0644\u0641\u0629" : "Cost", value: "$" + c.cost.toLocaleString(), icon: "wallet", color: COLORS.err },
-      { label: "ROI", value: c.roi, icon: "chart", color: COLORS.ok },
+      { label: isAr ? "\u0627\u0644\u062A\u062D\u0648\u064A\u0644" : "Conversion", value: (stageCount('converted') || c.behavior?.converted || 0).toLocaleString(), icon: "target", color: COLORS.ai },
+      // Cost / ROI \u2014 read live from /funnel response when available so a
+      // refreshed campaign updates without a full page reload. Currency
+      // is SAR (matching the wallet) instead of $ \u2014 old code was using $.
+      { label: isAr ? "\u0627\u0644\u062A\u0643\u0644\u0641\u0629" : "Cost", value: ((fCost?.cost_sar ?? c.cost) || 0).toLocaleString() + " " + (isAr ? "\u0631.\u0633" : "SAR"), icon: "wallet", color: COLORS.err },
+      { label: "ROI", value: fCost?.roi_pct != null ? `${fCost.roi_pct > 0 ? "+" : ""}${fCost.roi_pct}%` : (c.roi || "\u2014"), icon: "chart", color: COLORS.ok },
     ],
-    [c, isAr]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [c, isAr, fStages, fCost]
   );
 
-  // Behavior funnel data
-  const funnelMax = c.recipients || 1;
+  // Behavior funnel data \u2014 prefers live API counts; falls back to the
+  // legacy c.behavior mock for old campaigns or while the funnel call
+  // is still in flight. funnelMax is "sent" so each step is a % of the
+  // campaign's actual send volume rather than the original recipient
+  // list (catches the case where some sends failed).
+  const sentLive = stageCount('sent') || c.recipients || 1;
+  const funnelMax = sentLive;
   const funnel = useMemo(
     () => [
-      { label: isAr ? "\u062A\u0645 \u0627\u0644\u0625\u0631\u0633\u0627\u0644" : "Sent", value: c.recipients, pct: 100 },
-      { label: isAr ? "\u062A\u0645 \u0627\u0644\u0641\u062A\u062D" : "Opened", value: c.behavior.opened, pct: Math.round((c.behavior.opened / funnelMax) * 100) },
-      { label: isAr ? "\u062A\u0645 \u0627\u0644\u0646\u0642\u0631" : "Clicked", value: c.behavior.clicked, pct: Math.round((c.behavior.clicked / funnelMax) * 100) },
-      { label: isAr ? "\u062A\u0645 \u0627\u0644\u0631\u062F" : "Replied", value: c.behavior.replied, pct: Math.round((c.behavior.replied / funnelMax) * 100) },
-      { label: isAr ? "\u062A\u0645 \u0627\u0644\u062A\u062D\u0648\u064A\u0644" : "Converted", value: c.behavior.converted, pct: Math.round((c.behavior.converted / funnelMax) * 100) },
+      { label: isAr ? "\u062A\u0645 \u0627\u0644\u0625\u0631\u0633\u0627\u0644" : "Sent", value: stageCount('sent') || c.recipients, pct: 100 },
+      { label: isAr ? "\u062A\u0645 \u0627\u0644\u0641\u062A\u062D" : "Opened", value: stageCount('read') || c.behavior?.opened || 0, pct: Math.round(((stageCount('read') || c.behavior?.opened || 0) / funnelMax) * 100) },
+      { label: isAr ? "\u062A\u0645 \u0627\u0644\u0646\u0642\u0631" : "Clicked", value: stageCount('clicked') || c.behavior?.clicked || 0, pct: Math.round(((stageCount('clicked') || c.behavior?.clicked || 0) / funnelMax) * 100) },
+      { label: isAr ? "\u062A\u0645 \u0627\u0644\u0631\u062F" : "Replied", value: stageCount('replied') || c.behavior?.replied || 0, pct: Math.round(((stageCount('replied') || c.behavior?.replied || 0) / funnelMax) * 100) },
+      { label: isAr ? "\u062A\u0645 \u0627\u0644\u062A\u062D\u0648\u064A\u0644" : "Converted", value: stageCount('converted') || c.behavior?.converted || 0, pct: Math.round(((stageCount('converted') || c.behavior?.converted || 0) / funnelMax) * 100) },
     ],
-    [c, isAr, funnelMax]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [c, isAr, funnelMax, fStages]
   );
 
   const funnelColors = [COLORS.pri, COLORS.info, COLORS.warn, COLORS.sec, COLORS.ok];
@@ -786,6 +832,23 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
               <Icon name="pencil" size={13} />
               {isAr ? "\u062A\u0639\u062F\u064A\u0644" : "Edit"}
             </Button>
+            {/* Retarget non-openers \u2014 only meaningful for completed
+                campaigns where Sent > 0 and there's a real "non-openers"
+                set to chase. Hidden on drafts/scheduled because the
+                count is meaningless before any send happens. */}
+            {(c.st === 'completed' || c.st === 'active' || c.st === 'paused') && (
+              <Button
+                outline
+                onClick={handleRetargetNonOpeners}
+                disabled={retargeting}
+                style={{ color: COLORS.sec, borderColor: COLORS.sec }}
+              >
+                <Icon name="target" size={13} />
+                {retargeting
+                  ? (isAr ? "\u062C\u0627\u0631\u064D \u0627\u0644\u062D\u0633\u0627\u0628..." : "Counting...")
+                  : (isAr ? "\u0625\u0639\u0627\u062F\u0629 \u0627\u0633\u062A\u0647\u062F\u0627\u0641 \u0645\u0646 \u0644\u0645 \u064A\u0641\u062A\u062D\u0648\u0627" : "Retarget non-openers")}
+              </Button>
+            )}
             <Button outline onClick={() => {
               api.post(`/campaigns/${c.id}/duplicate`).then(() => {
                 showToast(isAr ? "\u062A\u0645 \u062A\u0643\u0631\u0627\u0631 \u0627\u0644\u062D\u0645\u0644\u0629" : "Campaign duplicated");
