@@ -132,7 +132,10 @@ export function ContactDetailDrawer({ contactId, onClose, onMutated }: Props) {
     chat: COLORS.info,
     campaign: COLORS.pri,
     order: COLORS.ok,
-    system: COLORS.t3,
+    // System events are rare; muted grey matches the t3 token on
+    // both themes without depending on the theme-only C.t3 (which
+    // isn't on the COLORS constant export).
+    system: "#9CA3AF",
   };
 
   return (
