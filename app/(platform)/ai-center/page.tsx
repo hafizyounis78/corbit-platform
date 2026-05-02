@@ -87,6 +87,11 @@ export default function AICenterPage() {
     }));
   }, [apiGuardrails, isAr, guardrailOverrides]);
 
+  // 5 tabs: Overview / Models / Knowledge / Tone / Guardrails. Tone
+  // is in active use by the operator (custom-instructions panel
+  // carries company-specific guidance the AI relies on for in-character
+  // replies), so the V2 plan's "drop tone" recommendation was wrong
+  // for this tenant — kept and surfaced.
   const tabs = [
     { key: "overview", label: t("overview") },
     { key: "models", label: t("models") },
@@ -135,32 +140,123 @@ export default function AICenterPage() {
       </div>
 
       {tab === "overview" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-          <Card style={{ padding: 20 }}>
-            <h3 style={{ margin: "0 0 16px", fontSize: 14, fontWeight: 700 }}>{ar ? "\u0623\u062f\u0627\u0621 \u0627\u0644\u0646\u0645\u0627\u0630\u062c" : "Model Performance"}</h3>
-            {models.filter((m: any) => m.active).map((m: any, i: number) => (
-              <div key={i} style={{ marginBottom: 14 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 4 }}>
-                  <span>{m.name}</span>
-                  <span style={{ fontWeight: 600, color: aiC2 }}>{m.accuracy ?? m.acc ?? 0}%</span>
-                </div>
-                <ProgressBar value={m.accuracy ?? m.acc ?? 0} color={aiC2} />
+        <div>
+          {/* Top row \u2014 quota cards (monthly + daily) so the operator
+              can see at a glance how much they've used and how much
+              today's pace will leave them with. */}
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: 12,
+            marginBottom: 16,
+          }}>
+            {/* Monthly credits \u2014 donut + numbers */}
+            <Card style={{ padding: 18 }}>
+              <div style={{ fontSize: 12, color: C.t2, marginBottom: 4 }}>
+                {ar ? "\u0631\u0635\u064a\u062f AI \u0627\u0644\u0634\u0647\u0631\u064a" : "Monthly AI Credits"}
               </div>
-            ))}
-          </Card>
-          <Card style={{ padding: 20 }}>
-            <h3 style={{ margin: "0 0 16px", fontSize: 14, fontWeight: 700 }}>{ar ? "\u0631\u0635\u064a\u062f AI" : "AI Credits"}</h3>
-            <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-              <Donut segments={[{ value: apiOverview?.creditsUsedPct ?? 0, color: aiC2 }, { value: apiOverview?.creditsRemainingPct ?? 0, color: C.brd }]} size={100} strokeWidth={12} />
-              <div style={{ fontSize: 12 }}>
-                {([[ar ? "\u0645\u0633\u062a\u062e\u062f\u0645" : "Used", apiOverview?.creditsUsed ?? "0"], [ar ? "\u0645\u062a\u0628\u0642\u064a" : "Remaining", apiOverview?.creditsRemaining ?? "0"], [ar ? "\u0627\u0644\u0625\u062c\u0645\u0627\u0644\u064a" : "Total", apiOverview?.creditsTotal ?? "0"]] as const).map(([l, v], i) => (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 20, marginBottom: 8 }}>
-                    <span style={{ color: C.t2 }}>{l}</span>
-                    <span style={{ fontWeight: 600 }}>{v}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <Donut
+                  segments={[
+                    { value: (apiOverview as any)?.credits?.usedPct ?? (apiOverview as any)?.creditsUsedPct ?? 0, color: aiC2 },
+                    { value: (apiOverview as any)?.credits?.remainingPct ?? (apiOverview as any)?.creditsRemainingPct ?? 100, color: C.brd },
+                  ]}
+                  size={84}
+                  strokeWidth={10}
+                />
+                <div style={{ flex: 1, fontSize: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    <span style={{ color: C.t2 }}>{ar ? "\u0645\u0633\u062a\u062e\u062f\u0645" : "Used"}</span>
+                    <span style={{ fontWeight: 700 }}>{((apiOverview as any)?.credits?.used ?? (apiOverview as any)?.creditsUsed ?? 0).toLocaleString()}</span>
                   </div>
-                ))}
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    <span style={{ color: C.t2 }}>{ar ? "\u0645\u062a\u0628\u0642\u0651\u064a" : "Remaining"}</span>
+                    <span style={{ fontWeight: 700, color: aiC2 }}>{((apiOverview as any)?.credits?.remaining ?? (apiOverview as any)?.creditsRemaining ?? 0).toLocaleString()}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: C.t2 }}>{ar ? "\u0627\u0644\u0625\u062c\u0645\u0627\u0644\u064a" : "Total"}</span>
+                    <span style={{ fontWeight: 600 }}>{((apiOverview as any)?.credits?.total ?? (apiOverview as any)?.creditsTotal ?? 0).toLocaleString()}</span>
+                  </div>
+                </div>
               </div>
-            </div>
+            </Card>
+
+            {/* Daily quota card \u2014 colour goes amber at 70%+ so a busy
+                morning is visible at the top of the page. */}
+            {(apiOverview as any)?.daily && (() => {
+              const d = (apiOverview as any).daily;
+              const pct = d.percent ?? 0;
+              const tone = pct >= 90 ? "#FF5A5F" : pct >= 70 ? "#FF8A2A" : aiC2;
+              return (
+                <Card style={{ padding: 18 }}>
+                  <div style={{ fontSize: 12, color: C.t2, marginBottom: 4 }}>
+                    {ar ? "\u062d\u062f\u0651 AI \u0627\u0644\u064a\u0648\u0645\u064a" : "Daily AI Quota"}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 8 }}>
+                    <span style={{ fontSize: 22, fontWeight: 800, color: tone }}>
+                      {Number(d.used ?? 0).toLocaleString()}
+                    </span>
+                    <span style={{ fontSize: 13, color: C.t2 }}>
+                      / {Number(d.limit ?? 0).toLocaleString()}
+                    </span>
+                  </div>
+                  <ProgressBar value={pct} color={tone} />
+                  <div style={{ marginTop: 8, fontSize: 11.5, color: d.warning ? tone : C.t2 }}>
+                    {d.warning
+                      ? (ar ? `\u26a0\ufe0f \u0627\u0642\u062a\u0631\u0628\u062a \u0645\u0646 \u0627\u0644\u062d\u062f\u0651 \u0627\u0644\u064a\u0648\u0645\u064a (${pct}%)` : `\u26a0\ufe0f Near daily limit (${pct}%)`)
+                      : (ar ? `${d.remaining ?? 0} \u0627\u0633\u062a\u062f\u0639\u0627\u0621 \u0645\u062a\u0628\u0642\u0651\u064a \u0627\u0644\u064a\u0648\u0645` : `${d.remaining ?? 0} calls left today`)}
+                  </div>
+                </Card>
+              );
+            })()}
+
+            {/* Time-saved card */}
+            <Card style={{ padding: 18 }}>
+              <div style={{ fontSize: 12, color: C.t2, marginBottom: 4 }}>
+                {ar ? "\u0627\u0644\u0648\u0642\u062a \u0627\u0644\u0645\u0648\u0641\u0651\u0631" : "Time Saved"}
+              </div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: "#2ECC71" }}>
+                {((apiOverview as any)?.timeSaved ?? 0)} {ar ? "\u0633\u0627\u0639\u0629" : "hr"}
+              </div>
+              <div style={{ fontSize: 11.5, color: C.t2, marginTop: 4 }}>
+                {ar ? "\u0628\u0641\u0636\u0644 \u0627\u0642\u062a\u0631\u0627\u062d\u0627\u062a \u0627\u0644\u0630\u0643\u0627\u0621" : "Thanks to AI suggestions"}
+              </div>
+            </Card>
+
+            {/* Active models count */}
+            <Card style={{ padding: 18 }}>
+              <div style={{ fontSize: 12, color: C.t2, marginBottom: 4 }}>
+                {ar ? "\u0627\u0644\u0646\u0645\u0627\u0630\u062c \u0627\u0644\u0646\u0634\u0637\u0629" : "Active Models"}
+              </div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: aiC2 }}>
+                {(apiOverview as any)?.activeModels ?? 0}
+              </div>
+              <div style={{ fontSize: 11.5, color: C.t2, marginTop: 4 }}>
+                {ar ? "\u0645\u0646 \u0623\u0635\u0644" : "of"} {models.length}
+              </div>
+            </Card>
+          </div>
+
+          {/* Model performance card spans full width below the cards */}
+          <Card style={{ padding: 20 }}>
+            <h3 style={{ margin: "0 0 16px", fontSize: 14, fontWeight: 700 }}>
+              {ar ? "\u0623\u062f\u0627\u0621 \u0627\u0644\u0646\u0645\u0627\u0630\u062c \u0627\u0644\u0646\u0634\u0637\u0629" : "Active Model Performance"}
+            </h3>
+            {models.filter((m: any) => m.active).length === 0 ? (
+              <div style={{ padding: 16, textAlign: "center", color: C.t2, fontSize: 12.5 }}>
+                {ar ? "\u0644\u0627 \u062a\u0648\u062c\u062f \u0646\u0645\u0627\u0630\u062c \u0646\u0634\u0637\u0629. \u0641\u0639\u0651\u0644 \u0646\u0645\u0648\u0630\u062c\u0627\u064b \u0645\u0646 \u062a\u0628\u0648\u064a\u0628 \u0627\u0644\u0646\u0645\u0627\u0630\u062c." : "No active models. Enable one from the Models tab."}
+              </div>
+            ) : (
+              models.filter((m: any) => m.active).map((m: any, i: number) => (
+                <div key={i} style={{ marginBottom: 14 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 4 }}>
+                    <span style={{ fontWeight: 600 }}>{m.name}</span>
+                    <span style={{ fontWeight: 700, color: aiC2 }}>{m.accuracy ?? m.acc ?? 0}%</span>
+                  </div>
+                  <ProgressBar value={m.accuracy ?? m.acc ?? 0} color={aiC2} />
+                </div>
+              ))
+            )}
           </Card>
         </div>
       )}
