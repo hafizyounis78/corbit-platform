@@ -441,7 +441,10 @@ export default function SettingsPage() {
   const [pushSound, setPushSound] = useState(true);
   const [pushMobile, setPushMobile] = useState(false);
   const [quietHours, setQuietHours] = useState(false);
+  const [quietFrom, setQuietFrom] = useState("22:00");
+  const [quietTo, setQuietTo] = useState("07:00");
   const [autoReports, setAutoReports] = useState(true);
+  const [autoReportFreq, setAutoReportFreq] = useState<"daily" | "weekly" | "monthly">("weekly");
   const [twoFA, setTwoFA] = useState(true);
   const [sso, setSSO] = useState(false);
   const [ipWhite, setIpWhite] = useState(false);
@@ -468,6 +471,15 @@ export default function SettingsPage() {
       if (notifData.mobilePush !== undefined) setPushMobile(notifData.mobilePush);
       if (notifData.quietHours !== undefined) setQuietHours(notifData.quietHours);
       if (notifData.autoReports !== undefined) setAutoReports(notifData.autoReports);
+      // Backend (SettingsService) returns these as quietHoursEnabled /
+      // quietHoursFrom / quietHoursTo / autoReportEnabled / autoReportFreq
+      // — we hydrate from either name so the UI works regardless of
+      // which schema version the API exposes.
+      if (notifData.quietHoursEnabled !== undefined) setQuietHours(notifData.quietHoursEnabled);
+      if (notifData.quietHoursFrom) setQuietFrom(String(notifData.quietHoursFrom).slice(0, 5));
+      if (notifData.quietHoursTo) setQuietTo(String(notifData.quietHoursTo).slice(0, 5));
+      if (notifData.autoReportEnabled !== undefined) setAutoReports(notifData.autoReportEnabled);
+      if (notifData.autoReportFreq) setAutoReportFreq(notifData.autoReportFreq);
     }
   }, [notifData]);
 
@@ -607,20 +619,30 @@ export default function SettingsPage() {
         await api.patch(`/settings/reply-mode`, { mode: replyMode });
         mutateReplyMode();
       } else if (tab === "notifications") {
-        Object.assign(payload, { preferences: [
-          { key: "newConversation", enabled: notifNew },
-          { key: "newMessage", enabled: notifMsg },
-          { key: "assignment", enabled: notifAssign },
-          { key: "escalation", enabled: notifEsc },
-          { key: "slaWarning", enabled: notifSla },
-          { key: "lowBalance", enabled: notifBal },
-          { key: "browserPush", enabled: pushBrowser },
-          { key: "emailNotif", enabled: pushEmail },
-          { key: "sound", enabled: pushSound },
-          { key: "mobilePush", enabled: pushMobile },
-          { key: "quietHours", enabled: quietHours },
-          { key: "autoReports", enabled: autoReports },
-        ] });
+        Object.assign(payload, {
+          preferences: [
+            { key: "newConversation", enabled: notifNew },
+            { key: "newMessage", enabled: notifMsg },
+            { key: "assignment", enabled: notifAssign },
+            { key: "escalation", enabled: notifEsc },
+            { key: "slaWarning", enabled: notifSla },
+            { key: "lowBalance", enabled: notifBal },
+            { key: "browserPush", enabled: pushBrowser },
+            { key: "emailNotif", enabled: pushEmail },
+            { key: "sound", enabled: pushSound },
+            { key: "mobilePush", enabled: pushMobile },
+            { key: "quietHours", enabled: quietHours },
+            { key: "autoReports", enabled: autoReports },
+          ],
+          // Org-level quiet-hours window + auto-report frequency.
+          // Backend SettingsService.updateNotificationPrefs reads these
+          // exact keys directly into org_settings.
+          quietHoursEnabled: quietHours,
+          quietHoursFrom:    quietFrom,
+          quietHoursTo:      quietTo,
+          autoReportEnabled: autoReports,
+          autoReportFreq:    autoReportFreq,
+        });
       } else if (tab === "security") {
         // 2FA persists through dedicated endpoints — the bulk
         // /settings/security PATCH ignores it. Also: backend rejects
@@ -958,11 +980,56 @@ export default function SettingsPage() {
             <ToggleRow C={C} label={ar ? "SMS للجوّال" : "SMS to phone"} desc={ar ? "رسالة SMS للتنبيهات الحرجة فقط" : "SMS for critical alerts only"} on={pushMobile} onToggle={() => setPushMobile(!pushMobile)} icon="📱" />
 
             <div style={{ marginTop: 12 }}>
-              <ToggleRow C={C} comingSoon label={ar ? "ساعات الهدوء" : "Quiet Hours"} desc={ar ? "إيقاف الإشعارات خلال فترة محددة" : "Mute notifications during a specific period"} on={quietHours} onToggle={() => setQuietHours(!quietHours)} icon="🌙" />
+              <ToggleRow C={C} label={ar ? "ساعات الهدوء" : "Quiet Hours"} desc={ar ? "إيقاف الإشعارات خلال فترة محددة" : "Mute notifications during a specific period"} on={quietHours} onToggle={() => { setQuietHours(!quietHours); markChanged(); }} icon="🌙" />
+              {quietHours && (
+                <div style={{ marginTop: 6, padding: "10px 12px", borderRadius: 10, background: C.inp, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 11.5, color: C.t2 }}>{ar ? "من" : "From"}</span>
+                  <input
+                    type="time"
+                    value={quietFrom}
+                    onChange={(e) => { setQuietFrom(e.target.value); markChanged(); }}
+                    style={{ padding: "6px 10px", borderRadius: 8, border: `1px solid ${C.brd}`, background: C.card, color: C.txt, fontFamily: FONT_FAMILY, fontSize: 12 }}
+                  />
+                  <span style={{ fontSize: 11.5, color: C.t2 }}>{ar ? "إلى" : "to"}</span>
+                  <input
+                    type="time"
+                    value={quietTo}
+                    onChange={(e) => { setQuietTo(e.target.value); markChanged(); }}
+                    style={{ padding: "6px 10px", borderRadius: 8, border: `1px solid ${C.brd}`, background: C.card, color: C.txt, fontFamily: FONT_FAMILY, fontSize: 12 }}
+                  />
+                </div>
+              )}
             </div>
 
             <div style={{ marginTop: 14 }}>
-              <ToggleRow C={C} comingSoon label={ar ? "التقارير التلقائية" : "Auto Reports"} desc={ar ? "إرسال تقارير دورية تلقائياً" : "Send periodic reports automatically"} on={autoReports} onToggle={() => setAutoReports(!autoReports)} icon="📊" />
+              <ToggleRow C={C} label={ar ? "التقارير التلقائية" : "Auto Reports"} desc={ar ? "إرسال تقارير دورية تلقائياً عبر البريد" : "Email periodic performance reports"} on={autoReports} onToggle={() => { setAutoReports(!autoReports); markChanged(); }} icon="📊" />
+              {autoReports && (
+                <div style={{ marginTop: 6, padding: "10px 12px", borderRadius: 10, background: C.inp, display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 11.5, color: C.t2, marginInlineEnd: 4 }}>{ar ? "التكرار:" : "Frequency:"}</span>
+                  {([
+                    { value: "daily",   label: ar ? "يومي" : "Daily" },
+                    { value: "weekly",  label: ar ? "أسبوعي" : "Weekly" },
+                    { value: "monthly", label: ar ? "شهري" : "Monthly" },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => { setAutoReportFreq(opt.value); markChanged(); }}
+                      style={{
+                        padding: "6px 12px",
+                        borderRadius: 8,
+                        border: `1px solid ${autoReportFreq === opt.value ? C.pri : C.brd}`,
+                        background: autoReportFreq === opt.value ? `${C.pri}12` : C.card,
+                        color: autoReportFreq === opt.value ? C.pri : C.t2,
+                        fontFamily: FONT_FAMILY, fontSize: 11.5, fontWeight: autoReportFreq === opt.value ? 700 : 500,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </Card>
         </div>
