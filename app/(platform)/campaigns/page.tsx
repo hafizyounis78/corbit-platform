@@ -142,12 +142,18 @@ export default function CampaignsPage() {
   };
 
   const filtered = useMemo(() => {
-    if (tab === "all") return campaigns;
+    // "All" hides archived — that tab is the day-to-day workspace,
+    // not the audit history. Archived campaigns surface only when
+    // the operator explicitly switches to the Archive tab. Keeps
+    // the table from re-filling with stale items the operator just
+    // removed.
+    if (tab === "all") return campaigns.filter((c) => c.st !== "archived");
     const statusMap: Record<string, string> = {
       active: "active",
       completed: "completed",
       scheduled: "scheduled",
       draft: "draft",
+      archived: "archived",
     };
     return campaigns.filter((c) => c.st === statusMap[tab]);
   }, [campaigns, tab]);
@@ -200,6 +206,7 @@ export default function CampaignsPage() {
       { key: "completed", label: isAr ? "\u0645\u0643\u062A\u0645\u0644\u0629" : "Completed" },
       { key: "scheduled", label: isAr ? "\u0645\u062C\u062F\u0648\u0644\u0629" : "Scheduled" },
       { key: "draft", label: isAr ? "\u0645\u0633\u0648\u062F\u0629" : "Draft" },
+      { key: "archived", label: isAr ? "\u0627\u0644\u0623\u0631\u0634\u064A\u0641" : "Archived" },
     ],
     [isAr]
   );
