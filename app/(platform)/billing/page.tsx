@@ -276,33 +276,95 @@ export default function BillingPage() {
         </>
       )}
 
-      {tab === "plans" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 16 }}>
-          {plans.length === 0 && (
-            <div style={{ padding: "40px 20px", textAlign: "center", fontSize: 13, color: C.t2 }}>
-              {ar ? "لا توجد خطط" : "No plans available"}
+      {tab === "plans" && (() => {
+        // Sort plans ascending by price so the recommendation heuristic
+        // (the middle tier is "popular") matches the visual order.
+        const sortedPlans = [...plans].sort((a: any, b: any) => (Number(a.price) || 0) - (Number(b.price) || 0));
+        const popularId = sortedPlans.length >= 3 ? sortedPlans[Math.floor(sortedPlans.length / 2)]?.id : null;
+        const formatLimit = (v: any) => {
+          if (v === null || v === undefined || v === "") return "—";
+          if (typeof v === "number") return v.toLocaleString();
+          return String(v);
+        };
+        return (
+          <div>
+            <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 10, background: `${C.ok}10`, border: `1px solid ${C.ok}25`, fontSize: 12, color: C.t2, lineHeight: 1.6 }}>
+              💎 {ar
+                ? "الترقية تتمّ عبر فريق المبيعات بتحويل بنكي معتمد. اضغط على \"اختر هذه الخطة\" وسنفتح واتساب فوراً."
+                : "Upgrades go through sales via approved bank transfer. Click \"Choose this plan\" to start the WhatsApp request."}
             </div>
-          )}
-          {plans.map((plan: any) => (
-            <Card key={plan.id} style={{ padding: 22, border: plan.current ? `2px solid ${C.pri}` : undefined }}>
-              {plan.current && <Badge color={C.pri}>{t("curPlan")}</Badge>}
-              <h3 style={{ marginTop: 10, marginBottom: 4, fontSize: 20, fontWeight: 700 }}>{plan.name}</h3>
-              <div style={{ fontSize: 28, fontWeight: 700, marginBottom: 4 }}>
-                <span style={{ background: GRADIENT, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{plan.price}</span>
-                <span style={{ fontSize: 14, color: C.t2 }}> {t("sar")}/{ar ? "شهر" : "mo"}</span>
-              </div>
-              <div style={{ marginTop: 16, borderTop: `1px solid ${C.brd}`, paddingTop: 16 }}>
-                {(Array.isArray(plan.features) ? plan.features : []).map((f: string, i: number) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, fontSize: 12.5 }}>
-                    <span style={{ color: C.ok }}><Icon name="check" size={14} /></span>{f}
-                  </div>
-                ))}
-              </div>
-              {!plan.current && <Button primary style={{ width: "100%", justifyContent: "center", marginTop: 14, opacity: upgradeLoading === plan.id ? 0.6 : 1, pointerEvents: upgradeLoading === plan.id ? "none" : "auto" }} onClick={() => setConfirmUpgrade(plan)}>{upgradeLoading === plan.id ? (ar ? "جاري الترقية..." : "Upgrading...") : t("upgrade")}</Button>}
-            </Card>
-          ))}
-        </div>
-      )}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 16 }}>
+              {sortedPlans.length === 0 && (
+                <div style={{ padding: "40px 20px", textAlign: "center", fontSize: 13, color: C.t2 }}>
+                  {ar ? "لا توجد خطط" : "No plans available"}
+                </div>
+              )}
+              {sortedPlans.map((plan: any) => {
+                const isPopular = plan.id === popularId && !plan.current;
+                const isCurrent = plan.current;
+                const borderColor = isCurrent ? C.pri : isPopular ? C.warn : undefined;
+                return (
+                  <Card key={plan.id} style={{ padding: 22, border: borderColor ? `2px solid ${borderColor}` : undefined, position: "relative" }}>
+                    {isPopular && (
+                      <div style={{ position: "absolute", top: -12, insetInlineStart: "50%", transform: "translateX(-50%)", padding: "4px 14px", borderRadius: 8, background: C.warn, color: "#fff", fontSize: 10.5, fontWeight: 700, letterSpacing: 0.3, whiteSpace: "nowrap" }}>
+                        ⭐ {ar ? "الأكثر اختياراً" : "Most Popular"}
+                      </div>
+                    )}
+                    {isCurrent && <Badge color={C.pri}>{t("curPlan")}</Badge>}
+                    <h3 style={{ marginTop: 10, marginBottom: 4, fontSize: 20, fontWeight: 700 }}>{plan.name}</h3>
+                    <div style={{ fontSize: 28, fontWeight: 700, marginBottom: 4 }}>
+                      <span style={{ background: GRADIENT, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{plan.price}</span>
+                      <span style={{ fontSize: 14, color: C.t2 }}> {t("sar")}/{ar ? "شهر" : "mo"}</span>
+                    </div>
+                    {/* Limits — render whatever the API exposed; numeric
+                        values get thousands separators, strings pass through. */}
+                    {(plan.agents != null || plan.convos != null || plan.ai != null) && (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6, marginTop: 12, padding: "10px 8px", borderRadius: 10, background: C.inp }}>
+                        {[
+                          { label: ar ? "الوكلاء" : "Agents", value: plan.agents },
+                          { label: ar ? "محادثات" : "Convos", value: plan.convos },
+                          { label: ar ? "AI ردود" : "AI replies", value: plan.ai },
+                        ].map((m, i) => (
+                          <div key={i} style={{ textAlign: "center" }}>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: C.txt }}>{formatLimit(m.value)}</div>
+                            <div style={{ fontSize: 10, color: C.t3 }}>{m.label}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{ marginTop: 16, borderTop: `1px solid ${C.brd}`, paddingTop: 16 }}>
+                      {(Array.isArray(plan.features) ? plan.features : []).map((f: string, i: number) => (
+                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, fontSize: 12.5 }}>
+                          <span style={{ color: C.ok }}><Icon name="check" size={14} /></span>{f}
+                        </div>
+                      ))}
+                    </div>
+                    {!isCurrent && (
+                      <Button
+                        primary={isPopular || sortedPlans.indexOf(plan) > sortedPlans.findIndex((p: any) => p.current)}
+                        outline={!isPopular && sortedPlans.indexOf(plan) < sortedPlans.findIndex((p: any) => p.current)}
+                        style={{
+                          width: "100%",
+                          justifyContent: "center",
+                          marginTop: 14,
+                          opacity: upgradeLoading === plan.id ? 0.6 : 1,
+                          pointerEvents: upgradeLoading === plan.id ? "none" : "auto",
+                          ...(isPopular && upgradeLoading !== plan.id ? { background: C.warn, borderColor: C.warn } : {}),
+                        }}
+                        onClick={() => setConfirmUpgrade(plan)}
+                      >
+                        {upgradeLoading === plan.id
+                          ? (ar ? "جاري الترقية..." : "Upgrading...")
+                          : (ar ? "اختر هذه الخطة" : "Choose this plan")}
+                      </Button>
+                    )}
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {tab === "usage" && (
         <PlanUsageCard />
