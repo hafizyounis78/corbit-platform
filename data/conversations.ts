@@ -24,6 +24,16 @@ export interface Conversation {
    *  chat header to show "👤 [name]" or an "Unassigned" pill. */
   assignedUser?: { id: string; name: string } | null;
   assignedTeam?: { id: string; name: string } | null;
+  /** AI sentiment score in [-1.0, 1.0] — fine-grained version of the
+   *  3-class `sentiment` field. Used by the inbox to derive a 5-tier
+   *  vivid label (سعيد جداً / سعيد / محايد / غير راضٍ / غاضب). */
+  sentimentScore?: number | null;
+  /** Trend computed by the resource: 'improving' | 'worsening' |
+   *  'stable' | null when there isn't enough history yet. */
+  sentimentTrend?: "improving" | "worsening" | "stable" | null;
+  /** ISO timestamp set by EscalationRouter when sentiment+intent
+   *  triggered an auto-route to a senior team. */
+  autoEscalatedAt?: string | null;
 }
 
 export function getConversations(lang: Locale): Conversation[] {

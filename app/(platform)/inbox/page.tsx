@@ -24,21 +24,55 @@ type FilterTab = "all" | "unread" | "open";
 
 const AI_COLOR = "#7C3AED";
 
-function getSentimentColor(sentiment: string): string {
-  if (sentiment === "positive") return "#34C77B";
-  if (sentiment === "negative") return "#E84855";
-  return "#F5A623";
+/**
+ * 5-tier sentiment derived from the AI score (-1..1). Falls back to
+ * the 3-class string when the score is missing (older rows pre-
+ * 2026_05_03_160000 migration).
+ */
+type SentimentTier = "very_positive" | "positive" | "neutral" | "dissatisfied" | "angry";
+
+function getSentimentTier(sentiment: string | undefined, score: number | null | undefined): SentimentTier {
+  if (typeof score === "number" && !Number.isNaN(score)) {
+    if (score >=  0.7) return "very_positive";
+    if (score >=  0.2) return "positive";
+    if (score <= -0.7) return "angry";
+    if (score <= -0.2) return "dissatisfied";
+    return "neutral";
+  }
+  // No score → derive from the 3-class string.
+  if (sentiment === "positive") return "positive";
+  if (sentiment === "negative") return "angry";
+  return "neutral";
+}
+
+function getSentimentColor(sentiment: string | undefined, score?: number | null): string {
+  const tier = getSentimentTier(sentiment, score);
+  if (tier === "very_positive") return "#1FA85F";
+  if (tier === "positive")      return "#34C77B";
+  if (tier === "neutral")       return "#F5A623";
+  if (tier === "dissatisfied")  return "#E0784D";
+  return "#E84855"; // angry
 }
 
 /**
- * Vivid sentiment labels — the operator scanning the inbox needs
- * "غاضب" or "سعيد" at a glance, not "negative" / "positive".
- * Emoji acts as the colour-blind-safe signal.
+ * Vivid 5-tier sentiment labels with emoji that double as a
+ * color-blind-safe signal.
  */
-function getSentimentLabel(sentiment: string, isAr: boolean): string {
-  if (sentiment === "positive") return isAr ? "😊 سعيد" : "😊 Happy";
-  if (sentiment === "negative") return isAr ? "😠 غاضب" : "😠 Angry";
-  return isAr ? "😐 محايد" : "😐 Neutral";
+function getSentimentLabel(sentiment: string | undefined, isAr: boolean, score?: number | null): string {
+  const tier = getSentimentTier(sentiment, score);
+  if (tier === "very_positive") return isAr ? "🤩 سعيد جداً" : "🤩 Delighted";
+  if (tier === "positive")      return isAr ? "😊 سعيد" : "😊 Happy";
+  if (tier === "neutral")       return isAr ? "😐 محايد" : "😐 Neutral";
+  if (tier === "dissatisfied")  return isAr ? "😕 غير راضٍ" : "😕 Dissatisfied";
+  return isAr ? "😠 غاضب" : "😠 Angry";
+}
+
+/** Trend chip helper — returns text + colour pair, or null when
+ *  trend is stable / unknown (no chip rendered then). */
+function getTrendDisplay(trend: string | null | undefined, isAr: boolean): { label: string; color: string } | null {
+  if (trend === "worsening") return { label: isAr ? "📉 يسوء" : "📉 Worsening", color: "#E84855" };
+  if (trend === "improving") return { label: isAr ? "📈 يتحسّن" : "📈 Improving", color: "#34C77B" };
+  return null;
 }
 
 function mapApiConversation(c: any): Conversation {
@@ -65,6 +99,13 @@ function mapApiConversation(c: any): Conversation {
     // these as { id, name } objects when the relations are loaded.
     assignedUser: c.assignedUser ?? c.assigned_user ?? null,
     assignedTeam: c.assignedTeam ?? c.assigned_team ?? null,
+    // Sentiment intelligence — score lets the frontend pick a 5-tier
+    // label, trend renders the 📉 / 📈 indicator, autoEscalatedAt
+    // shows a 🚨 chip when the router has fired on this conversation.
+    sentimentScore: typeof c.sentimentScore === "number" ? c.sentimentScore
+      : (typeof c.sentiment_score === "number" ? c.sentiment_score : null),
+    sentimentTrend: c.sentimentTrend ?? c.sentiment_trend ?? null,
+    autoEscalatedAt: c.autoEscalatedAt ?? c.auto_escalated_at ?? null,
   };
 }
 
@@ -426,8 +467,10 @@ export default function InboxPage() {
     }
   }, [isAiOn, selectedId, mutateConvos]);
 
-  const sentColor = getSentimentColor(selected?.sentiment);
-  const sentLabel = getSentimentLabel(selected?.sentiment, isAr);
+  const sentColor = getSentimentColor(selected?.sentiment, selected?.sentimentScore);
+  const sentLabel = getSentimentLabel(selected?.sentiment, isAr, selected?.sentimentScore);
+  const sentTrend = getTrendDisplay(selected?.sentimentTrend, isAr);
+  const isAutoEscalated = !!selected?.autoEscalatedAt;
   const priColor = getPriorityColor(selected?.pri);
 
   // Local filtering (search always local, filter tabs apply locally too)
@@ -684,11 +727,12 @@ export default function InboxPage() {
                   <div style={{ display: "flex", gap: 5, marginTop: 6, alignItems: "center", flexWrap: "wrap" }}>
                     <Badge color={getStatusColor(c.st)}>{c.st}</Badge>
                     {c.tag && <Badge color={C.pri}>{c.tag}</Badge>}
-                    {/* Sentiment pill — emoji + vivid label so the
-                        operator spots an angry customer at a glance
-                        without reading the word. */}
+                    {/* Sentiment pill — emoji + 5-tier vivid label so
+                        the operator spots an angry customer at a glance.
+                        Score-aware: AI score wins over the 3-class string
+                        when available. */}
                     {c.sentiment && (() => {
-                      const sc = getSentimentColor(c.sentiment);
+                      const sc = getSentimentColor(c.sentiment, c.sentimentScore);
                       return (
                         <span style={{
                           fontSize: 10,
@@ -702,10 +746,41 @@ export default function InboxPage() {
                           alignItems: "center",
                           gap: 2,
                         }}>
-                          {getSentimentLabel(c.sentiment, isAr)}
+                          {getSentimentLabel(c.sentiment, isAr, c.sentimentScore)}
                         </span>
                       );
                     })()}
+                    {/* Trend chip — only renders when AI history shows
+                        the conversation is actively worsening or
+                        improving. Stable / unknown is silent. */}
+                    {(() => {
+                      const td = getTrendDisplay(c.sentimentTrend, isAr);
+                      if (!td) return null;
+                      return (
+                        <span style={{
+                          fontSize: 10, color: td.color, fontWeight: 600,
+                          padding: "1px 6px", borderRadius: 6,
+                          background: td.color + "12",
+                          border: `1px solid ${td.color}25`,
+                        }}>
+                          {td.label}
+                        </span>
+                      );
+                    })()}
+                    {/* Auto-escalation marker — set by EscalationRouter
+                        when negative sentiment + complaint intent fired
+                        a re-route. Shows up alongside the assignment so
+                        the operator knows this isn't a routine landing. */}
+                    {c.autoEscalatedAt && (
+                      <span style={{
+                        fontSize: 10, color: "#E84855", fontWeight: 700,
+                        padding: "1px 6px", borderRadius: 6,
+                        background: "#E8485515",
+                        border: "1px solid #E8485540",
+                      }}>
+                        🚨 {isAr ? "تصعيد تلقائي" : "Escalated"}
+                      </span>
+                    )}
                     {/* Intent pill — what the customer is here for
                         (شكوى / استفسار / نيّة شراء …). Backend already
                         humanises the AI's English enum. */}
@@ -810,6 +885,33 @@ export default function InboxPage() {
               <span style={{ width: 6, height: 6, borderRadius: 3, background: sentColor }} />
               {sentLabel}
             </button>
+            {/* Trend indicator next to sentiment — only renders when
+                worsening or improving (stable is silent). */}
+            {sentTrend && (
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 4,
+                padding: "4px 10px", borderRadius: 8,
+                background: sentTrend.color + "12",
+                border: `1px solid ${sentTrend.color}30`,
+                fontSize: 11, fontWeight: 600, color: sentTrend.color,
+              }}>
+                {sentTrend.label}
+              </span>
+            )}
+            {/* Auto-escalation banner-chip in the header so the
+                operator knows the routing engine put them on this
+                conversation deliberately. */}
+            {isAutoEscalated && (
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 4,
+                padding: "4px 10px", borderRadius: 8,
+                background: "#E8485515",
+                border: "1px solid #E8485540",
+                fontSize: 11, fontWeight: 700, color: "#E84855",
+              }}>
+                🚨 {isAr ? "تصعيد تلقائي" : "Escalated"}
+              </span>
+            )}
             {/* AI Toggle */}
             <div
               onClick={toggleAi}
