@@ -219,6 +219,53 @@ export default function InboxPage() {
   // history stays in its original order for everything else.
   const messages = apiMessages.length ? [...apiMessages].reverse() : [];
 
+  // Translate every customer message currently in the thread that
+  // doesn't already have a translation cached. Re-uses the
+  // per-message endpoint serially so we don't hammer the AI provider —
+  // a 50-msg conversation hits 50 rate-limits if we Promise.all.
+  const translateAllVisible = useCallback(async () => {
+    if (!selectedId) return;
+    const customerMsgs = apiMessages.filter(
+      (m) => m.from === "customer" && m.text && !translations[String(m.id)],
+    );
+    if (customerMsgs.length === 0) {
+      showToast(isAr ? "لا توجد رسائل بحاجة إلى ترجمة" : "Nothing to translate");
+      return;
+    }
+    showToast(
+      isAr ? `جاري ترجمة ${customerMsgs.length} رسالة...` : `Translating ${customerMsgs.length} messages...`,
+    );
+    for (const m of customerMsgs) {
+      try {
+        await requestTranslation(String(m.id), m.text);
+      } catch {
+        // Skip and keep going — per-message handler already toasted.
+      }
+    }
+  }, [selectedId, apiMessages, translations, isAr, showToast, requestTranslation]);
+
+  // CSAT request — sends a customer-satisfaction template to the
+  // contact. Backend wiring lands with the CSAT template work; for
+  // now we 404-guard so the button isn't a dead-end while the
+  // template is being configured.
+  const requestCsat = useCallback(async () => {
+    if (!selectedId) return;
+    try {
+      await api.post(`/conversations/${selectedId}/csat-request`);
+      showToast(isAr ? "تم إرسال طلب التقييم ⭐" : "CSAT request sent ⭐");
+    } catch (err: any) {
+      if (err?.response?.status === 404) {
+        showToast(isAr ? "ميزة التقييم قريباً" : "CSAT feature coming soon");
+      } else {
+        showToast(
+          err?.response?.data?.message
+            || (isAr ? "تعذّر إرسال طلب التقييم" : "Failed to send CSAT request"),
+          "error",
+        );
+      }
+    }
+  }, [selectedId, isAr, showToast]);
+
   // API: fetch notes for selected conversation
   useEffect(() => {
     if (!selectedId) return;
@@ -692,9 +739,26 @@ export default function InboxPage() {
             )}
             {/* Resolve */}
             <Button primary small onClick={handleResolve}>{isAr ? "حل" : "Resolve"}</Button>
+            {/* CSAT request — sends a satisfaction survey to the customer */}
+            <button
+              onClick={requestCsat}
+              title={isAr ? "طلب تقييم العميل" : "Request customer satisfaction rating"}
+              style={{ width: 34, height: 34, borderRadius: 8, border: "1.5px solid " + (dk ? C.brd : "#D5D2CC"), background: "transparent", color: C.t2, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}
+            >
+              ⭐
+            </button>
+            {/* Translate all customer messages in this thread */}
+            <button
+              onClick={translateAllVisible}
+              title={isAr ? "ترجمة كل الرسائل" : "Translate all messages"}
+              style={{ width: 34, height: 34, borderRadius: 8, border: "1.5px solid " + (dk ? C.brd : "#D5D2CC"), background: "transparent", color: C.t2, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}
+            >
+              🌐
+            </button>
             {/* Detail toggle */}
             <button
               onClick={() => setShowDetail(!showDetail)}
+              title={isAr ? "تفاصيل العميل" : "Customer details"}
               style={{ width: 34, height: 34, borderRadius: 8, border: "1.5px solid " + (dk ? C.brd : "#D5D2CC"), background: "transparent", color: showDetail ? C.pri : C.t2, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
             >
               <Icon name="users" size={15} />
