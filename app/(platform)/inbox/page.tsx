@@ -855,23 +855,41 @@ export default function InboxPage() {
               </span>
             </div>
           )}
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 10, opacity: (isAiOn || !windowOpen) ? 0.4 : 1, pointerEvents: (isAiOn || !windowOpen) ? "none" : "auto" }}>
+          {/*
+            Composer lock = AI agent on OR 24h window closed. The
+            wrapper used to set pointerEvents:none on the whole row,
+            which silently disabled ✨ Suggest too — the agent had to
+            Take Over before they could even *peek* at what the AI
+            would say. Now we lock individual controls instead, with
+            ✨ Suggest + the AI bot toggle staying live so the agent
+            can preview suggestions and flip control without giving
+            up the AI's autoreply behavior.
+          */}
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 10 }}>
             <div style={{ display: "flex", gap: 6, paddingBottom: 4 }}>
-              <button style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: C.inp, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.t2 }}>
+              <button
+                disabled={isAiOn || !windowOpen}
+                style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: C.inp, cursor: (isAiOn || !windowOpen) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.t2, opacity: (isAiOn || !windowOpen) ? 0.4 : 1 }}
+              >
                 <Icon name="clip" size={16} />
               </button>
               <button
                 onClick={() => { setShowEmojiPicker(!showEmojiPicker); setShowQuickReplies(false); }}
-                style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: showEmojiPicker ? C.pri + "15" : C.inp, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: showEmojiPicker ? C.pri : C.t2 }}
+                disabled={isAiOn || !windowOpen}
+                style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: showEmojiPicker ? C.pri + "15" : C.inp, cursor: (isAiOn || !windowOpen) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: showEmojiPicker ? C.pri : C.t2, opacity: (isAiOn || !windowOpen) ? 0.4 : 1 }}
               >
                 <Icon name="smile" size={16} />
               </button>
               <button
                 onClick={() => { setShowQuickReplies(!showQuickReplies); setShowEmojiPicker(false); }}
-                style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: showQuickReplies ? C.pri + "15" : C.inp, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: showQuickReplies ? C.pri : C.t2 }}
+                disabled={isAiOn || !windowOpen}
+                style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: showQuickReplies ? C.pri + "15" : C.inp, cursor: (isAiOn || !windowOpen) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: showQuickReplies ? C.pri : C.t2, opacity: (isAiOn || !windowOpen) ? 0.4 : 1 }}
               >
                 <Icon name="bookmark" size={16} />
               </button>
+              {/* ✨ Suggest stays clickable even when the AI is on —
+                  agent can preview an alternative reply before deciding
+                  whether to take over, without breaking the AI flow. */}
               <button
                 onClick={handleAiSuggest}
                 disabled={aiSuggesting || !selectedId}
@@ -895,6 +913,9 @@ export default function InboxPage() {
                 </span>
                 <style>{`@keyframes ai-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
               </button>
+              {/* AI bot toggle — also stays live so the agent can flip
+                  control with one click instead of hunting the bigger
+                  toggle in the header. */}
               <button
                 onClick={toggleAi}
                 style={{ width: 34, height: 34, borderRadius: 8, border: isAiOn ? "1.5px solid " + AI_COLOR : "none", background: isAiOn ? AI_COLOR + "15" : C.inp, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: isAiOn ? AI_COLOR : C.t2 }}
@@ -902,19 +923,21 @@ export default function InboxPage() {
                 <Icon name="bot" size={16} />
               </button>
             </div>
-            <div style={{ flex: 1, padding: "10px 16px", borderRadius: 14, background: C.inp }}>
+            <div style={{ flex: 1, padding: "10px 16px", borderRadius: 14, background: C.inp, opacity: (isAiOn || !windowOpen) ? 0.4 : 1 }}>
               <input
                 ref={inputRef}
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") handleSend(); }}
+                disabled={isAiOn || !windowOpen}
                 placeholder={isAr ? "اكتب رسالة..." : "Type..."}
-                style={{ border: "none", background: "none", outline: "none", fontFamily: FONT_FAMILY, fontSize: 13.5, color: C.txt, width: "100%" }}
+                style={{ border: "none", background: "none", outline: "none", fontFamily: FONT_FAMILY, fontSize: 13.5, color: C.txt, width: "100%", cursor: (isAiOn || !windowOpen) ? "not-allowed" : "text" }}
               />
             </div>
             <button
               onClick={handleSend}
-              style={{ width: 42, height: 42, borderRadius: 12, background: inputText ? C.wa : C.inp, border: "none", cursor: "pointer", color: inputText ? "#fff" : C.t3, display: "flex", alignItems: "center", justifyContent: "center" }}
+              disabled={isAiOn || !windowOpen}
+              style={{ width: 42, height: 42, borderRadius: 12, background: inputText ? C.wa : C.inp, border: "none", cursor: (isAiOn || !windowOpen) ? "not-allowed" : "pointer", color: inputText ? "#fff" : C.t3, display: "flex", alignItems: "center", justifyContent: "center", opacity: (isAiOn || !windowOpen) ? 0.4 : 1 }}
             >
               <Icon name="send" size={18} />
             </button>
