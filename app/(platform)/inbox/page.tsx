@@ -30,10 +30,15 @@ function getSentimentColor(sentiment: string): string {
   return "#F5A623";
 }
 
+/**
+ * Vivid sentiment labels — the operator scanning the inbox needs
+ * "غاضب" or "سعيد" at a glance, not "negative" / "positive".
+ * Emoji acts as the colour-blind-safe signal.
+ */
 function getSentimentLabel(sentiment: string, isAr: boolean): string {
-  if (sentiment === "positive") return isAr ? "إيجابي" : "Positive";
-  if (sentiment === "negative") return isAr ? "سلبي" : "Negative";
-  return isAr ? "محايد" : "Neutral";
+  if (sentiment === "positive") return isAr ? "😊 سعيد" : "😊 Happy";
+  if (sentiment === "negative") return isAr ? "😠 غاضب" : "😠 Angry";
+  return isAr ? "😐 محايد" : "😐 Neutral";
 }
 
 function mapApiConversation(c: any): Conversation {
@@ -679,6 +684,36 @@ export default function InboxPage() {
                   <div style={{ display: "flex", gap: 5, marginTop: 6, alignItems: "center", flexWrap: "wrap" }}>
                     <Badge color={getStatusColor(c.st)}>{c.st}</Badge>
                     {c.tag && <Badge color={C.pri}>{c.tag}</Badge>}
+                    {/* Sentiment pill — emoji + vivid label so the
+                        operator spots an angry customer at a glance
+                        without reading the word. */}
+                    {c.sentiment && (() => {
+                      const sc = getSentimentColor(c.sentiment);
+                      return (
+                        <span style={{
+                          fontSize: 10,
+                          color: sc,
+                          fontWeight: 600,
+                          padding: "1px 6px",
+                          borderRadius: 6,
+                          background: sc + "12",
+                          border: `1px solid ${sc}25`,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 2,
+                        }}>
+                          {getSentimentLabel(c.sentiment, isAr)}
+                        </span>
+                      );
+                    })()}
+                    {/* Intent pill — what the customer is here for
+                        (شكوى / استفسار / نيّة شراء …). Backend already
+                        humanises the AI's English enum. */}
+                    {c.intent && (
+                      <span style={{ fontSize: 10, color: C.info, fontWeight: 500, padding: "1px 6px", borderRadius: 6, background: C.info + "10" }}>
+                        🎯 {c.intent}
+                      </span>
+                    )}
                     {/* Assignment chip — agent wins if both are set
                         (agent assignment is more specific than team). */}
                     {c.assignedUser?.name && (
