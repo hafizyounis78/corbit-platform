@@ -1395,10 +1395,17 @@ export default function BotBuilderPage() {
             });
             mutate();
             showToast(isAr ? "\u062a\u0645 \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u062a\u062f\u0641\u0642 \u0628\u0646\u062c\u0627\u062d \u2713" : "Flow created \u2713");
-          } catch {
-            showToast(isAr ? "\u062a\u0645 \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u062a\u062f\u0641\u0642 \u0628\u0646\u062c\u0627\u062d \u2713" : "Flow created \u2713");
+            setShowCreateModal(false);
+          } catch (err: any) {
+            // Surface the real error instead of swallowing it. Plan-gate
+            // failures (bot limit reached) and validation errors both
+            // come back here \u2014 the user needs to know which one.
+            const msg = err?.response?.data?.message
+              || err?.response?.data?.error
+              || (isAr ? "\u062a\u0639\u0630\u0651\u0631 \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u0628\u0648\u062a" : "Failed to create bot");
+            showToast(msg);
+            // Keep the modal open so the user can fix the input.
           }
-          setShowCreateModal(false);
         }}
       >
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 280px", gap: 24 }}>
