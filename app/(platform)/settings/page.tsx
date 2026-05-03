@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { useToast } from "@/hooks/use-toast";
@@ -349,9 +350,27 @@ export default function SettingsPage() {
   const isMob = useIsMobile();
   const ar = isAr;
 
-  const [tab, setTab] = useState("general");
+  // Tab is selectable from a ?tab= query param so the Onboarding
+  // wizard (and any other entry point) can deep-link straight to a
+  // specific section. Falls back to "general" when the param is
+  // missing or unrecognised.
+  const searchParams = useSearchParams();
+  const validTabs = ["general", "notifications", "security", "channels", "whatsapp", "team", "api"];
+  const initialTab = searchParams?.get("tab") ?? "general";
+  const [tab, setTab] = useState(validTabs.includes(initialTab) ? initialTab : "general");
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+
+  // Keep the tab in sync if the user navigates between two
+  // ?tab=... URLs without a full page reload (e.g. clicking two
+  // different onboarding rows in succession).
+  useEffect(() => {
+    const next = searchParams?.get("tab");
+    if (next && validTabs.includes(next) && next !== tab) {
+      setTab(next);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   // Fetch settings from API per section
   const { data: generalData, isLoading: loadingGeneral, mutate: mutateGeneral } = useSettings('general');
