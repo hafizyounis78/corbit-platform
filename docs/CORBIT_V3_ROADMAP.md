@@ -25,6 +25,16 @@
 - ✅ A12: Top-up calculator في top-up modal
 - ✅ CSAT backend endpoint stub (audit log entry)
 
+### P3+P4 Polish Pass (8 — كاملة، 2026-05-03 part 2)
+- ✅ A17: Channel Comparison cards
+- ✅ A18: Plans Tab — popular badge + limits panel + sales CTA
+- ✅ A5: Inbox Assignment drawer مع team/agent search
+- ✅ A11: Reusable AiInsightsBar + Templates/Bots adoption
+- ✅ A4: Campaign Builder presets (تأكّد فقط — كان مبني من قبل)
+- ✅ A16: Quiet Hours window + Auto Reports frequency wired
+- ✅ A13: Team Services Catalog (column + chips editor + display)
+- ✅ A14: Real API Keys + Webhooks management + HMAC test flow
+
 ---
 
 ## 🛑 ميزات مؤجَّلة (تحتاج موافقة المستخدم قبل البدء)
@@ -36,14 +46,6 @@
 | A3 | SMS Channel + Fallback | محتاج Unifonic credentials (blocked) | 3-4 أيام |
 | M10 | Global Search | محتاج UX قرارات | 2-3 أيام |
 | M5 | Templates Image Header | محتاج Meta API + columns جديدة | 2 يوم |
-| A4 | AI Campaign Builder presets | متوسّط | 1-2 يوم |
-| A5 | Take Over + Assignment drawer | صغير | 4 ساعات |
-| A11 | AI Insights cards | صغير | 4 ساعات |
-| A13 | Service Catalog per Team | متوسّط (column جديد) | 1 يوم |
-| A14 | API Request Log + Webhooks UI | متوسّط | 1 يوم |
-| A16 | Quiet Hours + Auto Reports | متوسّط | 1 يوم |
-| A17 | Channel Comparison Card | صغير cosmetic | 2 ساعة |
-| A18 | Plans Tab improvements | صغير | 2 ساعة |
 
 ---
 
