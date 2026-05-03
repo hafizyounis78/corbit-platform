@@ -28,6 +28,14 @@ export default function TeamsPage() {
   const [showEditMember, setShowEditMember] = useState(false);
   const [editMemberLoading, setEditMemberLoading] = useState(false);
   const [editMember, setEditMember] = useState<any>(null);
+  // Team create/edit modal — name + services catalog. The catalog
+  // gates which conversations get routed here once routing rules
+  // are wired up.
+  const [showTeamModal, setShowTeamModal] = useState(false);
+  const [teamModalTarget, setTeamModalTarget] = useState<any | null>(null);
+  const [teamModalLoading, setTeamModalLoading] = useState(false);
+  const [teamForm, setTeamForm] = useState({ name: "", name_ar: "", services: [] as string[] });
+  const [customService, setCustomService] = useState("");
 
   // Fetch from API
   const { data: apiData, isLoading, mutate } = useTeams();
@@ -177,15 +185,95 @@ export default function TeamsPage() {
     } catch {}
   };
 
-  const handleCreateTeam = async () => {
+  const openCreateTeam = () => {
+    setTeamModalTarget(null);
+    setTeamForm({ name: "", name_ar: "", services: [] });
+    setCustomService("");
+    setShowTeamModal(true);
+  };
+
+  const openEditTeam = (team: any) => {
+    setTeamModalTarget(team);
+    setTeamForm({
+      name: team?.name_en ?? team?.name ?? "",
+      name_ar: team?.name_ar ?? "",
+      services: Array.isArray(team?.services_catalog) ? team.services_catalog : [],
+    });
+    setCustomService("");
+    setShowTeamModal(true);
+  };
+
+  const handleSaveTeam = async () => {
+    const trimmedEn = teamForm.name.trim();
+    const trimmedAr = teamForm.name_ar.trim();
+    if (!trimmedEn && !trimmedAr) {
+      showToast(ar ? "أدخل اسم الفريق" : "Enter a team name", "error");
+      return;
+    }
+    setTeamModalLoading(true);
     try {
-      await api.post('/teams', { name: ar ? "فريق جديد" : "New Team" });
-      showToast("✓");
+      const payload: Record<string, any> = {
+        name: trimmedEn || trimmedAr,
+        name_ar: trimmedAr || null,
+        services_catalog: teamForm.services,
+      };
+      if (teamModalTarget?.id) {
+        await api.patch(`/teams/${teamModalTarget.id}`, payload);
+        showToast(ar ? "تم تحديث الفريق ✓" : "Team updated ✓");
+      } else {
+        await api.post("/teams", payload);
+        showToast(ar ? "تم إنشاء الفريق ✓" : "Team created ✓");
+      }
+      setShowTeamModal(false);
       mutate();
-    } catch (e) {
-      showToast("✓");
+    } catch (err: any) {
+      showToast(
+        err?.response?.data?.message
+          || (ar ? "تعذّر حفظ الفريق" : "Failed to save team"),
+        "error",
+      );
+    } finally {
+      setTeamModalLoading(false);
     }
   };
+
+  const toggleServiceChip = (service: string) => {
+    setTeamForm((prev) => ({
+      ...prev,
+      services: prev.services.includes(service)
+        ? prev.services.filter((s) => s !== service)
+        : [...prev.services, service],
+    }));
+  };
+
+  const addCustomService = () => {
+    const v = customService.trim();
+    if (!v) return;
+    if (!teamForm.services.includes(v)) {
+      setTeamForm((prev) => ({ ...prev, services: [...prev.services, v] }));
+    }
+    setCustomService("");
+  };
+
+  // Six common services as starter chips. Operators can also add
+  // free-form ones — the value persists as JSON, no enum constraint.
+  const PRESET_SERVICES = ar
+    ? [
+        "استعادة كلمة المرور",
+        "الشكاوى",
+        "تسجيل طلب شراء",
+        "الاستفسارات العامة",
+        "الدعم الفني",
+        "الاسترجاع والاستبدال",
+      ]
+    : [
+        "Password Reset",
+        "Complaints",
+        "Purchase Orders",
+        "General Inquiries",
+        "Technical Support",
+        "Returns & Exchanges",
+      ];
 
   if (isLoading) {
     return (
@@ -273,10 +361,18 @@ export default function TeamsPage() {
                 <div style={{ width: 40, height: 40, borderRadius: 12, background: `${team.color}15`, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <Icon name="users" size={18} />
                 </div>
-                <div>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 15 }}>{team.name}</div>
-                  <div style={{ fontSize: 11, color: C.t2 }}>{ar ? "قائد:" : "Lead:"} {team.lead}</div>
+                  <div style={{ fontSize: 11, color: C.t2 }}>{ar ? "قائد:" : "Lead:"} {team.lead || (ar ? "—" : "—")}</div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => openEditTeam(team)}
+                  title={ar ? "تعديل الفريق" : "Edit team"}
+                  style={{ width: 28, height: 28, borderRadius: 8, border: `1px solid ${C.brd}`, background: "transparent", color: C.t2, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                >
+                  <Icon name="pencil" size={12} />
+                </button>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
                 {[[t("conv"), team.convos], [t("csat"), `${team.csat}%`], [t("onl"), `${team.online}/${team.total}`]].map(([l, v], i) => (
@@ -286,12 +382,26 @@ export default function TeamsPage() {
                   </div>
                 ))}
               </div>
+              {Array.isArray(team.services_catalog) && team.services_catalog.length > 0 && (
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 10, color: C.t3, marginBottom: 4, fontWeight: 600 }}>
+                    {ar ? "الخدمات" : "Services"}
+                  </div>
+                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                    {team.services_catalog.map((s: string, i: number) => (
+                      <span key={i} style={{ padding: "3px 8px", borderRadius: 6, background: `${C.pri}10`, color: C.pri, fontSize: 10.5, fontWeight: 500 }}>
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                 {team.rules.map((r: string, i: number) => <Badge key={i} color={C.info}>{r}</Badge>)}
               </div>
             </Card>
           ))}
-          <Card style={{ padding: 18, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", border: `2px dashed ${C.brd}` }} onClick={handleCreateTeam}>
+          <Card style={{ padding: 18, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", border: `2px dashed ${C.brd}` }} onClick={openCreateTeam}>
             <div style={{ textAlign: "center", color: C.t2 }}>
               <div style={{ fontSize: 24, marginBottom: 4 }}>+</div>
               <div style={{ fontSize: 13 }}>{t("createTeam")}</div>
@@ -578,6 +688,119 @@ export default function TeamsPage() {
         onClose={() => setCredentialsResult(null)}
         title={ar ? "تم إنشاء العضو" : "Member Created"}
       />
+
+      {/* ── Team Create / Edit Modal ── */}
+      <Modal
+        open={showTeamModal}
+        onClose={() => setShowTeamModal(false)}
+        title={teamModalTarget
+          ? (ar ? `تعديل ${teamModalTarget.name}` : `Edit ${teamModalTarget.name}`)
+          : (ar ? "إنشاء فريق جديد" : "Create New Team")}
+        submitLabel={teamModalLoading
+          ? (ar ? "جاري الحفظ..." : "Saving...")
+          : (ar ? "حفظ" : "Save")}
+        submitLoading={teamModalLoading}
+        onSubmit={handleSaveTeam}
+        wide
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* Names */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <label style={{ display: "block", fontSize: 12, color: C.t2, marginBottom: 4 }}>
+                {ar ? "الاسم بالعربيّة" : "Arabic name"}
+              </label>
+              <input
+                value={teamForm.name_ar}
+                onChange={(e) => setTeamForm({ ...teamForm, name_ar: e.target.value })}
+                placeholder={ar ? "مثال: فريق الدعم" : "e.g. فريق الدعم"}
+                style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontFamily: FONT_FAMILY, fontSize: 13 }}
+              />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 12, color: C.t2, marginBottom: 4 }}>
+                {ar ? "الاسم بالإنجليزيّة" : "English name"}
+              </label>
+              <input
+                value={teamForm.name}
+                onChange={(e) => setTeamForm({ ...teamForm, name: e.target.value })}
+                placeholder="e.g. Support"
+                style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontFamily: FONT_FAMILY, fontSize: 13 }}
+              />
+            </div>
+          </div>
+
+          {/* Service catalog */}
+          <div>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.txt, marginBottom: 6 }}>
+              {ar ? "كاتالوج الخدمات" : "Service Catalog"}
+            </label>
+            <div style={{ fontSize: 11.5, color: C.t2, marginBottom: 8, lineHeight: 1.6 }}>
+              {ar
+                ? "حدّد الخدمات اللي يقدّمها هذا الفريق. سيتمّ توجيه المحادثات للفريق المناسب تلقائياً عند تفعيل قواعد التوجيه الذكي."
+                : "Pick the services this team handles. The smart routing engine will prefer this team when conversations are tagged with one of these services."}
+            </div>
+            {/* Preset chips */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+              {PRESET_SERVICES.map((s) => {
+                const active = teamForm.services.includes(s);
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => toggleServiceChip(s)}
+                    style={{
+                      padding: "6px 12px",
+                      borderRadius: 8,
+                      border: `1.5px solid ${active ? C.pri : C.brd}`,
+                      background: active ? `${C.pri}12` : "transparent",
+                      color: active ? C.pri : C.t2,
+                      fontFamily: FONT_FAMILY, fontSize: 11.5,
+                      fontWeight: active ? 600 : 500,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {active ? "✓ " : "+ "}{s}
+                  </button>
+                );
+              })}
+            </div>
+            {/* Custom entries — chips already chosen */}
+            {teamForm.services.filter((s) => !PRESET_SERVICES.includes(s)).length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+                {teamForm.services.filter((s) => !PRESET_SERVICES.includes(s)).map((s) => (
+                  <span key={s} style={{ padding: "6px 6px 6px 12px", borderRadius: 8, border: `1.5px solid ${C.warn}`, background: `${C.warn}12`, color: C.warn, fontFamily: FONT_FAMILY, fontSize: 11.5, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    {s}
+                    <button
+                      type="button"
+                      onClick={() => toggleServiceChip(s)}
+                      style={{ width: 16, height: 16, borderRadius: 4, border: "none", background: "transparent", color: C.warn, cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}
+                    >×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+            {/* Custom service input */}
+            <div style={{ display: "flex", gap: 6 }}>
+              <input
+                value={customService}
+                onChange={(e) => setCustomService(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomService(); } }}
+                placeholder={ar ? "أضف خدمة مخصّصة..." : "Add custom service..."}
+                style={{ flex: 1, padding: "8px 12px", borderRadius: 8, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontFamily: FONT_FAMILY, fontSize: 12 }}
+              />
+              <button
+                type="button"
+                onClick={addCustomService}
+                disabled={!customService.trim()}
+                style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: customService.trim() ? C.pri : C.brd, color: "#fff", fontFamily: FONT_FAMILY, fontSize: 12, fontWeight: 600, cursor: customService.trim() ? "pointer" : "not-allowed" }}
+              >
+                +
+              </button>
+            </div>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
