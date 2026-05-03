@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { useToast } from "@/hooks/use-toast";
@@ -40,6 +40,11 @@ export default function CampaignsPage() {
     scheduledTime: "09:00",
     sendNow: true,
     budget: "",
+    abTest: false,
+    variantA: "",
+    variantB: "",
+    abSplit: 50,         // % of test pool that gets A
+    abTestSize: 30,      // % of total recipients in the test pool (rest = holdout)
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -205,7 +210,7 @@ export default function CampaignsPage() {
             <Icon name="brain" size={14} />
             {isAr ? "\uD83E\uDDE0 \u0645\u0646\u0634\u0626 \u0630\u0643\u064A" : "\uD83E\uDDE0 AI Builder"}
           </Button>
-          <Button primary onClick={() => { setNewCampaign({ name: "", template: "", segment: "", scheduledDate: "", scheduledTime: "09:00", sendNow: true, budget: "" }); setFormErrors({}); setIsSubmitting(false); setShowCreateModal(true); }}>
+          <Button primary onClick={() => { setNewCampaign({ name: "", template: "", segment: "", scheduledDate: "", scheduledTime: "09:00", sendNow: true, budget: "", abTest: false, variantA: "", variantB: "", abSplit: 50, abTestSize: 30 }); setFormErrors({}); setIsSubmitting(false); setShowCreateModal(true); }}>
             <Icon name="megaphone" size={14} />
             {isAr ? "\u062D\u0645\u0644\u0629 \u062C\u062F\u064A\u062F\u0629" : "New Campaign"}
           </Button>
@@ -412,6 +417,11 @@ export default function CampaignsPage() {
             scheduledTime: draft.suggested_send_time || "09:00",
             sendNow: false,
             budget: "",
+            abTest: false,
+            variantA: "",
+            variantB: "",
+            abSplit: 50,
+            abTestSize: 30,
           });
           setFormErrors({});
           setIsSubmitting(false);
@@ -446,6 +456,17 @@ export default function CampaignsPage() {
           if (newCampaign.budget && (isNaN(Number(newCampaign.budget)) || Number(newCampaign.budget) < 0)) {
             errors.budget = isAr ? "الميزانية يجب أن تكون رقماً صحيحاً" : "Budget must be a valid positive number";
           }
+          if (newCampaign.abTest) {
+            if (!newCampaign.variantA.trim()) {
+              errors.variantA = isAr ? "نصّ النسخة A مطلوب" : "Variant A text is required";
+            }
+            if (!newCampaign.variantB.trim()) {
+              errors.variantB = isAr ? "نصّ النسخة B مطلوب" : "Variant B text is required";
+            }
+            if (newCampaign.variantA.trim() && newCampaign.variantA.trim() === newCampaign.variantB.trim()) {
+              errors.variantB = isAr ? "النسختان متطابقتان — لا فائدة من اختبار A/B" : "Variants are identical — no point A/B testing";
+            }
+          }
           setFormErrors(errors);
           if (Object.keys(errors).length > 0) return;
 
@@ -458,7 +479,28 @@ export default function CampaignsPage() {
             scheduledDate: newCampaign.scheduledDate || undefined,
             scheduledTime: newCampaign.scheduledTime || undefined,
             budget: newCampaign.budget ? Number(newCampaign.budget) : undefined,
-          }).then(() => {
+          }).then(async (res) => {
+            // If A/B is on, configure it on the just-created campaign
+            // before closing the modal. We do this in two steps because
+            // the create endpoint doesn't accept ab_* fields yet —
+            // separating keeps the create path simple and the A/B
+            // feature opt-in.
+            if (newCampaign.abTest) {
+              const created = res?.data?.data ?? res?.data;
+              const campaignId = created?.id || created?.campaign?.id;
+              if (campaignId) {
+                try {
+                  await api.post(`/campaigns/${campaignId}/ab-test`, {
+                    variantA: newCampaign.variantA,
+                    variantB: newCampaign.variantB,
+                    split: newCampaign.abSplit,
+                    testSize: newCampaign.abTestSize,
+                  });
+                } catch {
+                  showToast(isAr ? "تمّ إنشاء الحملة لكن تعذّر إعداد A/B" : "Campaign created but A/B setup failed", "error");
+                }
+              }
+            }
             showToast(isAr ? "تم إنشاء الحملة بنجاح" : "Campaign created successfully");
             setShowCreateModal(false);
             setIsSubmitting(false);
@@ -652,6 +694,138 @@ export default function CampaignsPage() {
             )}
           </div>
 
+          {/* ── A/B Testing (optional) ── */}
+          <div style={{ borderTop: `1px solid ${C.brd}`, paddingTop: 18 }}>
+            <label
+              style={{
+                display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
+                padding: "10px 14px", borderRadius: 10,
+                background: newCampaign.abTest ? `${C.pri}10` : "transparent",
+                border: `1.5px solid ${newCampaign.abTest ? C.pri : C.brd}`,
+                transition: "all 0.15s",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={newCampaign.abTest}
+                onChange={(e) => setNewCampaign({ ...newCampaign, abTest: e.target.checked })}
+                style={{ width: 16, height: 16, accentColor: C.pri, cursor: "pointer" }}
+              />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: C.txt }}>
+                  🧪 {isAr ? "تفعيل A/B Testing" : "Enable A/B Testing"}
+                </div>
+                <div style={{ fontSize: 11.5, color: C.t2, marginTop: 2 }}>
+                  {isAr
+                    ? "أرسل نسختين مختلفتين لمجموعتين، شوف أيّهما أعلى استجابة، ثم أرسل الفائزة لباقي العملاء."
+                    : "Ship two body variants to a test pool, see which performs better, then send the winner to the rest."}
+                </div>
+              </div>
+            </label>
+
+            {newCampaign.abTest && (
+              <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 14 }}>
+                {/* Variant A */}
+                <div>
+                  <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 6 }}>
+                    {isAr ? "النسخة A" : "Variant A"} <span style={{ color: COLORS.err }}>*</span>
+                  </label>
+                  <textarea
+                    value={newCampaign.variantA}
+                    onChange={(e) => { setNewCampaign({ ...newCampaign, variantA: e.target.value }); setFormErrors((prev) => { const n = { ...prev }; delete n.variantA; return n; }); }}
+                    rows={3}
+                    maxLength={1024}
+                    placeholder={isAr ? "نصّ النسخة الأولى — يحلّ محلّ {{1}} في القالب" : "First variant body — replaces {{1}} in the template"}
+                    style={{
+                      width: "100%", padding: "10px 14px", borderRadius: 10,
+                      border: `1px solid ${formErrors.variantA ? COLORS.err : C.brd}`,
+                      background: C.inp, color: C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none",
+                      boxSizing: "border-box", resize: "vertical",
+                    }}
+                  />
+                  <div style={{ fontSize: 11, color: C.t3, marginTop: 3, textAlign: isAr ? "left" : "right" }}>
+                    {newCampaign.variantA.length} / 1024
+                  </div>
+                  {formErrors.variantA && (
+                    <span style={{ fontSize: 11.5, color: COLORS.err, display: "block" }}>{formErrors.variantA}</span>
+                  )}
+                </div>
+
+                {/* Variant B */}
+                <div>
+                  <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 6 }}>
+                    {isAr ? "النسخة B" : "Variant B"} <span style={{ color: COLORS.err }}>*</span>
+                  </label>
+                  <textarea
+                    value={newCampaign.variantB}
+                    onChange={(e) => { setNewCampaign({ ...newCampaign, variantB: e.target.value }); setFormErrors((prev) => { const n = { ...prev }; delete n.variantB; return n; }); }}
+                    rows={3}
+                    maxLength={1024}
+                    placeholder={isAr ? "نصّ النسخة الثانية — للمقارنة" : "Second variant body — for comparison"}
+                    style={{
+                      width: "100%", padding: "10px 14px", borderRadius: 10,
+                      border: `1px solid ${formErrors.variantB ? COLORS.err : C.brd}`,
+                      background: C.inp, color: C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none",
+                      boxSizing: "border-box", resize: "vertical",
+                    }}
+                  />
+                  <div style={{ fontSize: 11, color: C.t3, marginTop: 3, textAlign: isAr ? "left" : "right" }}>
+                    {newCampaign.variantB.length} / 1024
+                  </div>
+                  {formErrors.variantB && (
+                    <span style={{ fontSize: 11.5, color: COLORS.err, display: "block" }}>{formErrors.variantB}</span>
+                  )}
+                </div>
+
+                {/* Split A% vs B% */}
+                <div>
+                  <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 6 }}>
+                    {isAr ? "تقسيم A / B" : "A / B Split"} —{" "}
+                    <span style={{ color: C.pri }}>A: {newCampaign.abSplit}%</span>{" "}
+                    <span style={{ color: C.t3 }}>·</span>{" "}
+                    <span style={{ color: C.info }}>B: {100 - newCampaign.abSplit}%</span>
+                  </label>
+                  <input
+                    type="range"
+                    min={10}
+                    max={90}
+                    step={5}
+                    value={newCampaign.abSplit}
+                    onChange={(e) => setNewCampaign({ ...newCampaign, abSplit: Number(e.target.value) })}
+                    style={{ width: "100%", accentColor: C.pri, cursor: "pointer" }}
+                  />
+                </div>
+
+                {/* Test pool size */}
+                <div>
+                  <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 6 }}>
+                    {isAr ? "حجم عيّنة الاختبار" : "Test pool size"} —{" "}
+                    <span style={{ color: C.pri }}>{newCampaign.abTestSize}%</span>{" "}
+                    {newCampaign.abTestSize < 100 && (
+                      <span style={{ color: C.t3 }}>
+                        ({isAr ? `الـ ${100 - newCampaign.abTestSize}% الباقي ينتظر النسخة الفائزة` : `remaining ${100 - newCampaign.abTestSize}% wait for the winner`})
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type="range"
+                    min={20}
+                    max={100}
+                    step={10}
+                    value={newCampaign.abTestSize}
+                    onChange={(e) => setNewCampaign({ ...newCampaign, abTestSize: Number(e.target.value) })}
+                    style={{ width: "100%", accentColor: C.pri, cursor: "pointer" }}
+                  />
+                  <div style={{ fontSize: 11, color: C.t3, marginTop: 4 }}>
+                    {isAr
+                      ? "نوصي بـ 30% للحملات الكبيرة (1000+ عميل) — يكفي للقياس + يبقي مساحة لإرسال النسخة الفائزة لاحقاً."
+                      : "30% recommended for big campaigns (1000+ contacts) — enough to measure, leaves room to ship the winner after."}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Selected segment info hint */}
           {newCampaign.segment && (
             <div style={{ padding: 16, borderRadius: 12, background: `${COLORS.info}10`, border: `1px solid ${COLORS.info}20`, display: "flex", alignItems: "center", gap: 12 }}>
@@ -723,6 +897,47 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
       .finally(() => { if (!cancelled) setInsightsLoading(false); });
     return () => { cancelled = true; };
   }, [c.id]);
+
+  // A/B testing results — fetched only when this campaign is an
+  // A/B test (the endpoint returns 404 otherwise, which we treat as
+  // "no panel"). Polls alongside the live progress hook so the
+  // operator sees variant performance update in real time during a
+  // running test.
+  const [abResults, setAbResults] = useState<any | null>(null);
+  const [promotingWinner, setPromotingWinner] = useState(false);
+  const fetchAbResults = useCallback(() => {
+    api.get(`/campaigns/${c.id}/ab-results`)
+      .then((res) => setAbResults(res?.data?.data ?? res?.data ?? null))
+      .catch(() => setAbResults(null));
+  }, [c.id]);
+  useEffect(() => {
+    if (!(c as any).abTest && !(c as any).ab_test) return;
+    fetchAbResults();
+    if (!isLive) return;
+    const t = setInterval(fetchAbResults, 8000);
+    return () => clearInterval(t);
+  }, [c, isLive, fetchAbResults]);
+
+  const handlePromoteWinner = async (variant: 'a' | 'b') => {
+    if (promotingWinner) return;
+    if (!confirm(isAr
+      ? `سيتم إرسال النسخة ${variant.toUpperCase()} لباقي العملاء (${abResults?.holdout?.total ?? 0} مستلم). متأكّد؟`
+      : `Variant ${variant.toUpperCase()} will be sent to remaining ${abResults?.holdout?.total ?? 0} recipients. Confirm?`,
+    )) return;
+    setPromotingWinner(true);
+    try {
+      const res = await api.post(`/campaigns/${c.id}/ab-promote-winner`, { variant });
+      const data = res?.data?.data ?? res?.data;
+      showToast(isAr
+        ? `تمّ ترقية النسخة ${variant.toUpperCase()} — ${data?.queued ?? 0} رسالة في الطابور`
+        : `Variant ${variant.toUpperCase()} promoted — ${data?.queued ?? 0} messages queued`);
+      fetchAbResults();
+    } catch (e: any) {
+      showToast(e?.response?.data?.message || (isAr ? "تعذّرت ترقية النسخة الفائزة" : "Promote winner failed"), "error");
+    } finally {
+      setPromotingWinner(false);
+    }
+  };
 
   // Retarget Non-openers — V2 wires this to actually create a draft
   // follow-up campaign instead of just returning the count. The new
@@ -1023,6 +1238,113 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
           </Card>
         ))}
       </div>
+
+      {/* A/B Testing Results \u2014 only when this campaign is an A/B test */}
+      {abResults && (
+        <Card style={{ marginBottom: 24 }}>
+          <CardHeader title={isAr ? "\ud83e\uddea \u0646\u062a\u0627\u0626\u062c A/B Testing" : "\ud83e\uddea A/B Testing Results"} />
+          <div style={{ padding: 20 }}>
+            {(() => {
+              const a = abResults.variants?.a ?? { sent: 0, delivered: 0, read: 0, replied: 0, clicked: 0, read_rate: 0, reply_rate: 0 };
+              const b = abResults.variants?.b ?? { sent: 0, delivered: 0, read: 0, replied: 0, clicked: 0, read_rate: 0, reply_rate: 0 };
+              const winner = abResults.winner; // 'a' / 'b' / null
+              const promoted = !!abResults.promoted_at;
+              const holdoutTotal = abResults.holdout?.total ?? 0;
+
+              const StatRow = ({ label, va, vb, suffix = "" }: { label: string; va: number; vb: number; suffix?: string }) => (
+                <tr>
+                  <td style={{ padding: "10px 12px", color: C.t2, fontSize: 12.5, borderBottom: `1px solid ${C.brd}` }}>{label}</td>
+                  <td style={{ padding: "10px 12px", textAlign: "center", fontWeight: 600, color: C.txt, fontSize: 13, borderBottom: `1px solid ${C.brd}`, background: winner === 'a' ? `${COLORS.ok}10` : "transparent" }}>
+                    {va.toLocaleString()}{suffix}
+                  </td>
+                  <td style={{ padding: "10px 12px", textAlign: "center", fontWeight: 600, color: C.txt, fontSize: 13, borderBottom: `1px solid ${C.brd}`, background: winner === 'b' ? `${COLORS.ok}10` : "transparent" }}>
+                    {vb.toLocaleString()}{suffix}
+                  </td>
+                </tr>
+              );
+
+              return (
+                <>
+                  {/* Comparison table */}
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                      <thead>
+                        <tr>
+                          <th style={{ padding: "12px", textAlign: isAr ? "right" : "left", color: C.t3, fontWeight: 600, fontSize: 11.5 }}>
+                            {isAr ? "\u0627\u0644\u0645\u0642\u064a\u0627\u0633" : "Metric"}
+                          </th>
+                          <th style={{ padding: "12px", textAlign: "center", color: winner === 'a' ? COLORS.ok : C.pri, fontWeight: 700, fontSize: 13 }}>
+                            {isAr ? "\u0627\u0644\u0646\u0633\u062e\u0629 A" : "Variant A"} {winner === 'a' && "\u2b50"}
+                          </th>
+                          <th style={{ padding: "12px", textAlign: "center", color: winner === 'b' ? COLORS.ok : COLORS.info, fontWeight: 700, fontSize: 13 }}>
+                            {isAr ? "\u0627\u0644\u0646\u0633\u062e\u0629 B" : "Variant B"} {winner === 'b' && "\u2b50"}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <StatRow label={isAr ? "\u0627\u0644\u0645\u0631\u0633\u064e\u0644" : "Sent"} va={a.sent} vb={b.sent} />
+                        <StatRow label={isAr ? "\u0627\u0644\u0645\u0633\u0644\u064e\u0651\u0645" : "Delivered"} va={a.delivered} vb={b.delivered} />
+                        <StatRow label={isAr ? "\u0627\u0644\u0645\u0642\u0631\u0648\u0621" : "Read"} va={a.read} vb={b.read} />
+                        <StatRow label={isAr ? "\u0631\u062f\u0651\u0648\u0627" : "Replied"} va={a.replied} vb={b.replied} />
+                        <StatRow label={isAr ? "\u0646\u0642\u0631\u0648\u0627" : "Clicked"} va={a.clicked} vb={b.clicked} />
+                        <StatRow label={isAr ? "\u0645\u0639\u062f\u0651\u0644 \u0627\u0644\u0642\u0631\u0627\u0621\u0629" : "Read rate"} va={a.read_rate} vb={b.read_rate} suffix="%" />
+                        <StatRow label={isAr ? "\u0645\u0639\u062f\u0651\u0644 \u0627\u0644\u0631\u062f\u0651" : "Reply rate"} va={a.reply_rate} vb={b.reply_rate} suffix="%" />
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Winner + promote */}
+                  <div style={{ marginTop: 18, padding: 14, borderRadius: 12, background: promoted ? `${COLORS.ok}10` : winner ? `${C.pri}10` : `${C.brd}30`, border: `1px solid ${promoted ? COLORS.ok : winner ? C.pri : C.brd}` }}>
+                    {promoted ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ fontSize: 20 }}>\u2705</span>
+                        <div>
+                          <div style={{ fontSize: 13.5, fontWeight: 700, color: COLORS.ok }}>
+                            {isAr ? `\u062a\u0645\u0651 \u062a\u0631\u0642\u064a\u0629 \u0627\u0644\u0646\u0633\u062e\u0629 ${(abResults.winner ?? '').toUpperCase()}` : `Variant ${(abResults.winner ?? '').toUpperCase()} promoted`}
+                          </div>
+                          <div style={{ fontSize: 11.5, color: C.t2, marginTop: 2 }}>
+                            {isAr ? "\u062a\u0645 \u0625\u0631\u0633\u0627\u0644\u0647\u0627 \u0644\u0643\u0644 \u0627\u0644\u0639\u0645\u0644\u0627\u0621 \u0641\u064a \u0639\u064a\u0651\u0646\u0629 \u0627\u0644\u0627\u0646\u062a\u0638\u0627\u0631." : "Sent to the holdout pool."}
+                          </div>
+                        </div>
+                      </div>
+                    ) : winner && holdoutTotal > 0 ? (
+                      <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center", justifyContent: "space-between", gap: 12 }}>
+                        <div>
+                          <div style={{ fontSize: 13.5, fontWeight: 700, color: C.txt }}>
+                            {isAr ? `\u0627\u0644\u0646\u0633\u062e\u0629 \u0627\u0644\u0641\u0627\u0626\u0632\u0629: ${winner.toUpperCase()}` : `Winning variant: ${winner.toUpperCase()}`}
+                          </div>
+                          <div style={{ fontSize: 11.5, color: C.t2, marginTop: 2 }}>
+                            {isAr
+                              ? `${holdoutTotal} \u0645\u0633\u062a\u0644\u0645 \u0641\u064a \u0627\u0644\u0627\u0646\u062a\u0638\u0627\u0631 \u0644\u0627\u0633\u062a\u0644\u0627\u0645 \u0627\u0644\u0646\u0633\u062e\u0629 \u0627\u0644\u0641\u0627\u0626\u0632\u0629.`
+                              : `${holdoutTotal} recipients waiting on the winner.`}
+                          </div>
+                        </div>
+                        <Button primary onClick={() => handlePromoteWinner(winner as 'a' | 'b')} disabled={promotingWinner}>
+                          {promotingWinner
+                            ? (isAr ? "\u062c\u0627\u0631\u064a \u0627\u0644\u0625\u0631\u0633\u0627\u0644..." : "Promoting...")
+                            : (isAr ? `\ud83d\udce4 \u0623\u0631\u0633\u0644 \u0627\u0644\u0646\u0633\u062e\u0629 ${winner.toUpperCase()} \u0644\u0644\u0628\u0627\u0642\u064a\u0646` : `\ud83d\udce4 Send variant ${winner.toUpperCase()} to the rest`)}
+                        </Button>
+                      </div>
+                    ) : winner && holdoutTotal === 0 ? (
+                      <div style={{ fontSize: 12.5, color: C.t2 }}>
+                        {isAr
+                          ? `\u0627\u0644\u0646\u0633\u062e\u0629 ${winner.toUpperCase()} \u0647\u064a \u0627\u0644\u0623\u0641\u0636\u0644 \u0623\u062f\u0627\u0621\u064b\u060c \u0644\u0643\u0646 \u0644\u0627 \u064a\u0648\u062c\u062f \u0645\u0633\u062a\u0644\u0645\u0648\u0646 \u0641\u064a \u0627\u0644\u0627\u0646\u062a\u0638\u0627\u0631 (\u0627\u0644\u062d\u0645\u0644\u0629 \u0643\u0627\u0645\u0644\u0629 \u0627\u0633\u062a\u0644\u0645\u062a).`
+                          : `Variant ${winner.toUpperCase()} performs best, but there's no holdout pool to ship it to.`}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 12.5, color: C.t2 }}>
+                        {isAr
+                          ? "\u0644\u0627 \u064a\u0645\u0643\u0646 \u062a\u062d\u062f\u064a\u062f \u0641\u0627\u0626\u0632 \u0628\u0639\u062f \u2014 \u0627\u0646\u062a\u0638\u0631 \u0661\u0660 \u0645\u0631\u0633\u064e\u0644 \u0644\u0643\u0644 \u0646\u0633\u062e\u0629 \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644."
+                          : "No winner yet \u2014 wait for at least 10 sends per variant."}
+                      </div>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </Card>
+      )}
 
       {/* Behavior Funnel */}
       <Card style={{ marginBottom: 24 }}>
