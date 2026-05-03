@@ -1,13 +1,53 @@
 # Corbit V3 — Roadmap & Implementation Plan
 
 **التاريخ:** 2026-05-03
+**آخر تحديث:** 2026-05-03 (بعد جلسة Autonomous push)
 **المرجع البصري:** `docs/corbit-platform 3.jsx`
-**ملاحظات الاجتماع:** هذا الملف
-**القرارات في memory:** `project_v3_roadmap.md` + `project_ai_billing_v2.md`
+**القرارات في memory:** `project_v3_roadmap.md` + `project_ai_billing_v2.md` + `project_session_2026_05_03_v3_kickoff.md`
 
 ---
 
-## نظرة عامّة
+## ✅ ملخّص ما تنفّذ ورُفع (2026-05-03)
+
+### Production Bugs (3 — كاملة)
+- ✅ Bug-1: عدّاد unread يختفي بعد القراءة (backend + frontend)
+- ✅ Bug-2: Inbox live polling (8s convos، 4s messages، visibility-aware)
+- ✅ Bug-3: Bot creation surface real errors
+
+### AI Billing V2 (P1 — كامل)
+- ✅ Backend: `BillingModeResolver` + AiAutoReply flag + migration
+- ✅ Nova: Select toggle على PlatformPricingSetting
+- ✅ Frontend: notice banner على billing page
+- ⚠️ **مطلوب على Forge:** `php artisan migrate` لإضافة `ai_billing_mode` column
+
+### P3 Small Features (3 — كاملة)
+- ✅ A6+A7: header buttons (⭐ CSAT + 🌐 translate-all) في inbox
+- ✅ A12: Top-up calculator في top-up modal
+- ✅ CSAT backend endpoint stub (audit log entry)
+
+---
+
+## 🛑 ميزات مؤجَّلة (تحتاج موافقة المستخدم قبل البدء)
+
+| # | الميزة | السبب | تقدير الوقت |
+|---|---|---|---|
+| A1 | Help Center (5 tabs) | كبير + يندمج tickets | 3-5 أيام |
+| A2 | Bot Visual Flow Editor | كبير، canvas + drag/drop | 5+ أيام |
+| A3 | SMS Channel + Fallback | محتاج Unifonic credentials (blocked) | 3-4 أيام |
+| M10 | Global Search | محتاج UX قرارات | 2-3 أيام |
+| M5 | Templates Image Header | محتاج Meta API + columns جديدة | 2 يوم |
+| A4 | AI Campaign Builder presets | متوسّط | 1-2 يوم |
+| A5 | Take Over + Assignment drawer | صغير | 4 ساعات |
+| A11 | AI Insights cards | صغير | 4 ساعات |
+| A13 | Service Catalog per Team | متوسّط (column جديد) | 1 يوم |
+| A14 | API Request Log + Webhooks UI | متوسّط | 1 يوم |
+| A16 | Quiet Hours + Auto Reports | متوسّط | 1 يوم |
+| A17 | Channel Comparison Card | صغير cosmetic | 2 ساعة |
+| A18 | Plans Tab improvements | صغير | 2 ساعة |
+
+---
+
+## نظرة عامّة (الخطّة الأصليّة)
 
 هذا الـ roadmap بيمثّل التحديث الكبير لـ Corbit V3 بناءً على:
 1. ملف تحديث Corbit-platform 3.jsx من الشركة (1779 سطر، تصميم بصري كامل)
