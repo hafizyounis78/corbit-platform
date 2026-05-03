@@ -395,6 +395,46 @@ export default function InboxPage() {
     }
   }
 
+  // Attachment upload — opens the hidden file input on click,
+  // POSTs the chosen file to /conversations/{id}/attachments, and
+  // refreshes the message list. Cap (16MB) matches WhatsApp's
+  // hard limit; we surface the validation error from the backend
+  // when the operator picks a too-large or unsupported file.
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+
+  const openAttachmentPicker = useCallback(() => {
+    if (uploadingAttachment) return;
+    if (isAiOn || !windowOpen) return;
+    fileInputRef.current?.click();
+  }, [uploadingAttachment, isAiOn, windowOpen]);
+
+  const handleAttachmentChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // reset so picking the same file again triggers onChange
+    if (!file || !selectedId) return;
+    if (file.size > 16 * 1024 * 1024) {
+      showToast(isAr ? 'الحدّ الأقصى 16 ميجابايت' : 'Max 16MB', 'error');
+      return;
+    }
+
+    setUploadingAttachment(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      await api.post(`/conversations/${selectedId}/attachments`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      mutateMessages();
+      showToast(isAr ? 'تمّ إرسال المرفق' : 'Attachment sent');
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || (isAr ? 'فشل إرسال المرفق' : 'Failed to send attachment');
+      showToast(msg, 'error');
+    } finally {
+      setUploadingAttachment(false);
+    }
+  }, [selectedId, isAr, showToast, mutateMessages]);
+
   function handleQuickReply(reply: string) {
     // Quick replies populate the composer for review/edit before
     // sending — same pattern as WhatsApp Web / Slack / Intercom
@@ -865,13 +905,21 @@ export default function InboxPage() {
           */}
           <div style={{ display: "flex", alignItems: "flex-end", gap: 10 }}>
             <div style={{ display: "flex", gap: 6, paddingBottom: 4 }}>
+              <input
+                ref={fileInputRef}
+                type="file"
+                hidden
+                accept="image/*,video/*,audio/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,text/csv"
+                onChange={handleAttachmentChange}
+              />
               <button
-                disabled={isAiOn || !windowOpen}
-                title={isAr ? "إرفاق ملف" : "Attach file"}
+                onClick={openAttachmentPicker}
+                disabled={isAiOn || !windowOpen || uploadingAttachment}
+                title={isAr ? (uploadingAttachment ? "جاري الرفع..." : "إرفاق ملف") : (uploadingAttachment ? "Uploading..." : "Attach file")}
                 aria-label={isAr ? "إرفاق ملف" : "Attach file"}
-                style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: C.inp, cursor: (isAiOn || !windowOpen) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.t2, opacity: (isAiOn || !windowOpen) ? 0.4 : 1 }}
+                style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: uploadingAttachment ? C.pri + "15" : C.inp, cursor: (isAiOn || !windowOpen || uploadingAttachment) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.t2, opacity: (isAiOn || !windowOpen) ? 0.4 : 1 }}
               >
-                <Icon name="clip" size={16} />
+                <Icon name={uploadingAttachment ? "loader" : "clip"} size={16} />
               </button>
               <button
                 onClick={() => { setShowEmojiPicker(!showEmojiPicker); setShowQuickReplies(false); }}
