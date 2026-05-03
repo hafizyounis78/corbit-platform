@@ -869,6 +869,8 @@ export default function InboxPage() {
             <div style={{ display: "flex", gap: 6, paddingBottom: 4 }}>
               <button
                 disabled={isAiOn || !windowOpen}
+                title={isAr ? "إرفاق ملف" : "Attach file"}
+                aria-label={isAr ? "إرفاق ملف" : "Attach file"}
                 style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: C.inp, cursor: (isAiOn || !windowOpen) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.t2, opacity: (isAiOn || !windowOpen) ? 0.4 : 1 }}
               >
                 <Icon name="clip" size={16} />
@@ -876,6 +878,8 @@ export default function InboxPage() {
               <button
                 onClick={() => { setShowEmojiPicker(!showEmojiPicker); setShowQuickReplies(false); }}
                 disabled={isAiOn || !windowOpen}
+                title={isAr ? "إيموجي" : "Emoji"}
+                aria-label={isAr ? "إيموجي" : "Emoji"}
                 style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: showEmojiPicker ? C.pri + "15" : C.inp, cursor: (isAiOn || !windowOpen) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: showEmojiPicker ? C.pri : C.t2, opacity: (isAiOn || !windowOpen) ? 0.4 : 1 }}
               >
                 <Icon name="smile" size={16} />
@@ -883,6 +887,8 @@ export default function InboxPage() {
               <button
                 onClick={() => { setShowQuickReplies(!showQuickReplies); setShowEmojiPicker(false); }}
                 disabled={isAiOn || !windowOpen}
+                title={isAr ? "ردود سريعة" : "Quick replies"}
+                aria-label={isAr ? "ردود سريعة" : "Quick replies"}
                 style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: showQuickReplies ? C.pri + "15" : C.inp, cursor: (isAiOn || !windowOpen) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: showQuickReplies ? C.pri : C.t2, opacity: (isAiOn || !windowOpen) ? 0.4 : 1 }}
               >
                 <Icon name="bookmark" size={16} />
@@ -918,6 +924,8 @@ export default function InboxPage() {
                   toggle in the header. */}
               <button
                 onClick={toggleAi}
+                title={isAr ? (isAiOn ? "إيقاف وكيل الذكاء وأخذ المحادثة" : "تشغيل وكيل الذكاء") : (isAiOn ? "Take over from AI" : "Hand to AI agent")}
+                aria-label={isAr ? "تبديل وكيل الذكاء" : "Toggle AI agent"}
                 style={{ width: 34, height: 34, borderRadius: 8, border: isAiOn ? "1.5px solid " + AI_COLOR : "none", background: isAiOn ? AI_COLOR + "15" : C.inp, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: isAiOn ? AI_COLOR : C.t2 }}
               >
                 <Icon name="bot" size={16} />
@@ -937,6 +945,8 @@ export default function InboxPage() {
             <button
               onClick={handleSend}
               disabled={isAiOn || !windowOpen}
+              title={isAr ? "إرسال" : "Send"}
+              aria-label={isAr ? "إرسال الرسالة" : "Send message"}
               style={{ width: 42, height: 42, borderRadius: 12, background: inputText ? C.wa : C.inp, border: "none", cursor: (isAiOn || !windowOpen) ? "not-allowed" : "pointer", color: inputText ? "#fff" : C.t3, display: "flex", alignItems: "center", justifyContent: "center", opacity: (isAiOn || !windowOpen) ? 0.4 : 1 }}
             >
               <Icon name="send" size={18} />
