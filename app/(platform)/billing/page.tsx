@@ -192,6 +192,36 @@ export default function BillingPage() {
 
       {tab === "overview" && (
         <>
+          {/* AI billing model notice — analytics is free under the
+              default 'replies_only' platform mode (set 2026-05-03).
+              Only AI auto-replies that go back to the customer cost
+              wallet credits. */}
+          <div style={{
+            padding: "12px 16px",
+            borderRadius: 12,
+            background: "#7C3AED10",
+            border: "1px solid #7C3AED25",
+            marginBottom: 14,
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 10,
+            fontSize: 12.5,
+            lineHeight: 1.6,
+          }}>
+            <span style={{ fontSize: 16 }}>🧠</span>
+            <div style={{ flex: 1 }}>
+              <strong style={{ color: "#7C3AED" }}>
+                {ar ? "تحليلات AI مجانيّة" : "AI analytics are free"}
+              </strong>
+              <span style={{ color: C.t2 }}>
+                {" — "}
+                {ar
+                  ? "التصنيف، تحليل المشاعر، الترجمة، الملخّصات، واقتراحات الردّ للوكيل لا تُخصم من المحفظة. فقط الردود التلقائيّة من وكيل AI الذكي للعملاء تستهلك الرصيد."
+                  : "Classification, sentiment, translation, summaries, and reply suggestions for agents don't draw from your wallet. Only AI auto-replies to customers consume credits."}
+              </span>
+            </div>
+          </div>
+
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14, marginBottom: 20 }}>
             {[[t("wallet"), overview.wallet, t("sar"), C.pri, "wallet"], [t("curPlan"), overview.curPlan, overview.planPrice + "/" + (ar ? "شهر" : "mo"), C.ok, "star"], [t("waConv"), overview.waConv, overview.waPercent, C.info, "msg"], [t("aiCredits"), overview.aiCredits, overview.aiPercent, "#7C3AED", "brain"]].map(([label, value, sub, color, icon], i) => (
               <Card key={i} style={{ padding: 18 }}>
