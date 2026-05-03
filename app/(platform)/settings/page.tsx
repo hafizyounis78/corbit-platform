@@ -17,6 +17,7 @@ import { useSettings } from "@/lib/api/hooks";
 // When Partner credentials arrive, swap this back to WhatsAppConnectPartner
 // (the wizard component + service layer are still in the tree, untouched).
 import { WhatsAppConnect } from "@/components/settings/whatsapp-connect";
+import { ApiAndWebhooksPanel } from "@/components/settings/api-webhooks-panel";
 import api from "@/lib/api/client";
 
 /* ─── helpers ─── */
@@ -1347,27 +1348,7 @@ export default function SettingsPage() {
 
       {/* ═══════════ API TAB ═══════════ */}
       {tab === "api" && (
-        <div style={grid2Style}>
-          {/* API Keys — coming soon */}
-          <Card style={{ padding: 18, opacity: 0.7 }}>
-            <SectionTitleWithComingSoon C={C}>{ar ? "مفاتيح API" : "API Keys"}</SectionTitleWithComingSoon>
-            <div style={{ fontSize: 12.5, color: C.t2, lineHeight: 1.7 }}>
-              {ar
-                ? "ستتيح لك إنشاء مفاتيح API لربط Corbit ببقيّة أنظمتك (CRM، متجرك، أتمتة المبيعات). نعمل على إطلاقها قريباً مع توثيق كامل وحدود استخدام واضحة."
-                : "Generate API keys to connect Corbit with your other systems (CRM, store, sales automation). Launching soon with full documentation and usage limits."}
-            </div>
-          </Card>
-
-          {/* Webhooks — coming soon */}
-          <Card style={{ padding: 18, opacity: 0.7 }}>
-            <SectionTitleWithComingSoon C={C}>{ar ? "الويب هوكس" : "Webhooks"}</SectionTitleWithComingSoon>
-            <div style={{ fontSize: 12.5, color: C.t2, lineHeight: 1.7 }}>
-              {ar
-                ? "اشترك في الأحداث (رسالة جديدة، تغيّر حالة، إلخ) واستقبلها مباشرة على نظامك. سيُتاح ضبط الويب هوكس مع تواقيع HMAC وإعادة المحاولة قريباً."
-                : "Subscribe to events (new message, status change, etc.) and receive them on your own system. Webhook configuration with HMAC signing and retries is coming soon."}
-            </div>
-          </Card>
-        </div>
+        <ApiAndWebhooksPanel C={C} dk={dk} ar={ar} isMob={isMob} />
       )}
     </div>
   );
