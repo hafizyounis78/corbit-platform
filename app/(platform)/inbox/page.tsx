@@ -470,18 +470,34 @@ export default function InboxPage() {
   }
 
   async function handleSaveNote() {
-    if (!noteText) return;
-    const text = noteText;
+    const text = noteText.trim();
+    if (!text || !selectedId) return;
     setNoteText("");
-    // Optimistic
+
+    // Optimistic insert so the operator sees their note immediately.
     setNotes((prev) => [...prev, text]);
-    showToast("✓");
-    if (selectedId) {
-      try {
-        await api.post(`/conversations/${selectedId}/notes`, { content: text });
-      } catch (e) {
-        console.error(e);
+
+    try {
+      // Backend validates `text`, not `content` — the previous payload
+      // shape silently 422'd and the optimistic note was the only
+      // record left (it disappeared on next conversation switch).
+      await api.post(`/conversations/${selectedId}/notes`, { text });
+      showToast(isAr ? "تم حفظ الملاحظة" : "Note saved");
+
+      // Refetch so the server-side state (with id, timestamp, author)
+      // overwrites the optimistic stub. Keeps the list consistent if
+      // multiple agents are editing the same conversation.
+      const res = await api.get(`/conversations/${selectedId}/notes`);
+      const data = res.data?.data ?? res.data;
+      if (Array.isArray(data)) {
+        setNotes(data.map((n: any) => n.content || n.text || n));
       }
+    } catch (err) {
+      // Roll back the optimistic insert and restore the textarea so
+      // the operator can retry without re-typing.
+      setNotes((prev) => prev.filter((n) => n !== text));
+      setNoteText(text);
+      showToast(isAr ? "تعذّر حفظ الملاحظة" : "Failed to save note", "error");
     }
   }
 
