@@ -804,7 +804,57 @@ export default function BotBuilderPage() {
                         {String(selectedNode.config.keywords).split(",").map((kw, i) => {
                           const trimmed = kw.trim();
                           if (!trimmed) return null;
-                          return <Badge key={i} color={NODE_COLORS.trigger}>{trimmed}</Badge>;
+                          // Removable keyword chip — clicking ✕ rebuilds
+                          // the comma-separated string without this entry
+                          // and drops empties so we never end up with
+                          // ",,," after multiple removals.
+                          const removeKeyword = () => {
+                            const next = String(selectedNode.config.keywords ?? '')
+                              .split(',')
+                              .map((s) => s.trim())
+                              .filter((s, idx) => s !== '' && idx !== i);
+                            updateNodeConfig(selectedNode.id, { keywords: next.join(', ') });
+                          };
+                          return (
+                            <span
+                              key={i}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                padding: '3px 4px 3px 8px',
+                                borderRadius: 999,
+                                background: NODE_COLORS.trigger + '22',
+                                color: NODE_COLORS.trigger,
+                                fontSize: 11,
+                                fontWeight: 600,
+                                lineHeight: 1,
+                              }}
+                            >
+                              {trimmed}
+                              <button
+                                onClick={removeKeyword}
+                                title={isAr ? 'حذف' : 'Remove'}
+                                style={{
+                                  width: 16,
+                                  height: 16,
+                                  borderRadius: 8,
+                                  border: 'none',
+                                  background: NODE_COLORS.trigger,
+                                  color: '#fff',
+                                  fontSize: 10,
+                                  lineHeight: 1,
+                                  cursor: 'pointer',
+                                  padding: 0,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}
+                              >
+                                ✕
+                              </button>
+                            </span>
+                          );
                         })}
                       </div>
                     )}
