@@ -19,6 +19,11 @@ export interface Conversation {
   notes: string;
   /** True when the AI auto-reply is currently handling this conversation. */
   aiEnabled?: boolean;
+  /** Resolved assignment from the API — present when a team or agent
+   *  has been picked for this conversation. Used by the inbox list and
+   *  chat header to show "👤 [name]" or an "Unassigned" pill. */
+  assignedUser?: { id: string; name: string } | null;
+  assignedTeam?: { id: string; name: string } | null;
 }
 
 export function getConversations(lang: Locale): Conversation[] {

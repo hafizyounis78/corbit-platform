@@ -55,6 +55,11 @@ function mapApiConversation(c: any): Conversation {
     joined: c.joined || c.created_at || c.createdAt || "",
     notes: c.notes || "",
     aiEnabled: !!(c.aiEnabled ?? c.ai_agent_enabled ?? false),
+    // Pass the assignment through verbatim — the sidebar list and the
+    // chat header both render the assignee name. Resource exposes
+    // these as { id, name } objects when the relations are loaded.
+    assignedUser: c.assignedUser ?? c.assigned_user ?? null,
+    assignedTeam: c.assignedTeam ?? c.assigned_team ?? null,
   };
 }
 
@@ -671,9 +676,26 @@ export default function InboxPage() {
                     <span style={{ fontSize: 10.5, color: C.t3 }}>{c.time}</span>
                   </div>
                   <div style={{ fontSize: 12.5, color: C.t2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.msg}</div>
-                  <div style={{ display: "flex", gap: 5, marginTop: 6 }}>
+                  <div style={{ display: "flex", gap: 5, marginTop: 6, alignItems: "center", flexWrap: "wrap" }}>
                     <Badge color={getStatusColor(c.st)}>{c.st}</Badge>
-                    <Badge color={C.pri}>{c.tag}</Badge>
+                    {c.tag && <Badge color={C.pri}>{c.tag}</Badge>}
+                    {/* Assignment chip — agent wins if both are set
+                        (agent assignment is more specific than team). */}
+                    {c.assignedUser?.name && (
+                      <span style={{ fontSize: 10, color: C.info, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 2 }}>
+                        👤 {c.assignedUser.name}
+                      </span>
+                    )}
+                    {!c.assignedUser?.name && c.assignedTeam?.name && (
+                      <span style={{ fontSize: 10, color: C.info, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 2 }}>
+                        👥 {c.assignedTeam.name}
+                      </span>
+                    )}
+                    {!c.assignedUser?.name && !c.assignedTeam?.name && !c.aiEnabled && (
+                      <span style={{ fontSize: 10, color: C.warn, fontWeight: 500 }}>
+                        ⏳ {isAr ? "غير مسند" : "Unassigned"}
+                      </span>
+                    )}
                   </div>
                 </div>
                 {c.unread > 0 && (
@@ -943,13 +965,29 @@ export default function InboxPage() {
         </div>
 
         {/* Intent Bar */}
-        <div style={{ padding: "8px 22px", background: isAiOn ? (dk ? "#1a1030" : "#F5F0FF") : (dk ? "#1a1a30" : "#FFF8F0"), borderBottom: "1px solid " + (dk ? C.brd : isAiOn ? "#E0D4F5" : "#F0E8DD"), display: "flex", alignItems: "center", gap: 10, fontSize: 12.5 }}>
+        <div style={{ padding: "8px 22px", background: isAiOn ? (dk ? "#1a1030" : "#F5F0FF") : (dk ? "#1a1a30" : "#FFF8F0"), borderBottom: "1px solid " + (dk ? C.brd : isAiOn ? "#E0D4F5" : "#F0E8DD"), display: "flex", alignItems: "center", gap: 10, fontSize: 12.5, flexWrap: "wrap" }}>
           {isAiOn && <div style={{ width: 28, height: 28, borderRadius: 8, background: AI_COLOR + "15", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name="bot" size={14} /></div>}
           {isAiOn && <span style={{ fontWeight: 600, color: AI_COLOR }}>{isAr ? "وكيل AI يدير المحادثة" : "AI Agent handling"}</span>}
-          {isAiOn && <span style={{ marginInlineStart: "auto", fontSize: 11.5, color: C.t2 }}>{isAr ? "هدف:" : "Intent:"} <span style={{ fontWeight: 600, color: C.pri }}>{selected.intent}</span></span>}
           {!isAiOn && <div style={{ width: 28, height: 28, borderRadius: 8, background: C.pri + "15", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name="brain" size={14} /></div>}
           {!isAiOn && <span style={{ color: C.t2 }}>{isAr ? "هدف:" : "Intent:"}</span>}
           {!isAiOn && <span style={{ fontWeight: 600, color: C.pri }}>{selected.intent}</span>}
+          {/* Assignment indicator. Specificity wins: agent ▸ team ▸ unassigned. */}
+          {selected.assignedUser?.name && (
+            <span style={{ fontSize: 11.5, color: C.info, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4 }}>
+              👤 {selected.assignedUser.name}
+            </span>
+          )}
+          {!selected.assignedUser?.name && selected.assignedTeam?.name && (
+            <span style={{ fontSize: 11.5, color: C.info, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4 }}>
+              👥 {selected.assignedTeam.name}
+            </span>
+          )}
+          {!isAiOn && !selected.assignedUser?.name && !selected.assignedTeam?.name && (
+            <span style={{ fontSize: 11.5, color: C.warn, fontWeight: 500 }}>
+              ⏳ {isAr ? "غير مسند" : "Unassigned"}
+            </span>
+          )}
+          {isAiOn && <span style={{ marginInlineStart: "auto", fontSize: 11.5, color: C.t2 }}>{isAr ? "هدف:" : "Intent:"} <span style={{ fontWeight: 600, color: C.pri }}>{selected.intent}</span></span>}
           {!isAiOn && <span style={{ marginInlineStart: "auto" }}><Badge color={priColor}>{selected.pri}</Badge></span>}
         </div>
 
