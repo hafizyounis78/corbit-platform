@@ -9,6 +9,31 @@ import { Button, Card, CardHeader, Badge, TabBar, DataTable, Modal, SearchInput,
 import { Icon } from "@/components/icons/icon";
 import { getStatusColor } from "@/lib/utils/status-color";
 import type { Campaign } from "@/data/campaigns";
+
+/**
+ * Defensive label-extractor. The API sometimes hydrates relations
+ * (template, segment) as full objects with id+name+name_ar+...
+ * instead of the bare string the Campaign type promises. Rendering
+ * the raw object trips React error #31 ("objects are not valid as
+ * a React child") and crashes the whole page.
+ *
+ * Returns the most human-readable name field, falls back through
+ * label/title, then a stringified id, finally null.
+ */
+function fieldName(v: any): string | null {
+  if (v == null) return null;
+  if (typeof v === "string" || typeof v === "number") return String(v);
+  if (typeof v === "object") {
+    return (
+      v.name_ar ||
+      v.name ||
+      v.label ||
+      v.title ||
+      (v.id != null ? String(v.id) : null)
+    );
+  }
+  return null;
+}
 import { useCampaigns, useCampaignStats, useCampaignProgress, useTemplates as useTemplatesApi, useSegments as useSegmentsApi, useCampaignFunnel } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
 import { COLORS, GRADIENT } from "@/lib/constants/colors";
@@ -1070,10 +1095,10 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
                 <Icon name="timer" size={12} /> {c.date}
               </span>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                <Icon name="users" size={12} /> {c.segment}
+                <Icon name="users" size={12} /> {fieldName(c.segment) || (isAr ? "—" : "—")}
               </span>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                <Icon name="file" size={12} /> {c.template}
+                <Icon name="file" size={12} /> {fieldName(c.template) || (isAr ? "—" : "—")}
               </span>
             </div>
           </div>
