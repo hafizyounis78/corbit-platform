@@ -11,7 +11,7 @@ import { Button, Avatar, Badge, Toggle } from "@/components/ui";
 import { Icon } from "@/components/icons/icon";
 import { getStatusColor, getPriorityColor } from "@/lib/utils/status-color";
 import type { Conversation, ChatMessage } from "@/data/conversations";
-import { useConversations, useMessages, useWindowStatus } from "@/lib/api/hooks";
+import { useConversations, useMessages, useWindowStatus, useTeams } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
 import { COLORS } from "@/lib/constants/colors";
 import { TemplatePicker } from "@/components/shared/template-picker";
@@ -108,6 +108,12 @@ export default function InboxPage() {
   const [notes, setNotes] = useState<string[]>([]);
   const [aiSuggesting, setAiSuggesting] = useState(false);
   const [aiSuggestionLogId, setAiSuggestionLogId] = useState<string | null>(null);
+  // Assignment drawer state — open/close + search filter for the
+  // teams-and-agents picker shown when the operator clicks "Assign".
+  const [showAssignDrawer, setShowAssignDrawer] = useState(false);
+  const [assignSearch, setAssignSearch] = useState("");
+  const [assigning, setAssigning] = useState(false);
+  const { data: teamsData } = useTeams();
 
   // "Report this message" modal — captures the message id + a preview
   // so support sees what the user was complaining about even if the
@@ -243,6 +249,34 @@ export default function InboxPage() {
       }
     }
   }, [selectedId, apiMessages, translations, isAr, showToast, requestTranslation]);
+
+  // Assign the conversation to a specific team or agent. The drawer
+  // shows both — picking a team posts teamId only, picking an agent
+  // posts userId. The backend's assign() merges either field, so a
+  // team assignment leaves the user unchanged (auto-distribution
+  // handles the rest).
+  const handleAssign = useCallback(async (target: { kind: "team" | "user"; id: string; label: string }) => {
+    if (!selectedId || assigning) return;
+    setAssigning(true);
+    try {
+      const payload: Record<string, string> = {};
+      if (target.kind === "team") payload.teamId = target.id;
+      else payload.userId = target.id;
+      await api.post(`/conversations/${selectedId}/assign`, payload);
+      showToast(isAr ? `تمّ الإسناد إلى ${target.label}` : `Assigned to ${target.label}`);
+      setShowAssignDrawer(false);
+      setAssignSearch("");
+      mutateConvos();
+    } catch (err: any) {
+      showToast(
+        err?.response?.data?.message
+          || (isAr ? "تعذّر الإسناد" : "Assignment failed"),
+        "error",
+      );
+    } finally {
+      setAssigning(false);
+    }
+  }, [selectedId, assigning, isAr, showToast, mutateConvos]);
 
   // CSAT request — sends a customer-satisfaction template to the
   // contact. Backend wiring lands with the CSAT template work; for
@@ -735,7 +769,149 @@ export default function InboxPage() {
             )}
             {/* Assign */}
             {!isAiOn && (
-              <Button outline small onClick={() => showToast("✓")}>{isAr ? "إسناد" : "Assign"}</Button>
+              <div style={{ position: "relative" }}>
+                <Button outline small onClick={() => setShowAssignDrawer((v) => !v)}>
+                  {isAr ? "إسناد" : "Assign"} ▾
+                </Button>
+                {showAssignDrawer && (() => {
+                  const teams = (teamsData as any)?.teams ?? [];
+                  const members = (teamsData as any)?.members ?? [];
+                  const q = assignSearch.trim().toLowerCase();
+                  const matches = (s: string) => !q || s.toLowerCase().includes(q);
+                  const filteredTeams = teams.filter((t: any) =>
+                    matches(t.name ?? "") || matches(t.name_ar ?? ""),
+                  );
+                  const filteredMembers = members.filter((m: any) =>
+                    matches(m.name ?? "") || matches(m.email ?? ""),
+                  );
+                  return (
+                    <>
+                      {/* Backdrop closes the drawer on outside click */}
+                      <div
+                        onClick={() => setShowAssignDrawer(false)}
+                        style={{ position: "fixed", inset: 0, zIndex: 40 }}
+                      />
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "calc(100% + 6px)",
+                          insetInlineEnd: 0,
+                          width: 280,
+                          background: C.card,
+                          borderRadius: 12,
+                          border: `1px solid ${C.brd}`,
+                          boxShadow: "0 12px 32px rgba(0,0,0,0.18)",
+                          zIndex: 50,
+                          overflow: "hidden",
+                          display: "flex",
+                          flexDirection: "column",
+                          maxHeight: 380,
+                        }}
+                      >
+                        <div style={{ padding: "10px 14px", borderBottom: `1px solid ${C.brd}`, fontSize: 12, fontWeight: 700, color: C.t2 }}>
+                          {isAr ? "إسناد إلى" : "Assign to"}
+                        </div>
+                        <div style={{ padding: "8px 10px", borderBottom: `1px solid ${C.brd}` }}>
+                          <input
+                            value={assignSearch}
+                            onChange={(e) => setAssignSearch(e.target.value)}
+                            placeholder={isAr ? "بحث عن قسم أو وكيل..." : "Search team or agent..."}
+                            style={{
+                              width: "100%",
+                              padding: "7px 10px",
+                              borderRadius: 8,
+                              background: C.inp,
+                              border: `1px solid ${C.brd}`,
+                              fontFamily: FONT_FAMILY,
+                              fontSize: 11.5,
+                              color: C.txt,
+                              outline: "none",
+                            }}
+                          />
+                        </div>
+                        <div style={{ flex: 1, overflowY: "auto", padding: "6px" }}>
+                          {filteredTeams.length > 0 && (
+                            <>
+                              <div style={{ fontSize: 10, fontWeight: 600, color: C.t3, padding: "4px 10px" }}>
+                                {isAr ? "الأقسام" : "Teams"}
+                              </div>
+                              {filteredTeams.map((tm: any) => (
+                                <div
+                                  key={`team-${tm.id}`}
+                                  onClick={() => handleAssign({
+                                    kind: "team",
+                                    id: tm.id,
+                                    label: (isAr && tm.name_ar) ? tm.name_ar : tm.name,
+                                  })}
+                                  style={{
+                                    padding: "8px 10px",
+                                    borderRadius: 8,
+                                    cursor: assigning ? "wait" : "pointer",
+                                    fontSize: 12,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 8,
+                                    opacity: assigning ? 0.5 : 1,
+                                  }}
+                                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = C.inp; }}
+                                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                                >
+                                  <div style={{
+                                    width: 24, height: 24, borderRadius: 6,
+                                    background: (tm.color || C.pri) + "20",
+                                    color: tm.color || C.pri,
+                                    display: "flex", alignItems: "center", justifyContent: "center",
+                                    fontSize: 11, fontWeight: 700,
+                                  }}>
+                                    {((isAr && tm.name_ar) ? tm.name_ar : tm.name)?.[0] ?? "T"}
+                                  </div>
+                                  {(isAr && tm.name_ar) ? tm.name_ar : tm.name}
+                                </div>
+                              ))}
+                            </>
+                          )}
+                          {filteredMembers.length > 0 && (
+                            <>
+                              <div style={{ fontSize: 10, fontWeight: 600, color: C.t3, padding: "8px 10px 4px", borderTop: filteredTeams.length > 0 ? `1px solid ${C.brd}` : "none", marginTop: filteredTeams.length > 0 ? 4 : 0 }}>
+                                {isAr ? "الوكلاء" : "Agents"}
+                              </div>
+                              {filteredMembers.map((m: any) => (
+                                <div
+                                  key={`user-${m.id}`}
+                                  onClick={() => handleAssign({ kind: "user", id: m.id, label: m.name })}
+                                  style={{
+                                    padding: "8px 10px",
+                                    borderRadius: 8,
+                                    cursor: assigning ? "wait" : "pointer",
+                                    fontSize: 12,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 8,
+                                    opacity: assigning ? 0.5 : 1,
+                                  }}
+                                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = C.inp; }}
+                                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                                >
+                                  <Avatar name={m.name} size={24} />
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontWeight: 600, fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.name}</div>
+                                    {m.role && <div style={{ fontSize: 10, color: C.t3 }}>{m.role}</div>}
+                                  </div>
+                                </div>
+                              ))}
+                            </>
+                          )}
+                          {filteredTeams.length === 0 && filteredMembers.length === 0 && (
+                            <div style={{ padding: "20px 10px", textAlign: "center", fontSize: 12, color: C.t3 }}>
+                              {isAr ? "لا توجد نتائج" : "No matches"}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
             )}
             {/* Resolve */}
             <Button primary small onClick={handleResolve}>{isAr ? "حل" : "Resolve"}</Button>
