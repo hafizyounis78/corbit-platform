@@ -3,16 +3,25 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import api from './client';
 
 // ─── Generic Hook ─────────────────────────────────────────
-export function useApi<T = any>(url: string | null, deps: any[] = []) {
+//
+// Optional `pollInterval` enables background polling. Polling pauses
+// while the tab is hidden so a user with 6 tabs open isn't stacking
+// requests against the API for inboxes they aren't looking at.
+export function useApi<T = any>(
+  url: string | null,
+  deps: any[] = [],
+  pollInterval?: number,
+) {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(!!url);
   const urlRef = useRef(url);
   urlRef.current = url;
-
-  const fetchData = useCallback(async () => {
+  // Quiet refetches don't flip isLoading — otherwise the inbox
+  // re-renders a "loading…" skeleton every poll tick.
+  const fetchData = useCallback(async (quiet = false) => {
     if (!urlRef.current) { setData(null); setIsLoading(false); return; }
-    setIsLoading(true);
+    if (!quiet) setIsLoading(true);
     setError(null);
     try {
       const res = await api.get(urlRef.current);
@@ -20,11 +29,29 @@ export function useApi<T = any>(url: string | null, deps: any[] = []) {
     } catch (e: any) {
       if (urlRef.current === url) setError(e.response?.data?.message || e.message);
     } finally {
-      if (urlRef.current === url) setIsLoading(false);
+      if (urlRef.current === url && !quiet) setIsLoading(false);
     }
   }, [url]);
 
   useEffect(() => { fetchData(); }, [url, ...deps]);
+
+  useEffect(() => {
+    if (!pollInterval || !url) return;
+    let handle: number | undefined;
+    const tick = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      fetchData(true);
+    };
+    handle = window.setInterval(tick, pollInterval);
+    const onVis = () => {
+      if (document.visibilityState === 'visible') fetchData(true);
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      if (handle) clearInterval(handle);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [url, pollInterval, fetchData]);
 
   return { data, error, isLoading, mutate: fetchData };
 }
@@ -40,21 +67,31 @@ export function useNavBadges() {
 }
 
 // ─── Conversations ────────────────────────────────────────
+//
+// Inbox is polled every 8s in the background so new conversations
+// and unread bumps surface without a manual refresh. Visibility-aware
+// (see useApi) so background tabs stay quiet.
 export function useConversations(params?: { status?: string; search?: string; page?: number }) {
   const qs = new URLSearchParams();
   if (params?.status) qs.set('status', params.status);
   if (params?.search) qs.set('search', params.search);
   if (params?.page) qs.set('page', String(params.page));
   const q = qs.toString();
-  return useApi(`/conversations${q ? '?' + q : ''}`, [q]);
+  return useApi(`/conversations${q ? '?' + q : ''}`, [q], 8000);
 }
 
 export function useConversation(id: string | null) {
   return useApi(id ? `/conversations/${id}` : null, [id]);
 }
 
+// Active conversation refreshes faster (4s) — that's the chat the
+// agent is staring at, so new messages must appear quickly.
 export function useMessages(conversationId: string | null) {
-  return useApi(conversationId ? `/conversations/${conversationId}/messages` : null, [conversationId]);
+  return useApi(
+    conversationId ? `/conversations/${conversationId}/messages` : null,
+    [conversationId],
+    4000,
+  );
 }
 
 export function useWindowStatus(conversationId: string | null) {

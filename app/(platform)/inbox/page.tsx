@@ -235,6 +235,23 @@ export default function InboxPage() {
     })();
   }, [selectedId]);
 
+  // Auto-mark conversation as read when opened. Optimistic — the
+  // sidebar badge clears immediately and the API call confirms it
+  // server-side. mutateConvos reconciles the count on next refresh.
+  useEffect(() => {
+    if (!selectedId) return;
+    const current = (selected as any)?.unread ?? 0;
+    if (current <= 0) return;
+    (async () => {
+      try {
+        await api.post(`/conversations/${selectedId}/read`);
+        mutateConvos();
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+  }, [selectedId, mutateConvos]);
+
   // Sync filter tab to API
   useEffect(() => {
     if (filterTab === "all") {
