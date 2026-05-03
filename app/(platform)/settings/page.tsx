@@ -1119,38 +1119,56 @@ export default function SettingsPage() {
             </div>
           </Card>
 
-          <div>
-            {/* Channel Comparison */}
-            <Card style={{ padding: 18 }}>
-              <SectionTitle>{ar ? "مقارنة القنوات" : "Channel Comparison"}</SectionTitle>
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
-                  <thead>
-                    <tr>
-                      {["", "WhatsApp", "SMS"].map((h, i) => (
-                        <th key={i} style={{ padding: "8px 10px", textAlign: i === 0 ? "start" : "center", fontSize: 11.5, fontWeight: 600, color: C.t2, borderBottom: `1px solid ${C.brd}` }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[
-                      [ar ? "التكلفة" : "Cost", ar ? "منخفضة" : "Low", ar ? "متوسطة" : "Medium"],
-                      [ar ? "الوسائط" : "Media", "✓", "✗"],
-                      [ar ? "القوالب" : "Templates", "✓", "✓"],
-                      [ar ? "الاستجابة" : "Read Rate", "95%", "70%"],
-                      [ar ? "الوصول" : "Reach", ar ? "عالي" : "High", ar ? "عالمي" : "Global"],
-                    ].map(([label, wa, sms], i) => (
-                      <tr key={i}>
-                        <td style={{ padding: "8px 10px", fontWeight: 500, borderBottom: `1px solid ${dk ? C.brd : "#F5F2ED"}` }}>{label}</td>
-                        <td style={{ padding: "8px 10px", textAlign: "center", borderBottom: `1px solid ${dk ? C.brd : "#F5F2ED"}` }}>{wa}</td>
-                        <td style={{ padding: "8px 10px", textAlign: "center", borderBottom: `1px solid ${dk ? C.brd : "#F5F2ED"}` }}>{sms}</td>
-                      </tr>
+          {/* Channel Comparison — KPI cards per channel + decision tip.
+              Numbers are static benchmarks for orientation, not a
+              live read of this org's traffic. */}
+          <Card style={{ padding: 18 }}>
+            <SectionTitle>{ar ? "مقارنة القنوات" : "Channel Comparison"}</SectionTitle>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 10 }}>
+              {[
+                {
+                  channel: "WhatsApp",
+                  color: C.wa,
+                  emoji: "💬",
+                  metrics: [
+                    { label: ar ? "نسبة القراءة" : "Read Rate", value: "79%", color: C.ok },
+                    { label: ar ? "التكلفة" : "Cost", value: ar ? "0.20-0.30 ر.س" : "0.20-0.30 SAR", color: C.pri },
+                    { label: ar ? "الوسائط" : "Media", value: "✓", color: C.ok },
+                  ],
+                },
+                {
+                  channel: "SMS",
+                  color: "#5B21B6",
+                  emoji: "📱",
+                  metrics: [
+                    { label: ar ? "نسبة القراءة" : "Read Rate", value: "95%", color: C.ok },
+                    { label: ar ? "التكلفة" : "Cost", value: ar ? "0.15-0.30 ر.س" : "0.15-0.30 SAR", color: C.warn },
+                    { label: ar ? "الوسائط" : "Media", value: "✗", color: C.err },
+                  ],
+                },
+              ].map((row) => (
+                <div key={row.channel} style={{ padding: 12, borderRadius: 12, background: C.inp }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, fontWeight: 700, fontSize: 13 }}>
+                    <span style={{ fontSize: 16 }}>{row.emoji}</span>
+                    <span style={{ color: row.color }}>{row.channel}</span>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                    {row.metrics.map((m, i) => (
+                      <div key={i} style={{ textAlign: "center", padding: "8px 6px", borderRadius: 8, background: dk ? "#0e0e16" : "#fff" }}>
+                        <div style={{ fontSize: 10.5, color: C.t2, marginBottom: 3 }}>{m.label}</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: m.color }}>{m.value}</div>
+                      </div>
                     ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-          </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 10, background: `${C.pri}08`, border: `1px solid ${C.pri}20`, fontSize: 11.5, color: C.t2, lineHeight: 1.6 }}>
+              💡 {ar
+                ? "SMS أعلى نسبة قراءة لكن بدون وسائط. واتساب أغنى محتوى وأكثر تفاعلاً للحملات. الجمع بينهما (Fallback) يضمن الوصول دون مضاعفة التكلفة."
+                : "SMS has the highest read rate but no media. WhatsApp is richer and more engaging for campaigns. Combining them (Fallback mode) maximizes reach without doubling cost."}
+            </div>
+          </Card>
         </div>
       )}
 
