@@ -15,6 +15,7 @@ import { FONT_FAMILY } from "@/lib/constants/font";
 import type { ThemeColors } from "@/types/common";
 import { useBots } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
+import { AiInsightsBar, type AiInsightCard } from "@/components/shared/ai-insights-bar";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -1324,6 +1325,63 @@ export default function BotBuilderPage() {
       </div>
 
       <Pagination page={page} totalPages={totalBotPages} totalItems={filteredBots.length} onPageChange={setPage} />
+
+      {/* AI Insights — derived from the loaded bot list. */}
+      {(() => {
+        if (!filteredBots || filteredBots.length === 0) return null;
+        const published = filteredBots.filter((b: any) => b.status === "published" || b.is_active);
+        const drafts = filteredBots.filter((b: any) => b.status === "draft");
+        // Top performer by conversations served.
+        const sortedByConvos = [...filteredBots].sort((a: any, b: any) => (b.conversations || 0) - (a.conversations || 0));
+        const top = sortedByConvos[0];
+        const cards: AiInsightCard[] = [];
+        if (top && top.conversations > 0) {
+          cards.push({
+            icon: "🏆",
+            title: isAr ? "البوت الأنشط" : "Most Active Bot",
+            value: top.conversations,
+            caption: isAr
+              ? `${top.name} خدم أكبر عدد من المحادثات`
+              : `${top.name} handled the most conversations`,
+            cta: isAr ? "افحص التدفّق" : "Inspect flow",
+            tone: "ok",
+          });
+        }
+        if (drafts.length > 0) {
+          cards.push({
+            icon: "📝",
+            title: isAr ? "مسودّات لم تُنشَر" : "Unpublished Drafts",
+            value: drafts.length,
+            caption: isAr
+              ? "بوتات جاهزة للاختبار قبل تفعيلها"
+              : "Bots ready to test before going live",
+            cta: isAr ? "اختبر وانشر" : "Test & publish",
+            tone: "warn",
+          });
+        }
+        if (published.length === 0 && filteredBots.length > 0) {
+          cards.push({
+            icon: "💡",
+            title: isAr ? "اقتراح" : "Suggestion",
+            caption: isAr
+              ? "لا يوجد بوت نشط حالياً — الذكاء الاصطناعي يجاوب بدلاً منهم. فعّل بوت لتقليل التكلفة."
+              : "No active bots yet — AI handles fallback. Publishing a bot reduces AI cost.",
+            cta: isAr ? "انشر أوّل بوت" : "Publish first bot",
+            tone: "pri",
+          });
+        } else {
+          cards.push({
+            icon: "🚀",
+            title: isAr ? "بوتات نشطة" : "Active Bots",
+            value: published.length,
+            caption: isAr
+              ? "كل بوت نشط يقلّل تكلفة AI ويسرّع الردود"
+              : "Each active bot cuts AI cost and speeds responses",
+            tone: "pri",
+          });
+        }
+        return <AiInsightsBar cards={cards} title={isAr ? "تحليل بوتاتك" : "Bots Insights"} />;
+      })()}
 
       {/* Empty state */}
       {filteredBots.length === 0 && (

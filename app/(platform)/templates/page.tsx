@@ -9,6 +9,7 @@ import { Button, Card, CardHeader, Badge, TabBar, SearchInput, Modal, Pagination
 import { Icon } from "@/components/icons/icon";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { WhatsAppPhonePreview } from "@/components/templates/whatsapp-phone-preview";
+import { AiInsightsBar, type AiInsightCard } from "@/components/shared/ai-insights-bar";
 import { getStatusColor } from "@/lib/utils/status-color";
 import type { Template } from "@/data/templates";
 import { useTemplates, useTemplateStats } from "@/lib/api/hooks";
@@ -621,6 +622,68 @@ export default function TemplatesPage() {
 
       {/* Pagination */}
       <Pagination page={page} totalPages={totalPages} totalItems={paginationTotalCount} onPageChange={setPage} />
+
+      {/* AI Insights — derived locally from the loaded page so we
+          don't need a dedicated insights endpoint. */}
+      {(() => {
+        const allTemplates = pageTemplates as any[];
+        if (!allTemplates || allTemplates.length === 0) return null;
+        const approved = allTemplates.filter((t) => t.status === "approved");
+        const rejected = allTemplates.filter((t) => t.status === "rejected");
+        const pending = allTemplates.filter((t) => t.status === "pending");
+        // Best performer = highest open rate among approved with stats.
+        const withStats = approved.filter((t) => typeof t.open_rate === "number" || typeof t.openRate === "number");
+        const sortedByOpen = [...withStats].sort((a, b) => (Number(b.open_rate ?? b.openRate ?? 0)) - (Number(a.open_rate ?? a.openRate ?? 0)));
+        const top = sortedByOpen[0];
+        const cards: AiInsightCard[] = [];
+        if (top) {
+          const rate = Number(top.open_rate ?? top.openRate ?? 0);
+          cards.push({
+            icon: "🏆",
+            title: isAr ? "أعلى أداء" : "Top Performer",
+            value: rate ? `${rate.toFixed(1)}%` : undefined,
+            caption: isAr
+              ? `${top.name} يحقّق أعلى نسبة فتح هذا الشهر`
+              : `${top.name} has the highest open rate this month`,
+            cta: isAr ? "كرّر بناه في قالب جديد" : "Replicate in a new template",
+            tone: "ok",
+          });
+        }
+        if (rejected.length > 0) {
+          cards.push({
+            icon: "⚠️",
+            title: isAr ? "قوالب مرفوضة" : "Rejected Templates",
+            value: rejected.length,
+            caption: isAr
+              ? "تحتاج مراجعة قبل إعادة التقديم لـ Meta"
+              : "Need review before re-submitting to Meta",
+            cta: isAr ? "افتح تفاصيل الرفض" : "View rejection details",
+            tone: "err",
+          });
+        }
+        if (pending.length > 0) {
+          cards.push({
+            icon: "⏳",
+            title: isAr ? "قيد المراجعة" : "Pending Review",
+            value: pending.length,
+            caption: isAr
+              ? "Meta تستغرق 24-48 ساعة عادةً"
+              : "Meta typically reviews within 24-48h",
+            tone: "warn",
+          });
+        } else if (approved.length >= 5) {
+          cards.push({
+            icon: "💡",
+            title: isAr ? "اقتراح" : "Suggestion",
+            caption: isAr
+              ? "أضف قالب CSAT لقياس رضا العملاء بعد كل محادثة"
+              : "Add a CSAT template to measure satisfaction after each chat",
+            cta: isAr ? "أنشئ قالب جديد" : "Create new template",
+            tone: "pri",
+          });
+        }
+        return <AiInsightsBar cards={cards} title={isAr ? "تحليل قوالبك" : "Templates Insights"} />;
+      })()}
 
       {/* ── Rejection Details Modal ── */}
       <Modal
