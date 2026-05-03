@@ -395,19 +395,17 @@ export default function InboxPage() {
     }
   }
 
-  async function handleQuickReply(reply: string) {
-    const now = new Date();
-    const time = now.toLocaleTimeString(isAr ? "ar-SA" : "en-US", { hour: "numeric", minute: "2-digit" });
-    setLocalMessages((prev) => [...prev, { from: "agent", text: reply, time }]);
+  function handleQuickReply(reply: string) {
+    // Quick replies populate the composer for review/edit before
+    // sending — same pattern as WhatsApp Web / Slack / Intercom
+    // canned responses. The previous version fired the message
+    // straight to the API on click, which (a) bypassed the agent's
+    // chance to tweak the wording, and (b) would silently send
+    // even with the AI on (since this code path skipped the
+    // composer's disabled-state check).
+    setInputText(reply);
     setShowQuickReplies(false);
-    if (selectedId) {
-      try {
-        await api.post(`/conversations/${selectedId}/messages`, { content: reply, messageType: "agent" });
-        mutateMessages();
-      } catch (e) {
-        console.error(e);
-      }
-    }
+    inputRef.current?.focus();
   }
 
   function selectConvo(idx: number) {
