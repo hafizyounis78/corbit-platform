@@ -36,6 +36,15 @@ export default function BillingPage() {
   const [txnPage, setTxnPage] = useState(1);
   const [showTopUp, setShowTopUp] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState("");
+  // Calculator inputs — each holds a string so an empty input
+  // doesn't read NaN. Only used by the calculator section in the
+  // top-up modal; not persisted.
+  const [showCalc, setShowCalc] = useState(false);
+  const [calcMk, setCalcMk] = useState("");
+  const [calcUt, setCalcUt] = useState("");
+  const [calcAu, setCalcAu] = useState("");
+  const [calcSv, setCalcSv] = useState("");
+  const [calcSm, setCalcSm] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("bank");
   const [topUpLoading, setTopUpLoading] = useState(false);
   const [bankAccountId, setBankAccountId] = useState("");
@@ -412,6 +421,79 @@ export default function BillingPage() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Calculator — let the operator plan a top-up by expected
+              message volume. Prices below are platform defaults
+              shown for orientation; the actual debit is resolved
+              per-org at send time via PricingResolver, so this is a
+              forecast tool, not a final price. */}
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowCalc(!showCalc)}
+              style={{
+                width: "100%", padding: "10px 14px", borderRadius: 10,
+                border: `1px dashed ${C.brd}`, background: showCalc ? `${C.pri}08` : "transparent",
+                color: showCalc ? C.pri : C.t2, fontFamily: FONT_FAMILY, fontSize: 12.5, fontWeight: 600,
+                cursor: "pointer", textAlign: "start", display: "flex", alignItems: "center", gap: 8,
+              }}
+            >
+              <span>{showCalc ? "▾" : "▸"}</span>
+              {ar ? "🧮 حاسبة الرصيد — قدّر المبلغ من عدد الرسائل" : "🧮 Calculator — estimate from message volume"}
+            </button>
+            {showCalc && (() => {
+              const mk = parseInt(calcMk, 10) || 0;
+              const ut = parseInt(calcUt, 10) || 0;
+              const au = parseInt(calcAu, 10) || 0;
+              const sv = parseInt(calcSv, 10) || 0;
+              const sm = parseInt(calcSm, 10) || 0;
+              // Platform defaults (SAR per message). When PricingResolver
+              // is exposed via API this should swap to per-org rates.
+              const PRICE = { mk: 0.30, ut: 0.20, au: 0.10, sv: 0.00, sm: 0.15 };
+              const total = mk * PRICE.mk + ut * PRICE.ut + au * PRICE.au + sv * PRICE.sv + sm * PRICE.sm;
+              const rows = [
+                [ar ? "تسويقي (Marketing)" : "Marketing", calcMk, setCalcMk, PRICE.mk, "mk"],
+                [ar ? "خدمي (Utility)" : "Utility", calcUt, setCalcUt, PRICE.ut, "ut"],
+                [ar ? "مصادقة (OTP)" : "Authentication (OTP)", calcAu, setCalcAu, PRICE.au, "au"],
+                [ar ? "خدمة عملاء" : "Service", calcSv, setCalcSv, PRICE.sv, "sv"],
+                [ar ? "SMS" : "SMS", calcSm, setCalcSm, PRICE.sm, "sm"],
+              ] as const;
+              return (
+                <div style={{ marginTop: 10, padding: 14, borderRadius: 12, background: C.inp, display: "flex", flexDirection: "column", gap: 8 }}>
+                  {rows.map(([label, val, setVal, price, key]) => (
+                    <div key={key as string} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: C.txt }}>{label}</div>
+                        <div style={{ fontSize: 10, color: C.t3 }}>{Number(price).toFixed(2)} {ar ? "ر.س / رسالة" : "SAR/msg"}</div>
+                      </div>
+                      <input
+                        type="number" min={0}
+                        value={val as string}
+                        onChange={(e) => (setVal as (s: string) => void)(e.target.value)}
+                        placeholder="0"
+                        style={{ width: 80, padding: "7px 10px", borderRadius: 8, background: C.card, border: `1px solid ${C.brd}`, color: C.txt, fontSize: 13, fontWeight: 600, fontFamily: FONT_FAMILY, outline: "none", textAlign: "center" }}
+                      />
+                    </div>
+                  ))}
+                  {total > 0 && (
+                    <div style={{ marginTop: 4, paddingTop: 10, borderTop: `1px solid ${C.brd}`, display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: 12, color: C.t2 }}>{ar ? "الإجمالي التقريبي" : "Estimated total"}</span>
+                        <span style={{ fontSize: 18, fontWeight: 700, color: C.pri }}>{total.toFixed(2)} {ar ? "ر.س" : "SAR"}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setTopUpAmount(String(Math.ceil(total)))}
+                        style={{ padding: "9px", borderRadius: 8, border: "none", background: C.pri, color: "#fff", fontFamily: FONT_FAMILY, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}
+                      >
+                        {ar ? "استخدم هذا المبلغ" : "Use this amount"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Custom Amount */}
