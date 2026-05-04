@@ -381,6 +381,31 @@ export function useHelpContact() {
   return useApi('/help/contact');
 }
 
+/**
+ * Anonymous votes need a stable client token so a browser can't
+ * vote a hundred times. We mint and persist it once per device in
+ * localStorage; logged-in users get identified by user_id and the
+ * token is ignored server-side.
+ */
+export function getHelpClientToken(): string {
+  if (typeof window === 'undefined') return '';
+  const KEY = 'corbit:help:clientToken';
+  try {
+    let t = localStorage.getItem(KEY);
+    if (!t) {
+      t = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+        ? crypto.randomUUID()
+        : Math.random().toString(36).slice(2) + Date.now().toString(36);
+      localStorage.setItem(KEY, t);
+    }
+    return t;
+  } catch {
+    // localStorage unavailable (Safari Private Mode etc.) — return a
+    // session-scoped fallback so the vote still goes through.
+    return Math.random().toString(36).slice(2);
+  }
+}
+
 // ─── Support tickets ─────────────────────────────────────
 export function useSupportTickets(status?: string) {
   const qs = status ? `?status=${encodeURIComponent(status)}` : '';

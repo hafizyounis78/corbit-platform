@@ -4,12 +4,16 @@ import { useState } from "react";
 import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { useHelpFaqs } from "@/lib/api/hooks";
+import { MarkdownText } from "./markdown-text";
+import { HelpfulVote } from "./helpful-vote";
 import { FONT_FAMILY } from "@/lib/constants/font";
 
 interface FaqItem {
   id: string;
   question: { ar: string; en?: string | null };
   answer:   { ar: string; en?: string | null };
+  helpful_yes?: number;
+  helpful_no?: number;
 }
 
 export function FaqPanel() {
@@ -76,11 +80,19 @@ export function FaqPanel() {
               </span>
             </button>
             {open && (
-              <div style={{
-                padding: "0 18px 16px 40px",
-                fontSize: 12.5, color: C.t2, lineHeight: 1.85, whiteSpace: "pre-wrap",
-              }}>
-                {pick(f.answer)}
+              <div style={{ padding: "0 18px 14px 40px" }}>
+                <MarkdownText
+                  text={pick(f.answer)}
+                  style={{ fontSize: 12.5, color: C.t2 }}
+                  linkColor={C.pri}
+                  codeBg={C.inp}
+                />
+                <HelpfulVote
+                  targetType="faq"
+                  targetId={f.id}
+                  initialYes={f.helpful_yes ?? 0}
+                  initialNo={f.helpful_no ?? 0}
+                />
               </div>
             )}
           </div>

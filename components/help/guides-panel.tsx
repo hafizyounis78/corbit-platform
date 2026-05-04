@@ -5,6 +5,8 @@ import { Card } from "@/components/ui";
 import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { useHelpGuides } from "@/lib/api/hooks";
+import { MarkdownText } from "./markdown-text";
+import { HelpfulVote } from "./helpful-vote";
 import { FONT_FAMILY } from "@/lib/constants/font";
 
 interface GuideStep {
@@ -24,6 +26,8 @@ interface Guide {
   color: string;
   tags: string[];
   steps: GuideStep[];
+  helpful_yes?: number;
+  helpful_no?: number;
 }
 
 /**
@@ -125,12 +129,15 @@ export function GuidesPanel({ onNavigate }: { onNavigate: (path: string) => void
                 </div>
                 <div style={{ flex: 1, minWidth: 0, paddingBottom: 4 }}>
                   <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6, color: C.txt }}>{pick(step.title)}</div>
-                  <div style={{
-                    padding: "12px 16px", borderRadius: 12, background: C.inp,
-                    fontSize: 13, color: C.t2, lineHeight: 1.7,
-                  }}>
-                    {pick(step.desc)}
-                  </div>
+                  <MarkdownText
+                    text={pick(step.desc)}
+                    style={{
+                      padding: "12px 16px", borderRadius: 12, background: C.inp,
+                      fontSize: 13, color: C.t2,
+                    }}
+                    linkColor={guide.color}
+                    codeBg={dk ? "#0006" : "#0001"}
+                  />
                   {tipText && (
                     <div style={{
                       marginTop: 8, padding: "8px 14px", borderRadius: 8,
@@ -177,6 +184,16 @@ export function GuidesPanel({ onNavigate }: { onNavigate: (path: string) => void
             );
           })}
         </div>
+
+        {/* "Was this helpful?" footer for the whole guide. Sits below
+            the last step so the operator only sees it after they've
+            actually walked through the content. */}
+        <HelpfulVote
+          targetType="guide"
+          targetId={guide.id}
+          initialYes={guide.helpful_yes ?? 0}
+          initialNo={guide.helpful_no ?? 0}
+        />
       </div>
     );
   }
