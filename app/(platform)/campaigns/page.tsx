@@ -34,7 +34,7 @@ function fieldName(v: any): string | null {
   }
   return null;
 }
-import { useCampaigns, useCampaignStats, useCampaignProgress, useTemplates as useTemplatesApi, useSegments as useSegmentsApi, useCampaignFunnel } from "@/lib/api/hooks";
+import { useCampaigns, useCampaignStats, useCampaignProgress, useTemplates as useTemplatesApi, useSegments as useSegmentsApi, useCampaignFunnel, useSmsConfig } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
 import { COLORS, GRADIENT } from "@/lib/constants/colors";
 import { FONT_FAMILY } from "@/lib/constants/font";
@@ -70,6 +70,12 @@ export default function CampaignsPage() {
     variantB: "",
     abSplit: 50,         // % of test pool that gets A
     abTestSize: 30,      // % of total recipients in the test pool (rest = holdout)
+    // Channel routing: how each recipient receives the campaign.
+    //   wa_only  — WhatsApp only (default; no SMS cost)
+    //   sms_only — SMS only (skip WhatsApp entirely)
+    //   wa_sms   — WhatsApp first, fall back to SMS if WA send fails
+    //   dual     — both channels in parallel (each contact gets two messages)
+    channelMode: "wa_only" as "wa_only" | "sms_only" | "wa_sms" | "dual",
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -80,6 +86,15 @@ export default function CampaignsPage() {
 
   // Fetch from API, fall back to mock data
   const { data: apiResponse, isLoading, mutate } = useCampaigns({ status: tab === "all" ? undefined : tab, search: serverSearch || undefined, page });
+
+  // SMS readiness — gates the SMS-touching channel modes (sms_only,
+  // wa_sms, dual) so the operator doesn't pick a mode the backend
+  // will refuse with a 422. The 'connected' flag mirrors the backend's
+  // isReady() check (token + sender + is_active), so we use it as the
+  // single source of truth instead of recomputing client-side.
+  const { data: smsConfigResponse } = useSmsConfig();
+  const smsConfig = smsConfigResponse?.data ?? smsConfigResponse;
+  const smsReady = !!smsConfig?.connected;
 
   // Extract data and pagination meta
   const apiCampaigns = apiResponse?.data || apiResponse;
@@ -242,7 +257,7 @@ export default function CampaignsPage() {
             <Icon name="brain" size={14} />
             {isAr ? "\uD83E\uDDE0 \u0645\u0646\u0634\u0626 \u0630\u0643\u064A" : "\uD83E\uDDE0 AI Builder"}
           </Button>
-          <Button primary onClick={() => { setNewCampaign({ name: "", template: "", segment: "", scheduledDate: "", scheduledTime: "09:00", sendNow: true, budget: "", abTest: false, variantA: "", variantB: "", abSplit: 50, abTestSize: 30 }); setFormErrors({}); setIsSubmitting(false); setShowCreateModal(true); }}>
+          <Button primary onClick={() => { setNewCampaign({ name: "", template: "", segment: "", scheduledDate: "", scheduledTime: "09:00", sendNow: true, budget: "", abTest: false, variantA: "", variantB: "", abSplit: 50, abTestSize: 30, channelMode: "wa_only" }); setFormErrors({}); setIsSubmitting(false); setShowCreateModal(true); }}>
             <Icon name="megaphone" size={14} />
             {isAr ? "\u062D\u0645\u0644\u0629 \u062C\u062F\u064A\u062F\u0629" : "New Campaign"}
           </Button>
@@ -454,6 +469,7 @@ export default function CampaignsPage() {
             variantB: "",
             abSplit: 50,
             abTestSize: 30,
+            channelMode: "wa_only",
           });
           setFormErrors({});
           setIsSubmitting(false);
@@ -499,6 +515,14 @@ export default function CampaignsPage() {
               errors.variantB = isAr ? "النسختان متطابقتان — لا فائدة من اختبار A/B" : "Variants are identical — no point A/B testing";
             }
           }
+          // SMS-touching modes need a connected mobile.net.sa account.
+          // We block at submit (not on selection) so the operator can
+          // still preview the cost copy before being told to set up SMS.
+          if (newCampaign.channelMode !== "wa_only" && !smsReady) {
+            errors.channelMode = isAr
+              ? "لإرسال هذه الحملة عبر SMS، اربط حساب الـ SMS أولاً من الإعدادات > SMS."
+              : "Connect your SMS account in Settings > SMS before using SMS-enabled modes.";
+          }
           setFormErrors(errors);
           if (Object.keys(errors).length > 0) return;
 
@@ -511,6 +535,7 @@ export default function CampaignsPage() {
             scheduledDate: newCampaign.scheduledDate || undefined,
             scheduledTime: newCampaign.scheduledTime || undefined,
             budget: newCampaign.budget ? Number(newCampaign.budget) : undefined,
+            channel_mode: newCampaign.channelMode,
           }).then(async (res) => {
             // If A/B is on, configure it on the just-created campaign
             // before closing the modal. We do this in two steps because
@@ -620,6 +645,69 @@ export default function CampaignsPage() {
                 <span style={{ fontSize: 11.5, color: COLORS.err, marginTop: 4, display: "block" }}>{formErrors.segment}</span>
               )}
             </div>
+          </div>
+
+          {/* ── Channel Mode ── */}
+          <div>
+            <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 10 }}>
+              {isAr ? "قناة الإرسال" : "Delivery Channel"}
+            </label>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr", gap: 10 }}>
+              {([
+                { key: "wa_only",  emoji: "📱", title: isAr ? "واتساب فقط"        : "WhatsApp only",   sub: isAr ? "بدون تكلفة SMS"            : "No SMS cost",          requiresSms: false },
+                { key: "sms_only", emoji: "💬", title: isAr ? "SMS فقط"            : "SMS only",        sub: isAr ? "تجاوز واتساب نهائياً"      : "Skip WhatsApp entirely", requiresSms: true  },
+                { key: "wa_sms",   emoji: "🔁", title: isAr ? "واتساب ثم SMS"      : "WhatsApp + SMS fallback", sub: isAr ? "SMS فقط عند فشل واتساب" : "SMS only when WhatsApp fails", requiresSms: true },
+                { key: "dual",     emoji: "📡", title: isAr ? "كلاهما (Dual)"     : "Dual",            sub: isAr ? "رسالتان لكلّ مستلم"        : "Two messages per contact", requiresSms: true },
+              ] as const).map((opt) => {
+                const selected = newCampaign.channelMode === opt.key;
+                const disabled = opt.requiresSms && !smsReady;
+                return (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => {
+                      setNewCampaign({ ...newCampaign, channelMode: opt.key });
+                      setFormErrors((prev) => { const n = { ...prev }; delete n.channelMode; return n; });
+                    }}
+                    title={disabled ? (isAr ? "اربط حساب الـ SMS أولاً من الإعدادات > SMS" : "Connect your SMS account first in Settings > SMS") : undefined}
+                    style={{
+                      padding: "12px 10px", borderRadius: 10,
+                      border: `2px solid ${selected ? C.pri : C.brd}`,
+                      background: selected ? `${C.pri}12` : "transparent",
+                      color: disabled ? C.t3 : (selected ? C.pri : C.txt),
+                      opacity: disabled ? 0.55 : 1,
+                      cursor: disabled ? "not-allowed" : "pointer",
+                      fontFamily: FONT_FAMILY, textAlign: "center",
+                      display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+                    }}
+                  >
+                    <div style={{ fontSize: 18 }}>{opt.emoji}</div>
+                    <div style={{ fontSize: 12.5, fontWeight: 700 }}>{opt.title}</div>
+                    <div style={{ fontSize: 10.5, color: disabled ? C.t3 : C.t2, lineHeight: 1.3 }}>{opt.sub}</div>
+                  </button>
+                );
+              })}
+            </div>
+            {!smsReady && (
+              <div style={{ fontSize: 11, color: C.t3, marginTop: 8 }}>
+                {isAr
+                  ? "💡 لتفعيل خيارات SMS، اربط حساب mobile.net.sa من الإعدادات > SMS."
+                  : "💡 Connect your mobile.net.sa account in Settings > SMS to unlock SMS modes."}
+              </div>
+            )}
+            {newCampaign.channelMode !== "wa_only" && smsReady && (
+              <div style={{ fontSize: 11, color: C.t2, marginTop: 8, padding: "8px 12px", background: `${C.info}10`, borderRadius: 8, border: `1px dashed ${C.info}40` }}>
+                {newCampaign.channelMode === "dual"
+                  ? (isAr ? "ℹ️ سيستلم كلّ مستلم رسالتين — احسب التكلفة لكليهما." : "ℹ️ Each contact receives two messages — budget for both.")
+                  : newCampaign.channelMode === "wa_sms"
+                  ? (isAr ? "ℹ️ SMS تُحتسب فقط للمستلمين الذين فشل تسليم واتساب لهم." : "ℹ️ SMS is only billed for recipients whose WhatsApp delivery failed.")
+                  : (isAr ? "ℹ️ سيُحتسب رصيد SMS بدلاً من رصيد واتساب لهذه الحملة." : "ℹ️ This campaign uses your SMS balance instead of WhatsApp.")}
+              </div>
+            )}
+            {formErrors.channelMode && (
+              <span style={{ fontSize: 11.5, color: COLORS.err, marginTop: 6, display: "block" }}>{formErrors.channelMode}</span>
+            )}
           </div>
 
           {/* Send Now or Schedule */}
@@ -910,6 +998,26 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
     const stage = fStages.find((s: any) => s.key === key);
     return stage ? Number(stage.count) : 0;
   };
+
+  // Per-channel rollup — only meaningful when the campaign uses more
+  // than one channel (sms_only / wa_sms / dual). Hidden by the render
+  // when nothing has been sent yet OR when the breakdown is a single
+  // wa_only row (then the funnel above already tells the story).
+  const [channelBreakdown, setChannelBreakdown] = useState<{
+    channel_mode: string;
+    breakdown: Array<{ channel: string; total: number; sent: number; failed: number; pending: number; delivered: number; read: number }>;
+  } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    api.get(`/campaigns/${c.id}/channel-breakdown`)
+      .then((res) => {
+        if (cancelled) return;
+        const data = res.data?.data ?? res.data;
+        setChannelBreakdown(data ?? null);
+      })
+      .catch(() => { if (!cancelled) setChannelBreakdown(null); });
+    return () => { cancelled = true; };
+  }, [c.id]);
 
   // V2 per-campaign AI insights — rule-based cards generated by the
   // backend insight engine. Cached on the campaigns row, regenerated
@@ -1405,6 +1513,61 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
           ))}
         </div>
       </Card>
+
+      {/* Channel Breakdown \u2014 only when the campaign actually used >1
+          channel. wa_only campaigns hide this since the funnel above
+          already shows the full picture for the single channel. */}
+      {channelBreakdown && channelBreakdown.breakdown.length > 1 && (
+        <Card style={{ marginBottom: 24 }}>
+          <CardHeader title={isAr ? "\u0627\u0644\u062A\u0648\u0632\u064A\u0639 \u062D\u0633\u0628 \u0627\u0644\u0642\u0646\u0627\u0629" : "Channel Breakdown"} />
+          <div style={{ padding: 20, display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
+            {channelBreakdown.breakdown.map((row) => {
+              const isWa  = row.channel === "whatsapp";
+              const total = Math.max(1, row.total);
+              const deliveryPct = Math.round((row.delivered / total) * 100);
+              const failPct     = Math.round((row.failed / total) * 100);
+              const readPct     = Math.round((row.read / total) * 100);
+              return (
+                <div key={row.channel} style={{
+                  border: `1px solid ${C.brd}`, borderRadius: 12, padding: 16,
+                  background: isWa ? `${COLORS.ok}08` : `${C.info}08`,
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 700, color: C.txt }}>
+                      <span style={{ fontSize: 18 }}>{isWa ? "\uD83D\uDCF1" : "\uD83D\uDCAC"}</span>
+                      {isWa ? (isAr ? "\u0648\u0627\u062A\u0633\u0627\u0628" : "WhatsApp") : "SMS"}
+                    </div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: isWa ? COLORS.ok : C.info }}>
+                      {row.total.toLocaleString()}
+                    </div>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, fontSize: 11.5 }}>
+                    <div>
+                      <div style={{ color: C.t3 }}>{isAr ? "\u062A\u0633\u0644\u064A\u0645" : "Delivered"}</div>
+                      <div style={{ fontWeight: 700, color: C.txt, fontSize: 14 }}>{row.delivered.toLocaleString()} <span style={{ fontSize: 10, color: C.t3 }}>({deliveryPct}%)</span></div>
+                    </div>
+                    <div>
+                      <div style={{ color: C.t3 }}>{isAr ? "\u0642\u0631\u0627\u0621\u0629" : "Read"}</div>
+                      <div style={{ fontWeight: 700, color: C.txt, fontSize: 14 }}>{row.read.toLocaleString()} <span style={{ fontSize: 10, color: C.t3 }}>({readPct}%)</span></div>
+                    </div>
+                    <div>
+                      <div style={{ color: C.t3 }}>{isAr ? "\u0641\u0634\u0644" : "Failed"}</div>
+                      <div style={{ fontWeight: 700, color: row.failed > 0 ? COLORS.err : C.txt, fontSize: 14 }}>{row.failed.toLocaleString()} <span style={{ fontSize: 10, color: C.t3 }}>({failPct}%)</span></div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {channelBreakdown.channel_mode === "wa_sms" && (
+            <div style={{ padding: "0 20px 16px", fontSize: 11, color: C.t3 }}>
+              {isAr
+                ? "\u2139\uFE0F \u0648\u0636\u0639 fallback: SMS \u0623\u064F\u0631\u0633\u0644\u062A \u0641\u0642\u0637 \u0644\u0644\u0645\u0633\u062A\u0644\u0645\u064A\u0646 \u0627\u0644\u0630\u064A\u0646 \u0641\u0634\u0644 \u062A\u0633\u0644\u064A\u0645 \u0648\u0627\u062A\u0633\u0627\u0628 \u0644\u0647\u0645."
+                : "\u2139\uFE0F Fallback mode: SMS rows were only created for recipients whose WhatsApp delivery failed."}
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Segment Performance */}
       <Card style={{ marginBottom: 24 }}>
