@@ -42,6 +42,7 @@ export function CsatSettingsPanel() {
   const [templateLang, setTemplateLang] = useState("ar");
   const [autoSend, setAutoSend] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [scaffolding, setScaffolding] = useState(false);
 
   useEffect(() => {
     if (!data) return;
@@ -117,9 +118,37 @@ export function CsatSettingsPanel() {
 
       {/* Template picker */}
       <div style={{ marginBottom: 14 }}>
-        <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 6 }}>
-          {isAr ? "قالب التقييم" : "CSAT Template"}
-        </label>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, flexWrap: "wrap", gap: 6 }}>
+          <label style={{ fontSize: 12.5, fontWeight: 600, color: C.t2 }}>
+            {isAr ? "قالب التقييم" : "CSAT Template"}
+          </label>
+          {/* Scaffold button — creates a ready CSAT template via Meta
+              and auto-binds it once approved. Removes the manual
+              "go build a template in 360dialog Hub" step entirely. */}
+          <Button
+            outline
+            disabled={scaffolding}
+            onClick={async () => {
+              setScaffolding(true);
+              try {
+                const res = await api.post("/settings/csat/scaffold-template");
+                const msg = res.data?.message || (isAr ? "تمّ" : "Done");
+                showToast(msg);
+                mutate();
+              } catch (err: any) {
+                const msg = err?.response?.data?.message
+                  || (isAr ? "تعذّر إنشاء القالب" : "Failed to create template");
+                showToast(msg, "error");
+              } finally {
+                setScaffolding(false);
+              }
+            }}
+          >
+            {scaffolding
+              ? (isAr ? "جارٍ الإنشاء..." : "Creating...")
+              : (isAr ? "✨ إنشاء قالب جاهز" : "✨ Create default template")}
+          </Button>
+        </div>
         <select
           value={selectedId}
           onChange={(e) => onTemplateChange(e.target.value)}
@@ -133,7 +162,7 @@ export function CsatSettingsPanel() {
         >
           <option value="">
             {approvedTemplates.length === 0
-              ? (isAr ? "لا توجد قوالب معتمدة بعد" : "No approved templates yet")
+              ? (isAr ? "لا توجد قوالب معتمدة بعد — اضغط \"إنشاء قالب جاهز\" أعلاه" : "No approved templates yet — click \"Create default template\" above")
               : (isAr ? "اختر قالباً معتمداً..." : "Select an approved template...")}
           </option>
           {approvedTemplates.map((t) => (

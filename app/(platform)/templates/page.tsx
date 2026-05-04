@@ -604,6 +604,38 @@ export default function TemplatesPage() {
                     {isAr ? "\u0633\u0628\u0628 \u0627\u0644\u0631\u0641\u0636:" : "Reason:"} {(tmpl as any).rejection_reason}
                   </div>
                 )}
+                {/* Pending media handle \u2014 Meta upload didn't complete on
+                    create. Show a yellow notice + a retry button. */}
+                {(tmpl as any).header_upload_status === "pending_handle" && (
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      fontSize: 11, marginTop: 8, padding: "8px 10px",
+                      borderRadius: 8, background: "#f59e0b15", border: "1px solid #f59e0b40",
+                      color: "#92400e", lineHeight: 1.5, display: "flex",
+                      alignItems: "center", gap: 8, flexWrap: "wrap",
+                    }}
+                  >
+                    <span style={{ flex: 1 }}>
+                      \u26a0\ufe0f {isAr ? "\u0648\u0633\u0627\u0626\u0637 \u0627\u0644\u0640 header \u0644\u0645 \u062a\u064f\u0631\u0641\u0639 \u0644\u0640 Meta \u0628\u0639\u062f" : "Header media not uploaded to Meta yet"}
+                    </span>
+                    <Button
+                      outline
+                      onClick={async () => {
+                        try {
+                          await api.post(`/templates/${tmpl.id}/retry-header-upload`);
+                          showToast(isAr ? "\u062a\u0645\u0651 \u0631\u0641\u0639 \u0627\u0644\u0645\u0644\u0641 \u0628\u0646\u062c\u0627\u062d\u060c \u0627\u0644\u0642\u0627\u0644\u0628 \u0623\u064f\u0631\u0633\u0644 \u0644\u0640 Meta" : "Upload succeeded, template submitted to Meta");
+                          mutate();
+                        } catch (err: any) {
+                          const msg = err?.response?.data?.message || (isAr ? "\u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0631\u0641\u0639 \u0641\u0634\u0644\u062a" : "Retry failed");
+                          showToast(msg);
+                        }
+                      }}
+                    >
+                      {isAr ? "\u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629" : "Retry upload"}
+                    </Button>
+                  </div>
+                )}
               </div>
 
               {/* Card metrics */}
