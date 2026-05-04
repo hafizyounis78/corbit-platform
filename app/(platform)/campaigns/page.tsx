@@ -96,6 +96,20 @@ export default function CampaignsPage() {
   const smsConfig = smsConfigResponse?.data ?? smsConfigResponse;
   const smsReady = !!smsConfig?.connected;
 
+  // Per-channel cost estimate — refetched whenever segment OR channel
+  // mode changes. We never sum WA + SMS into one number; the modal
+  // renders each channel as its own line so the operator can see
+  // exactly where the budget goes (and whether SMS is on a fallback
+  // basis vs guaranteed).
+  const [estimate, setEstimate] = useState<{
+    count: number;
+    channel_mode: string;
+    whatsapp: { count: number; unit_price: number; cost: number };
+    sms: { count: number; unit_price: number; cost: number; is_fallback?: boolean };
+    total: number;
+  } | null>(null);
+  const [estimateLoading, setEstimateLoading] = useState(false);
+
   // Extract data and pagination meta
   const apiCampaigns = apiResponse?.data || apiResponse;
   const paginationMeta = apiResponse?.meta || apiResponse?.pagination || null;
@@ -128,6 +142,35 @@ export default function CampaignsPage() {
 
   // When tab changes, reset to page 1
   useEffect(() => { setPage(1); }, [tab]);
+
+  // Re-estimate the per-channel cost whenever the operator picks a
+  // different segment or channel mode in the create modal. We only
+  // hit the API when the modal is actually open AND the operator has
+  // chosen a segment — otherwise the request would be a noop. Empty
+  // segment short-circuits to a cleared estimate so the cost panel
+  // doesn't flash stale numbers from a previous draft.
+  useEffect(() => {
+    if (!showCreateModal || !newCampaign.segment) {
+      setEstimate(null);
+      return;
+    }
+    let cancelled = false;
+    setEstimateLoading(true);
+    api.get('/campaigns/estimate', {
+      params: {
+        segment: newCampaign.segment,
+        channel_mode: newCampaign.channelMode,
+      },
+    })
+      .then((res) => {
+        if (cancelled) return;
+        const data = res.data?.data ?? res.data;
+        setEstimate(data ?? null);
+      })
+      .catch(() => { if (!cancelled) setEstimate(null); })
+      .finally(() => { if (!cancelled) setEstimateLoading(false); });
+    return () => { cancelled = true; };
+  }, [showCreateModal, newCampaign.segment, newCampaign.channelMode]);
 
   // Search: Enter key triggers server search
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
@@ -709,6 +752,87 @@ export default function CampaignsPage() {
               <span style={{ fontSize: 11.5, color: COLORS.err, marginTop: 6, display: "block" }}>{formErrors.channelMode}</span>
             )}
           </div>
+
+          {/* ── Cost Preview (per channel, never lumped) ──
+              Renders one row per channel that will actually be billed,
+              plus a grand total. Empty until the operator picks a
+              segment — we don't fake numbers from a default. */}
+          {newCampaign.segment && (
+            <div style={{
+              padding: 14, borderRadius: 10,
+              border: `1px solid ${C.brd}`,
+              background: `${C.pri}06`,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: C.txt }}>
+                  💰 {isAr ? "تقدير التكلفة" : "Cost Estimate"}
+                </div>
+                {estimateLoading && (
+                  <div style={{ fontSize: 11, color: C.t3 }}>{isAr ? "جارٍ الحساب..." : "Calculating..."}</div>
+                )}
+              </div>
+
+              {!estimate ? (
+                <div style={{ fontSize: 11.5, color: C.t3 }}>
+                  {isAr ? "اختر الشريحة والقناة لرؤية التكلفة." : "Pick a segment + channel to see the cost."}
+                </div>
+              ) : (
+                <>
+                  <div style={{ fontSize: 11.5, color: C.t2, marginBottom: 10 }}>
+                    {isAr ? `عدد المستلمين: ${estimate.count.toLocaleString()}` : `Recipients: ${estimate.count.toLocaleString()}`}
+                  </div>
+
+                  {/* Each channel row stays its own line — no aggregation. */}
+                  {estimate.whatsapp.count > 0 && (
+                    <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 12.5, borderBottom: `1px dashed ${C.brd}` }}>
+                      <span style={{ color: C.txt }}>
+                        📱 {isAr ? "واتساب" : "WhatsApp"}
+                        <span style={{ color: C.t3, fontWeight: 400, marginInlineStart: 6 }}>
+                          ({estimate.whatsapp.count.toLocaleString()} × {estimate.whatsapp.unit_price.toFixed(2)} {isAr ? "ر.س" : "SAR"})
+                        </span>
+                      </span>
+                      <span style={{ fontWeight: 700, color: COLORS.ok }}>
+                        {estimate.whatsapp.cost.toFixed(2)} {isAr ? "ر.س" : "SAR"}
+                      </span>
+                    </div>
+                  )}
+
+                  {(estimate.sms.count > 0 || estimate.sms.is_fallback) && (
+                    <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 12.5, borderBottom: `1px dashed ${C.brd}` }}>
+                      <span style={{ color: C.txt }}>
+                        💬 {isAr ? "SMS" : "SMS"}
+                        <span style={{ color: C.t3, fontWeight: 400, marginInlineStart: 6 }}>
+                          {estimate.sms.is_fallback
+                            ? (isAr ? `(احتياط — ${estimate.sms.unit_price.toFixed(2)} ر.س لكل رسالة فاشلة على واتساب)` : `(fallback — ${estimate.sms.unit_price.toFixed(2)} SAR per WA failure)`)
+                            : `(${estimate.sms.count.toLocaleString()} × ${estimate.sms.unit_price.toFixed(2)} ${isAr ? "ر.س" : "SAR"})`}
+                        </span>
+                      </span>
+                      <span style={{ fontWeight: 700, color: estimate.sms.is_fallback ? C.t3 : C.info }}>
+                        {estimate.sms.is_fallback
+                          ? (isAr ? "حسب الحاجة" : "as needed")
+                          : `${estimate.sms.cost.toFixed(2)} ${isAr ? "ر.س" : "SAR"}`}
+                      </span>
+                    </div>
+                  )}
+
+                  <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 10, fontSize: 13, fontWeight: 700, color: C.txt }}>
+                    <span>{isAr ? "الإجمالي المتوقّع" : "Expected total"}</span>
+                    <span style={{ color: C.pri, fontSize: 14 }}>
+                      {estimate.total.toFixed(2)} {isAr ? "ر.س" : "SAR"}
+                    </span>
+                  </div>
+
+                  {estimate.sms.is_fallback && (
+                    <div style={{ fontSize: 10.5, color: C.t3, marginTop: 8, lineHeight: 1.5 }}>
+                      {isAr
+                        ? "ℹ️ تكلفة SMS تُحسَب فقط للمستلمين الذين فشل تسليم واتساب لهم. الإجمالي أعلاه لا يشمل احتياط SMS."
+                        : "ℹ️ SMS cost is only charged for recipients whose WhatsApp delivery failed. Total above excludes the SMS reserve."}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
 
           {/* Send Now or Schedule */}
           <div>
