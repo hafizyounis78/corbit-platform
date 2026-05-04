@@ -364,6 +364,11 @@ export function useUnreadCount() {
   return useApi('/notifications/unread-count');
 }
 
+// ─── SMS — per-tenant configuration ──────────────────────
+export function useSmsConfig() {
+  return useApi('/sms/config');
+}
+
 // ─── Help Center ─────────────────────────────────────────
 //
 // Help content is platform-wide (not org-scoped) so the same data
