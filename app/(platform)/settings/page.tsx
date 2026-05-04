@@ -19,6 +19,7 @@ import { useSettings } from "@/lib/api/hooks";
 import { WhatsAppConnect } from "@/components/settings/whatsapp-connect";
 import { ApiAndWebhooksPanel } from "@/components/settings/api-webhooks-panel";
 import { SmsSettingsPanel } from "@/components/settings/sms-settings-panel";
+import { CsatSettingsPanel } from "@/components/settings/csat-settings-panel";
 import api from "@/lib/api/client";
 
 /* ─── helpers ─── */
@@ -357,7 +358,7 @@ export default function SettingsPage() {
   // specific section. Falls back to "general" when the param is
   // missing or unrecognised.
   const searchParams = useSearchParams();
-  const validTabs = ["general", "notifications", "security", "channels", "whatsapp", "sms", "team", "api"];
+  const validTabs = ["general", "notifications", "security", "channels", "csat", "whatsapp", "sms", "team", "api"];
   const initialTab = searchParams?.get("tab") ?? "general";
   const [tab, setTab] = useState(validTabs.includes(initialTab) ? initialTab : "general");
   const [saving, setSaving] = useState(false);
@@ -568,6 +569,7 @@ export default function SettingsPage() {
     { key: "notifications", label: ar ? "الإشعارات" : "Notifications" },
     { key: "security", label: ar ? "الأمان" : "Security" },
     { key: "channels", label: ar ? "القنوات" : "Channels" },
+    { key: "csat", label: ar ? "⭐ التقييم" : "⭐ CSAT" },
     { key: "whatsapp", label: ar ? "ربط الواتساب" : "WhatsApp" },
     { key: "sms", label: ar ? "📱 SMS" : "📱 SMS" },
     { key: "team", label: ar ? "الفريق" : "Team" },
@@ -1250,6 +1252,11 @@ export default function SettingsPage() {
       {/* ═══════════ SMS TAB ═══════════ */}
       {tab === "sms" && (
         <SmsSettingsPanel />
+      )}
+
+      {/* ═══════════ CSAT TAB ═══════════ */}
+      {tab === "csat" && (
+        <CsatSettingsPanel />
       )}
 
       {/* ═══════════ TEAM TAB ═══════════ */}

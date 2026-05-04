@@ -381,6 +381,13 @@ export function useAlertThresholds() {
   return useApi('/billing/alert-thresholds');
 }
 
+// CSAT (Customer Satisfaction) settings + the org's approved Meta
+// templates the operator can pick as the survey trigger. One round-
+// trip so the form renders without a second fetch.
+export function useCsatSettings() {
+  return useApi('/settings/csat');
+}
+
 // ─── Help Center ─────────────────────────────────────────
 //
 // Help content is platform-wide (not org-scoped) so the same data
