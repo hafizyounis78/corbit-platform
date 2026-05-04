@@ -3,18 +3,41 @@
 import { Card } from "@/components/ui";
 import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
+import { useHelpContact } from "@/lib/api/hooks";
 import { FONT_FAMILY } from "@/lib/constants/font";
 
+interface ContactPayload {
+  whatsapp:  { number: string; url: string };
+  phone:     { number: string; url: string };
+  email:     { address: string; url: string };
+  hours:     { ar?: string | null; en?: string | null };
+  email_sla: { ar?: string | null; en?: string | null };
+}
+
 /**
- * Three-card grid with the public-facing contact channels for
- * Corbit's own support team. The numbers + email here are the
- * Corbit company contacts (not the tenant's), so they live in code
- * for now — moving them to env or platform_settings is a small
- * follow-up if marketing wants to A/B different numbers.
+ * Three-card grid for Corbit's own support channels. Reads the
+ * singleton support_contact_settings row via /api/help/contact so
+ * marketing can flip the WhatsApp number without a deploy.
  */
 export function ContactPanel() {
   const { colors: C } = useTheme();
   const { isAr } = useLocale();
+  const { data, isLoading } = useHelpContact();
+  const contact = data as ContactPayload | null;
+
+  const pick = (loc?: { ar?: string | null; en?: string | null } | null): string => {
+    if (!loc) return "";
+    if (isAr) return (loc.ar ?? loc.en ?? "");
+    return (loc.en ?? loc.ar ?? "");
+  };
+
+  if (isLoading || !contact) {
+    return (
+      <div style={{ padding: "40px 18px", textAlign: "center", color: C.t3, fontSize: 13 }}>
+        {isAr ? "جاري التحميل..." : "Loading..."}
+      </div>
+    );
+  }
 
   const cards = [
     {
@@ -23,26 +46,26 @@ export function ContactPanel() {
       title: "WhatsApp",
       desc: isAr ? "تواصل معنا مباشرة عبر واتساب" : "Chat with us on WhatsApp",
       action: isAr ? "افتح المحادثة" : "Open Chat",
-      href: "https://wa.me/966500001234", // TODO: replace with the real Corbit support number
-      value: "+966 50 000 1234",
+      href: contact.whatsapp.url,
+      value: contact.whatsapp.number,
     },
     {
       icon: "📞",
       bg: C.pri,
       title: isAr ? "اتصال هاتفي" : "Phone Call",
-      desc: isAr ? "الأحد – الخميس، 9 صباحاً – 6 مساءً" : "Sun–Thu, 9 AM – 6 PM",
+      desc: pick(contact.hours),
       action: isAr ? "اتصل الآن" : "Call Now",
-      href: "tel:+96611000567",
-      value: "+966 11 000 5678",
+      href: contact.phone.url,
+      value: contact.phone.number,
     },
     {
       icon: "📧",
       bg: C.info,
       title: isAr ? "البريد الإلكتروني" : "Email",
-      desc: isAr ? "نردّ خلال 4 ساعات عمل" : "Response within 4 business hours",
+      desc: pick(contact.email_sla),
       action: isAr ? "أرسل بريداً" : "Send Email",
-      href: "mailto:support@corbit.sa",
-      value: "support@corbit.sa",
+      href: contact.email.url,
+      value: contact.email.address,
     },
   ];
 

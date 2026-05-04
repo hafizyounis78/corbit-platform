@@ -364,6 +364,23 @@ export function useUnreadCount() {
   return useApi('/notifications/unread-count');
 }
 
+// ─── Help Center ─────────────────────────────────────────
+//
+// Help content is platform-wide (not org-scoped) so the same data
+// surfaces for every tenant. The endpoints are read-only on the
+// tenant side — editing happens in Nova.
+export function useHelpGuides() {
+  return useApi('/help/guides');
+}
+
+export function useHelpFaqs() {
+  return useApi('/help/faqs');
+}
+
+export function useHelpContact() {
+  return useApi('/help/contact');
+}
+
 // ─── Support tickets ─────────────────────────────────────
 export function useSupportTickets(status?: string) {
   const qs = status ? `?status=${encodeURIComponent(status)}` : '';

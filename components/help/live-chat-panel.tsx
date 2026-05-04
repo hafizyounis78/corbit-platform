@@ -3,6 +3,7 @@
 import { Card, Button } from "@/components/ui";
 import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
+import { useHelpContact } from "@/lib/api/hooks";
 import { FONT_FAMILY } from "@/lib/constants/font";
 
 /**
@@ -14,6 +15,8 @@ import { FONT_FAMILY } from "@/lib/constants/font";
 export function LiveChatPanel() {
   const { colors: C } = useTheme();
   const { isAr } = useLocale();
+  const { data: contact } = useHelpContact();
+  const whatsappUrl = (contact as any)?.whatsapp?.url ?? "https://wa.me/966500001234";
 
   return (
     <Card style={{ padding: 32, textAlign: "center" }}>
@@ -31,7 +34,7 @@ export function LiveChatPanel() {
       </p>
       <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
         <a
-          href="https://wa.me/966500001234"
+          href={whatsappUrl}
           target="_blank"
           rel="noopener noreferrer"
           style={{
