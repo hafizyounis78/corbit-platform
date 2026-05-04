@@ -10,6 +10,7 @@ import { Donut } from "@/components/charts/donut";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { FONT_FAMILY } from "@/lib/constants/font";
 import { useAiOverview, useAiModels, useAiKnowledgeBase, useAiTone, useAiGuardrails } from "@/lib/api/hooks";
+import { CostEstimate } from "@/components/ai/cost-estimate";
 import api from "@/lib/api/client";
 
 export default function AICenterPage() {
@@ -462,6 +463,13 @@ export default function AICenterPage() {
                 outline: "none",
               }}
             />
+            {/* Cost-preview line — hits /ai/estimate-tokens for the
+                current customInstructions text. Shows the input-only
+                charge plus a max-output ceiling so the operator can
+                decide before every send whether the prompt is
+                worth its price. Skipped silently when the textarea
+                is empty (no point estimating zero). */}
+            <CostEstimate prompt={customInstructions} />
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
               <Button
                 primary

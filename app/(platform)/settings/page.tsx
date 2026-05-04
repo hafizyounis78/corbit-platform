@@ -229,15 +229,39 @@ function AuditLogPanel({ C, ar, dk }: { C: any; ar: boolean; dk: boolean }) {
   const [total, setTotal] = useState(0);
   const limit = 20;
 
+  // Filters — each one is independent and stacks. Empty string means
+  // "no filter" so the backend treats them as nullable. Reset page to
+  // 1 whenever any filter changes so a narrow result set doesn't get
+  // skipped because the previous page is now empty.
+  const [actionFilter, setActionFilter] = useState("");
+  const [userFilter, setUserFilter]     = useState("");
+  const [dateFrom, setDateFrom]         = useState("");
+  const [dateTo, setDateTo]             = useState("");
+  const [facetActions, setFacetActions] = useState<string[]>([]);
+  const [facetUsers, setFacetUsers]     = useState<{ id: string; name: string; email: string }[]>([]);
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    api.get(`/settings/security/audit-log?page=${page}&limit=${limit}`)
+
+    const params: Record<string, string> = { page: String(page), limit: String(limit) };
+    if (actionFilter) params.action = actionFilter;
+    if (userFilter)   params.user_id = userFilter;
+    if (dateFrom)     params.date_from = dateFrom;
+    if (dateTo)       params.date_to = dateTo;
+
+    api.get('/settings/security/audit-log', { params })
       .then((res) => {
         if (cancelled) return;
         const payload = res.data?.data ?? res.data;
         setEntries(payload?.data ?? []);
         setTotal(payload?.total ?? 0);
+        if (Array.isArray(payload?.filters?.actions)) {
+          setFacetActions(payload.filters.actions);
+        }
+        if (Array.isArray(payload?.filters?.users)) {
+          setFacetUsers(payload.filters.users);
+        }
         setError(null);
       })
       .catch((e) => {
@@ -246,7 +270,10 @@ function AuditLogPanel({ C, ar, dk }: { C: any; ar: boolean; dk: boolean }) {
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [page, ar]);
+  }, [page, ar, actionFilter, userFilter, dateFrom, dateTo]);
+
+  // Reset to page 1 whenever a filter narrows or widens the set.
+  useEffect(() => { setPage(1); }, [actionFilter, userFilter, dateFrom, dateTo]);
 
   const labels = ar ? ACTION_LABELS_AR : ACTION_LABELS_EN;
   const totalPages = Math.max(1, Math.ceil(total / limit));
@@ -258,6 +285,65 @@ function AuditLogPanel({ C, ar, dk }: { C: any; ar: boolean; dk: boolean }) {
         {ar
           ? "كل عمليّة حسّاسة على حسابك (تسجيل دخول، تغيير صلاحيّات، اعتماد تحويلات، إلخ) محفوظة هنا للمساءلة والامتثال."
           : "Every sensitive action on your account (logins, role changes, transfer approvals, etc.) is recorded here for accountability and compliance."}
+      </div>
+
+      {/* Filter row — action / user / date range. Each empty value
+          treats that facet as "no filter". The dropdowns populate
+          from the same audit-log endpoint so they always reflect
+          what's actually in the org's history. */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+        gap: 10, marginBottom: 14,
+      }}>
+        <select
+          value={actionFilter}
+          onChange={(e) => setActionFilter(e.target.value)}
+          style={{ padding: "8px 10px", borderRadius: 8, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 12 }}
+        >
+          <option value="">{ar ? "كل الإجراءات" : "All actions"}</option>
+          {facetActions.map((a) => (
+            <option key={a} value={a}>{a}</option>
+          ))}
+        </select>
+        <select
+          value={userFilter}
+          onChange={(e) => setUserFilter(e.target.value)}
+          style={{ padding: "8px 10px", borderRadius: 8, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 12 }}
+        >
+          <option value="">{ar ? "كل المستخدمين" : "All users"}</option>
+          {facetUsers.map((u) => (
+            <option key={u.id} value={u.id}>{u.name || u.email}</option>
+          ))}
+        </select>
+        <input
+          type="date"
+          value={dateFrom}
+          onChange={(e) => setDateFrom(e.target.value)}
+          placeholder={ar ? "من تاريخ" : "From"}
+          style={{ padding: "7px 10px", borderRadius: 8, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 12 }}
+        />
+        <input
+          type="date"
+          value={dateTo}
+          onChange={(e) => setDateTo(e.target.value)}
+          placeholder={ar ? "إلى تاريخ" : "To"}
+          style={{ padding: "7px 10px", borderRadius: 8, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 12 }}
+        />
+        {(actionFilter || userFilter || dateFrom || dateTo) && (
+          <button
+            type="button"
+            onClick={() => { setActionFilter(""); setUserFilter(""); setDateFrom(""); setDateTo(""); }}
+            style={{
+              padding: "7px 10px", borderRadius: 8,
+              border: `1px solid ${C.brd}`, background: "transparent",
+              color: C.t2, fontSize: 11.5, cursor: "pointer",
+              fontFamily: FONT_FAMILY,
+            }}
+          >
+            ✕ {ar ? "مسح المرشّحات" : "Clear filters"}
+          </button>
+        )}
       </div>
 
       {loading && (
