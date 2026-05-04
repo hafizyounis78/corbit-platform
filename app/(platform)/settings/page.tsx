@@ -529,6 +529,12 @@ export default function SettingsPage() {
   const [pushEmail, setPushEmail] = useState(true);
   const [pushSound, setPushSound] = useState(true);
   const [pushMobile, setPushMobile] = useState(false);
+  // WhatsApp delivery for in-app notifications. Defaults to false —
+  // a fresh tenant shouldn't suddenly get pinged on WA the moment
+  // they upgrade. They opt in here, AND configure an approved
+  // notification template (or the channel silently no-ops).
+  const [pushWhatsapp, setPushWhatsapp] = useState(false);
+  const [whatsappTemplateName, setWhatsappTemplateName] = useState("");
   const [quietHours, setQuietHours] = useState(false);
   const [quietFrom, setQuietFrom] = useState("22:00");
   const [quietTo, setQuietTo] = useState("07:00");
@@ -569,6 +575,17 @@ export default function SettingsPage() {
       if (notifData.quietHoursTo) setQuietTo(String(notifData.quietHoursTo).slice(0, 5));
       if (notifData.autoReportEnabled !== undefined) setAutoReports(notifData.autoReportEnabled);
       if (notifData.autoReportFreq) setAutoReportFreq(notifData.autoReportFreq);
+
+      // WhatsApp channel — derived from the per-type preferences
+      // matrix (we use the same flag across types). If any single
+      // type has whatsapp=true, treat the global toggle as on.
+      if (Array.isArray(notifData.preferences)) {
+        const anyWa = notifData.preferences.some((p: any) => p && p.whatsapp);
+        setPushWhatsapp(anyWa);
+      }
+      if (notifData.whatsappTemplateName !== undefined) {
+        setWhatsappTemplateName(String(notifData.whatsappTemplateName ?? ""));
+      }
     }
   }, [notifData]);
 
@@ -710,29 +727,39 @@ export default function SettingsPage() {
         await api.patch(`/settings/reply-mode`, { mode: replyMode });
         mutateReplyMode();
       } else if (tab === "notifications") {
+        // Backend updateNotificationPrefs takes a per-type-per-channel
+        // matrix: each row is { type, browser, email, sound, mobile,
+        // whatsapp }. We expand the global channel toggles across the
+        // 6 notification types here; an operator who only flips off
+        // 'newMessage' (notifMsg=false) will have all channels false
+        // for that type but true for the others.
+        const typeFlags: Record<string, boolean> = {
+          new_conversation: notifNew,
+          new_message:      notifMsg,
+          assignment:       notifAssign,
+          escalation:       notifEsc,
+          sla_warning:      notifSla,
+          low_balance:      notifBal,
+        };
         Object.assign(payload, {
-          preferences: [
-            { key: "newConversation", enabled: notifNew },
-            { key: "newMessage", enabled: notifMsg },
-            { key: "assignment", enabled: notifAssign },
-            { key: "escalation", enabled: notifEsc },
-            { key: "slaWarning", enabled: notifSla },
-            { key: "lowBalance", enabled: notifBal },
-            { key: "browserPush", enabled: pushBrowser },
-            { key: "emailNotif", enabled: pushEmail },
-            { key: "sound", enabled: pushSound },
-            { key: "mobilePush", enabled: pushMobile },
-            { key: "quietHours", enabled: quietHours },
-            { key: "autoReports", enabled: autoReports },
-          ],
+          preferences: Object.entries(typeFlags).map(([type, enabled]) => ({
+            type,
+            browser:  enabled && pushBrowser,
+            email:    enabled && pushEmail,
+            sound:    enabled && pushSound,
+            mobile:   enabled && pushMobile,
+            whatsapp: enabled && pushWhatsapp,
+          })),
           // Org-level quiet-hours window + auto-report frequency.
-          // Backend SettingsService.updateNotificationPrefs reads these
-          // exact keys directly into org_settings.
           quietHoursEnabled: quietHours,
           quietHoursFrom:    quietFrom,
           quietHoursTo:      quietTo,
           autoReportEnabled: autoReports,
           autoReportFreq:    autoReportFreq,
+          // Org-level WhatsApp notification template name. Empty
+          // string clears it on the backend (channel silently no-ops
+          // when missing).
+          whatsappTemplateName: whatsappTemplateName.trim(),
         });
       } else if (tab === "security") {
         // 2FA persists through dedicated endpoints — the bulk
@@ -1069,6 +1096,31 @@ export default function SettingsPage() {
             <ToggleRow C={C} label={ar ? "البريد الإلكتروني" : "Email"} desc={ar ? "إرسال إشعارات البريد للأنواع المحدّدة" : "Send selected notifications via email"} on={pushEmail} onToggle={() => setPushEmail(!pushEmail)} icon="📧" />
             <ToggleRow C={C} label={ar ? "الصوت" : "Sound"} desc={ar ? "تشغيل صوت عند وصول إشعار" : "Play sound on notification"} on={pushSound} onToggle={() => setPushSound(!pushSound)} icon="🔊" />
             <ToggleRow C={C} label={ar ? "SMS للجوّال" : "SMS to phone"} desc={ar ? "رسالة SMS للتنبيهات الحرجة فقط" : "SMS for critical alerts only"} on={pushMobile} onToggle={() => setPushMobile(!pushMobile)} icon="📱" />
+            <ToggleRow C={C} label={ar ? "واتساب" : "WhatsApp"} desc={ar ? "إشعارات تصلك على واتساب عبر قالب معتمد" : "Notifications delivered via an approved WhatsApp template"} on={pushWhatsapp} onToggle={() => setPushWhatsapp(!pushWhatsapp)} icon="💬" />
+
+            {/* Inline template name field — only renders when the
+                operator opts into WhatsApp notifications. The backend
+                silently no-ops the WA channel when this is empty, so
+                we expose the field directly here instead of hiding it
+                behind another tab. */}
+            {pushWhatsapp && (
+              <div style={{ marginTop: 6, padding: "10px 12px", borderRadius: 10, background: C.inp, border: `1px solid ${C.brd}` }}>
+                <label style={{ display: "block", fontSize: 11.5, fontWeight: 600, color: C.t2, marginBottom: 6 }}>
+                  {ar ? "اسم قالب الإشعار المعتمد على Meta" : "Approved Meta notification template name"}
+                </label>
+                <input
+                  value={whatsappTemplateName}
+                  onChange={(e) => { setWhatsappTemplateName(e.target.value); markChanged(); }}
+                  placeholder={ar ? "مثال: corbit_alert" : "e.g. corbit_alert"}
+                  style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${C.brd}`, background: C.card, color: C.txt, fontFamily: FONT_FAMILY, fontSize: 12 }}
+                />
+                <div style={{ fontSize: 10.5, color: C.t3, marginTop: 6, lineHeight: 1.5 }}>
+                  {ar
+                    ? "💡 يجب أن يحتوي القالب على متغيّرين {{1}} (العنوان) و {{2}} (الرسالة). بدون قالب معتمد، لن تُرسَل إشعارات واتساب."
+                    : "💡 Template must accept {{1}} (title) and {{2}} (message). Without an approved template, WhatsApp notifications silently won't fire."}
+                </div>
+              </div>
+            )}
 
             <div style={{ marginTop: 12 }}>
               <ToggleRow C={C} label={ar ? "ساعات الهدوء" : "Quiet Hours"} desc={ar ? "إيقاف الإشعارات خلال فترة محددة" : "Mute notifications during a specific period"} on={quietHours} onToggle={() => { setQuietHours(!quietHours); markChanged(); }} icon="🌙" />
