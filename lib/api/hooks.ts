@@ -301,8 +301,13 @@ export function useBillingPlans() {
   return useApi('/billing/plans');
 }
 
-export function useBillingTransactions() {
-  return useApi('/billing/transactions');
+export function useBillingTransactions(category?: string) {
+  // Accepts the same category buckets the backend returns ('whatsapp',
+  // 'sms', 'ai', 'topup'). Omit for the unfiltered ledger. Encoded into
+  // the SWR key so switching filters doesn't return cached rows from a
+  // different bucket.
+  const qs = category && category !== 'all' ? `?category=${encodeURIComponent(category)}` : '';
+  return useApi(`/billing/transactions${qs}`);
 }
 
 export function useBankAccounts() {
@@ -367,6 +372,13 @@ export function useUnreadCount() {
 // ─── SMS — per-tenant configuration ──────────────────────
 export function useSmsConfig() {
   return useApi('/sms/config');
+}
+
+// Per-channel monthly spend alert thresholds. The endpoint returns
+// { whatsapp, sms, ai } in SAR — each independent; null means no
+// alert configured for that channel.
+export function useAlertThresholds() {
+  return useApi('/billing/alert-thresholds');
 }
 
 // ─── Help Center ─────────────────────────────────────────

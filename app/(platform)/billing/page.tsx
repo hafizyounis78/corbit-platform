@@ -13,6 +13,8 @@ import { Donut } from "@/components/charts/donut";
 import { ProgressBar } from "@/components/charts/progress-bar";
 import { Sparkline } from "@/components/charts/sparkline";
 import { useBillingOverview, useBillingPlans, useBillingTransactions, useBankAccounts } from "@/lib/api/hooks";
+import { SmsUsageWidget } from "@/components/plan/sms-usage-widget";
+import { SpendAlertsCard } from "@/components/plan/spend-alerts-card";
 import { PlanUsageCard } from "@/components/plan/plan-usage-card";
 import api from "@/lib/api/client";
 
@@ -61,7 +63,12 @@ export default function BillingPage() {
   // Fetch from API, fall back to mock data
   const { data: apiOverview, isLoading: loadingOverview, mutate: mutateOverview } = useBillingOverview();
   const { data: apiPlans, isLoading: loadingPlans, mutate: mutatePlans } = useBillingPlans();
-  const { data: apiTransactions, isLoading: loadingTxns, mutate: mutateTxns } = useBillingTransactions();
+  // Category filter for the wallet ledger. Each chip queries a separate
+  // SWR key so switching filters never shows cached rows from another
+  // bucket. 'all' is the default; each chip narrows by a single channel
+  // — never shows two channels in the same filtered list.
+  const [txnCategory, setTxnCategory] = useState<'all' | 'whatsapp' | 'sms' | 'ai' | 'topup'>('all');
+  const { data: apiTransactions, isLoading: loadingTxns, mutate: mutateTxns } = useBillingTransactions(txnCategory);
 
   const plans = Array.isArray(apiPlans) ? apiPlans : [];
   const transactions = Array.isArray(apiTransactions) ? apiTransactions : [];
@@ -367,11 +374,56 @@ export default function BillingPage() {
       })()}
 
       {tab === "usage" && (
-        <PlanUsageCard />
+        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          <PlanUsageCard />
+          {/* SMS widget — only renders if the tenant has connected
+              their SMS account. Stays hidden otherwise so the page
+              doesn't suggest a channel they haven't enabled. Each
+              metric (count + cost) is on its own line, never folded
+              into WhatsApp or AI numbers. */}
+          <SmsUsageWidget />
+          {/* Per-channel spend alert thresholds — sits next to the
+              spend data so the operator can react to what they see
+              without bouncing to a different settings screen. */}
+          <SpendAlertsCard />
+        </div>
       )}
 
       {tab === "transactions" && (
         <Card>
+          {/* Category filter chips — one per channel + topups + all.
+              Each chip is its own bucket; we never render multiple
+              channels in the same filtered list. */}
+          <div style={{ padding: "14px 16px 0", display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {([
+              { key: "all",      labelAr: "الكل",        labelEn: "All",       emoji: "📋" },
+              { key: "whatsapp", labelAr: "واتساب",      labelEn: "WhatsApp",  emoji: "📱" },
+              { key: "sms",      labelAr: "SMS",         labelEn: "SMS",       emoji: "💬" },
+              { key: "ai",       labelAr: "الذكاء",      labelEn: "AI",        emoji: "🤖" },
+              { key: "topup",    labelAr: "شحن الرصيد",  labelEn: "Top-ups",   emoji: "💰" },
+            ] as const).map((opt) => {
+              const selected = txnCategory === opt.key;
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => { setTxnCategory(opt.key); setTxnPage(1); }}
+                  style={{
+                    padding: "6px 12px", borderRadius: 999,
+                    border: `1.5px solid ${selected ? C.pri : C.brd}`,
+                    background: selected ? `${C.pri}15` : "transparent",
+                    color: selected ? C.pri : C.t2,
+                    fontSize: 12, fontWeight: 600, cursor: "pointer",
+                    display: "flex", alignItems: "center", gap: 6,
+                  }}
+                >
+                  <span>{opt.emoji}</span>
+                  <span>{ar ? opt.labelAr : opt.labelEn}</span>
+                </button>
+              );
+            })}
+          </div>
+
           {transactions.length === 0 && (
             <div style={{ padding: "40px 20px", textAlign: "center", fontSize: 13, color: C.t2 }}>
               {ar ? "لا توجد معاملات" : "No transactions"}
@@ -381,21 +433,31 @@ export default function BillingPage() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr>
-                  {[t("type"), ar ? "الوصف" : "Description", t("amount"), t("date"), t("ref")].map((h, i) => (
+                  {[t("type"), ar ? "القناة" : "Channel", ar ? "الوصف" : "Description", t("amount"), t("date"), t("ref")].map((h, i) => (
                     <th key={i} style={{ padding: "10px 16px", textAlign: "inherit", fontSize: 11.5, fontWeight: 600, color: C.t2, borderBottom: `1px solid ${C.brd}` }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {paginatedTransactions.map((tx: any, i: number) => (
-                  <tr key={i} style={{ borderBottom: `1px solid ${dk ? C.brd : "#F5F2ED"}` }}>
-                    <td style={{ padding: "12px 16px" }}><Badge color={tx.type === "payment" ? C.ok : tx.type === "refund" ? C.info : C.err}>{tx.type === "charge" ? t("charge") : tx.type === "payment" ? t("payment") : t("refund")}</Badge></td>
-                    <td style={{ padding: "12px 16px" }}>{tx.desc}</td>
-                    <td style={{ padding: "12px 16px", fontWeight: 600, color: tx.amount > 0 ? C.ok : C.err }}>{tx.amount > 0 ? "+" : ""}{tx.amount.toLocaleString()} {t("sar")}</td>
-                    <td style={{ padding: "12px 16px", color: C.t2 }}>{tx.date}</td>
-                    <td style={{ padding: "12px 16px", fontFamily: "monospace", fontSize: 11 }}>{tx.ref}</td>
-                  </tr>
-                ))}
+                {paginatedTransactions.map((tx: any, i: number) => {
+                  const cat = (tx.category as string) || 'other';
+                  const catLabel = cat === 'whatsapp' ? (ar ? '📱 واتساب' : '📱 WhatsApp')
+                    : cat === 'sms' ? '💬 SMS'
+                    : cat === 'ai' ? (ar ? '🤖 ذكاء' : '🤖 AI')
+                    : cat === 'topup' ? (ar ? '💰 شحن' : '💰 Top-up')
+                    : '—';
+                  const txTypeLabel = tx.type === 'credit' ? t("payment") : tx.type === 'refund' ? t("refund") : t("charge");
+                  return (
+                    <tr key={i} style={{ borderBottom: `1px solid ${dk ? C.brd : "#F5F2ED"}` }}>
+                      <td style={{ padding: "12px 16px" }}><Badge color={tx.type === "credit" ? C.ok : tx.type === "refund" ? C.info : C.err}>{txTypeLabel}</Badge></td>
+                      <td style={{ padding: "12px 16px", fontSize: 12, color: C.t2 }}>{catLabel}</td>
+                      <td style={{ padding: "12px 16px" }}>{ar ? tx.descAr || tx.desc : tx.desc}</td>
+                      <td style={{ padding: "12px 16px", fontWeight: 600, color: tx.type === "credit" ? C.ok : C.err }}>{tx.type === "credit" ? "+" : "-"}{Math.abs(Number(tx.amount || 0)).toLocaleString()} {t("sar")}</td>
+                      <td style={{ padding: "12px 16px", color: C.t2 }}>{tx.date}</td>
+                      <td style={{ padding: "12px 16px", fontFamily: "monospace", fontSize: 11 }}>{tx.ref}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>}
