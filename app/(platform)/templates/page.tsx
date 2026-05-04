@@ -48,12 +48,25 @@ export default function TemplatesPage() {
     category: "utility" as string,
     language: "ar" as string,
     header: "",
+    // Header media support (M5). The format drives which input the
+    // operator sees; media_url is what we render in the preview;
+    // meta_handle is what gets shipped to Meta when the template is
+    // submitted. Upload status surfaces the deferred-upload state when
+    // 360dialog/Meta App ID isn't yet wired up.
+    header_format: "none" as "none" | "text" | "image" | "video" | "document",
+    header_media_url: "" as string,
+    header_media_disk: "" as string,
+    header_media_path: "" as string,
+    header_meta_handle: "" as string,
+    header_upload_status: "" as "" | "ready" | "pending_handle" | "failed",
+    header_upload_error: "" as string,
     body: "",
     body_ar: "",
     footer: "",
     buttons: [] as { text: string; type: string; value?: string }[],
     body_examples: [] as string[],
   });
+  const [uploadingHeaderMedia, setUploadingHeaderMedia] = useState(false);
 
   // Detect {{n}} placeholders in the active body to decide how many
   // example inputs to show. Only counts unique indices.
@@ -478,7 +491,7 @@ export default function TemplatesPage() {
             <Icon name="refresh" size={14} />
             {syncing ? (isAr ? "\u062C\u0627\u0631\u064D \u0627\u0644\u0645\u0632\u0627\u0645\u0646\u0629..." : "Syncing...") : (isAr ? "\u0645\u0632\u0627\u0645\u0646\u0629" : "Sync")}
           </Button>
-          <Button primary onClick={() => { setNewTemplate({ name: "", category: "utility", language: "ar", header: "", body: "", body_ar: "", footer: "", buttons: [], body_examples: [] }); setPreviewLang("ar"); setShowCreateModal(true); }}>
+          <Button primary onClick={() => { setNewTemplate({ name: "", category: "utility", language: "ar", header: "", header_format: "none", header_media_url: "", header_media_disk: "", header_media_path: "", header_meta_handle: "", header_upload_status: "", header_upload_error: "", body: "", body_ar: "", footer: "", buttons: [], body_examples: [] }); setPreviewLang("ar"); setShowCreateModal(true); }}>
             <Icon name="file" size={14} />
             {t("createTmpl")}
           </Button>
@@ -830,7 +843,26 @@ export default function TemplatesPage() {
             payload.body = newTemplate.body;
             payload.body_ar = newTemplate.body_ar;
           }
-          if (newTemplate.header.trim()) payload.header = newTemplate.header;
+          // Header: pick the path that matches the chosen format. We
+          // never send a stale field (e.g. text + media_url at the
+          // same time) so the backend never has to guess.
+          if (newTemplate.header_format === "text" && newTemplate.header.trim()) {
+            payload.header_format = "text";
+            payload.header        = newTemplate.header;
+          } else if (
+            (newTemplate.header_format === "image" || newTemplate.header_format === "video" || newTemplate.header_format === "document")
+            && newTemplate.header_media_url
+          ) {
+            payload.header_format       = newTemplate.header_format;
+            payload.header_media_url    = newTemplate.header_media_url;
+            payload.header_media_disk   = newTemplate.header_media_disk;
+            payload.header_media_path   = newTemplate.header_media_path;
+            if (newTemplate.header_meta_handle) {
+              payload.header_meta_handle = newTemplate.header_meta_handle;
+            }
+          } else {
+            payload.header_format = "none";
+          }
           if (newTemplate.footer.trim()) payload.footer = newTemplate.footer;
           if (newTemplate.buttons.length > 0) payload.buttons = newTemplate.buttons;
 
@@ -839,7 +871,7 @@ export default function TemplatesPage() {
             await api.post("/templates", payload);
             showToast(isAr ? "تم إنشاء القالب بنجاح" : "Template created successfully");
             setShowCreateModal(false);
-            setNewTemplate({ name: "", category: "utility", language: "ar", header: "", body: "", body_ar: "", footer: "", buttons: [], body_examples: [] });
+            setNewTemplate({ name: "", category: "utility", language: "ar", header: "", header_format: "none", header_media_url: "", header_media_disk: "", header_media_path: "", header_meta_handle: "", header_upload_status: "", header_upload_error: "", body: "", body_ar: "", footer: "", buttons: [], body_examples: [] });
             mutate();
           } catch (err: any) {
             const msg = err?.response?.data?.message || (isAr ? "حدث خطأ" : "Error occurred");
@@ -926,18 +958,182 @@ export default function TemplatesPage() {
               </div>
             </div>
 
-            {/* Header (optional) */}
+            {/* Header — type picker + per-type input */}
             <div>
-              <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 6 }}>
-                {isAr ? "العنوان (اختياري)" : "Header (optional)"}
+              <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 8 }}>
+                {isAr ? "العنوان (Header)" : "Header"}
+                <span style={{ fontSize: 11, fontWeight: 400, color: C.t3, marginInlineStart: 6 }}>
+                  ({isAr ? "اختياري" : "optional"})
+                </span>
               </label>
-              <input
-                value={newTemplate.header}
-                onChange={(e) => setNewTemplate({ ...newTemplate, header: e.target.value })}
-                placeholder={newTemplate.language === "ar" ? (isAr ? "مثال: أهلاً وسهلاً!" : "e.g. أهلاً وسهلاً!") : newTemplate.language === "en" ? "e.g. Welcome!" : (isAr ? "العنوان" : "Header text")}
-                dir={newTemplate.language === "ar" ? "rtl" : "ltr"}
-                style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none", boxSizing: "border-box" }}
-              />
+
+              {/* 5-button picker — none / text / image / video / document */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6, marginBottom: 10 }}>
+                {([
+                  { key: "none",     emoji: "🚫", labelAr: "بدون",     labelEn: "None"     },
+                  { key: "text",     emoji: "📝", labelAr: "نصّ",       labelEn: "Text"     },
+                  { key: "image",    emoji: "🖼️", labelAr: "صورة",     labelEn: "Image"    },
+                  { key: "video",    emoji: "🎥", labelAr: "فيديو",    labelEn: "Video"    },
+                  { key: "document", emoji: "📄", labelAr: "ملف",      labelEn: "Document" },
+                ] as const).map((opt) => {
+                  const selected = newTemplate.header_format === opt.key;
+                  return (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => setNewTemplate((prev) => ({
+                        ...prev,
+                        header_format: opt.key,
+                        // Clear cross-type fields when switching so a stale
+                        // image preview doesn't linger on a text header.
+                        header: opt.key === "text" ? prev.header : "",
+                        header_media_url: opt.key === "text" || opt.key === "none" ? "" : prev.header_media_url,
+                        header_media_disk: opt.key === "text" || opt.key === "none" ? "" : prev.header_media_disk,
+                        header_media_path: opt.key === "text" || opt.key === "none" ? "" : prev.header_media_path,
+                        header_meta_handle: opt.key === "text" || opt.key === "none" ? "" : prev.header_meta_handle,
+                        header_upload_status: opt.key === "text" || opt.key === "none" ? "" : prev.header_upload_status,
+                        header_upload_error: opt.key === "text" || opt.key === "none" ? "" : prev.header_upload_error,
+                      }))}
+                      style={{
+                        padding: "8px 6px", borderRadius: 8,
+                        border: `1.5px solid ${selected ? C.pri : C.brd}`,
+                        background: selected ? `${C.pri}12` : "transparent",
+                        color: selected ? C.pri : C.txt,
+                        fontSize: 11, fontWeight: 600, cursor: "pointer",
+                        display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+                        fontFamily: FONT_FAMILY,
+                      }}
+                    >
+                      <span style={{ fontSize: 16 }}>{opt.emoji}</span>
+                      <span>{isAr ? opt.labelAr : opt.labelEn}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* TEXT header — keep existing behaviour */}
+              {newTemplate.header_format === "text" && (
+                <input
+                  value={newTemplate.header}
+                  onChange={(e) => setNewTemplate({ ...newTemplate, header: e.target.value })}
+                  placeholder={newTemplate.language === "ar" ? "مثال: أهلاً وسهلاً!" : "e.g. Welcome!"}
+                  dir={newTemplate.language === "ar" ? "rtl" : "ltr"}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none", boxSizing: "border-box" }}
+                />
+              )}
+
+              {/* MEDIA headers — file upload + preview */}
+              {(newTemplate.header_format === "image" || newTemplate.header_format === "video" || newTemplate.header_format === "document") && (
+                <div>
+                  <input
+                    type="file"
+                    accept={
+                      newTemplate.header_format === "image" ? "image/jpeg,image/png" :
+                      newTemplate.header_format === "video" ? "video/mp4,video/3gpp" :
+                      "application/pdf"
+                    }
+                    disabled={uploadingHeaderMedia}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setUploadingHeaderMedia(true);
+                      try {
+                        const fd = new FormData();
+                        fd.append("format", newTemplate.header_format);
+                        fd.append("file", file);
+                        const res = await api.post("/templates/upload-header-media", fd, {
+                          headers: { "Content-Type": "multipart/form-data" },
+                        });
+                        const data = res.data?.data ?? res.data;
+                        setNewTemplate((prev) => ({
+                          ...prev,
+                          header_media_url:    data.media_url ?? "",
+                          header_media_disk:   data.media_disk ?? "",
+                          header_media_path:   data.media_path ?? "",
+                          header_meta_handle:  data.meta_handle ?? "",
+                          header_upload_status: data.upload_status ?? "ready",
+                          header_upload_error:  data.upload_error ?? "",
+                        }));
+                        showToast(
+                          data.upload_status === "ready"
+                            ? (isAr ? "تمّ رفع الملف بنجاح" : "File uploaded successfully")
+                            : (isAr ? "تمّ حفظ الملف، الرفع لـ Meta سيُحاوَل لاحقاً" : "File saved, Meta upload deferred"),
+                        );
+                      } catch (err: any) {
+                        const msg = err?.response?.data?.message
+                          || (isAr ? "فشل الرفع، حاول مرّة أخرى" : "Upload failed, please retry");
+                        showToast(msg);
+                      } finally {
+                        setUploadingHeaderMedia(false);
+                        // Reset the input so picking the same file again re-fires onChange
+                        e.target.value = "";
+                      }
+                    }}
+                    style={{
+                      width: "100%", padding: "10px 14px", borderRadius: 10,
+                      border: `1px dashed ${C.brd}`, background: C.inp, color: C.txt,
+                      fontSize: 12, fontFamily: FONT_FAMILY, cursor: "pointer",
+                      boxSizing: "border-box",
+                    }}
+                  />
+
+                  {/* Helper line */}
+                  <div style={{ fontSize: 10.5, color: C.t3, marginTop: 6, lineHeight: 1.5 }}>
+                    {newTemplate.header_format === "image" && (isAr ? "JPEG / PNG · حدّ أقصى 5 ميجا" : "JPEG / PNG · max 5 MB")}
+                    {newTemplate.header_format === "video" && (isAr ? "MP4 / 3GP · حدّ أقصى 16 ميجا" : "MP4 / 3GP · max 16 MB")}
+                    {newTemplate.header_format === "document" && (isAr ? "PDF · حدّ أقصى 100 ميجا" : "PDF · max 100 MB")}
+                  </div>
+
+                  {/* Upload state */}
+                  {uploadingHeaderMedia && (
+                    <div style={{ fontSize: 11.5, color: C.t2, marginTop: 8 }}>
+                      ⏳ {isAr ? "جارٍ الرفع..." : "Uploading..."}
+                    </div>
+                  )}
+
+                  {/* Preview pane — appears once a URL exists */}
+                  {newTemplate.header_media_url && !uploadingHeaderMedia && (
+                    <div style={{
+                      marginTop: 10, padding: 10, borderRadius: 10,
+                      border: `1px solid ${C.brd}`, background: C.inp,
+                    }}>
+                      {newTemplate.header_format === "image" && (
+                        <img src={newTemplate.header_media_url} alt="header preview" style={{ maxWidth: "100%", maxHeight: 180, borderRadius: 8, display: "block" }} />
+                      )}
+                      {newTemplate.header_format === "video" && (
+                        <video src={newTemplate.header_media_url} controls style={{ maxWidth: "100%", maxHeight: 180, borderRadius: 8, display: "block" }} />
+                      )}
+                      {newTemplate.header_format === "document" && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <span style={{ fontSize: 24 }}>📄</span>
+                          <a href={newTemplate.header_media_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: C.pri, textDecoration: "underline" }}>
+                            {isAr ? "معاينة الملف" : "Preview file"}
+                          </a>
+                        </div>
+                      )}
+
+                      {/* Status badge */}
+                      <div style={{ marginTop: 8, fontSize: 11, display: "flex", alignItems: "center", gap: 6 }}>
+                        {newTemplate.header_upload_status === "ready" && (
+                          <span style={{ color: COLORS.ok, fontWeight: 600 }}>✓ {isAr ? "جاهز للإرسال إلى Meta" : "Ready to ship to Meta"}</span>
+                        )}
+                        {newTemplate.header_upload_status === "pending_handle" && (
+                          <div style={{ flex: 1, padding: "8px 10px", borderRadius: 6, background: "#f59e0b15", border: "1px solid #f59e0b40", color: "#92400e", fontSize: 11, lineHeight: 1.5 }}>
+                            ⚠️ {isAr
+                              ? "الملف محفوظ، لكن الرفع لـ Meta لم يكتمل. سيتمّ حفظ القالب كمسوّدة محليّاً، وسيُحاوَل الرفع لاحقاً عند تفعيل التكامل."
+                              : "File saved, but Meta upload didn't complete. Template will save as a local draft and we'll retry the Meta upload once the integration is configured."}
+                            {newTemplate.header_upload_error && (
+                              <div style={{ marginTop: 4, fontSize: 10, opacity: 0.85 }}>
+                                {newTemplate.header_upload_error}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* ── Arabic Body ── */}
