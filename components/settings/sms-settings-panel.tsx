@@ -208,7 +208,7 @@ export function SmsSettingsPanel() {
           {balance !== null && balance !== undefined ? Number(balance).toLocaleString() : "—"}
         </div>
         <div style={{ fontSize: 12, color: C.t2, marginTop: 4 }}>
-          {isAr ? "ر.س متبقّية" : "SAR remaining"}
+          {isAr ? "رسالة متبقّية" : "messages remaining"}
         </div>
 
         {lowBalance && (
@@ -218,7 +218,7 @@ export function SmsSettingsPanel() {
             fontSize: 12, color: C.warn, fontWeight: 600,
             display: "inline-block",
           }}>
-            ⚠️ {isAr ? `الرصيد تحت الحدّ المنخفض (${config?.low_balance_threshold} ر.س)` : `Balance below threshold (${config?.low_balance_threshold} SAR)`}
+            ⚠️ {isAr ? `الرصيد تحت الحدّ المنخفض (${config?.low_balance_threshold} رسالة)` : `Balance below threshold (${config?.low_balance_threshold} messages)`}
           </div>
         )}
 
