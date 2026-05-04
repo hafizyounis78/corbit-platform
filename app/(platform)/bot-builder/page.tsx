@@ -90,6 +90,14 @@ export default function BotBuilderPage() {
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef<{ startX: number; startY: number; nodeX: number; nodeY: number } | null>(null);
+  // Connection mode — clicking a node enters "pick target" state and
+  // the next node clicked becomes a child of the source. Esc cancels.
+  const [connectingFromId, setConnectingFromId] = useState<string | null>(null);
+  // Test mode — slide-in panel that walks the flow as a chat preview.
+  const [testOpen, setTestOpen] = useState(false);
+  const [testTrace, setTestTrace] = useState<Array<{ kind: "bot" | "user" | "system"; text: string; nodeId?: string }>>([]);
+  const [testCurrentNodeId, setTestCurrentNodeId] = useState<string | null>(null);
+  const [testInputValue, setTestInputValue] = useState("");
 
   const selectedBot = useMemo(
     () => (selectedBotId !== null ? bots.find((b) => b.id === selectedBotId) ?? null : null),
@@ -162,6 +170,16 @@ export default function BotBuilderPage() {
   const paginatedBots = filteredBots.slice((page - 1) * BOTS_PER_PAGE, page * BOTS_PER_PAGE);
 
   useEffect(() => { setPage(1); }, [filterTab]);
+
+  /* ---- Esc cancels the active connection draft ---- */
+  useEffect(() => {
+    if (!connectingFromId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setConnectingFromId(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [connectingFromId]);
 
   /* ---------- Handlers ---------- */
   const handleCreateFlow = useCallback(() => {
@@ -370,6 +388,155 @@ export default function BotBuilderPage() {
 
     const nodeColor = (type: string) => NODE_COLORS[type] ?? C.t3;
 
+    /* ---- Connection mode handlers ---- */
+    const startConnect = () => {
+      setConnectingFromId(selectedNodeId || (flow[0]?.id ?? null));
+      // If the user has no node selected, hint at picking one
+      if (!selectedNodeId && flow.length > 0) {
+        showToast(isAr ? "اختر عقدة المصدر أولاً" : "Pick the source node first");
+      }
+    };
+
+    const handleNodeClick = (nodeId: string) => {
+      // In connect mode, the second click finalises the edge.
+      if (connectingFromId) {
+        if (connectingFromId === nodeId) {
+          // Clicking the source again = cancel
+          setConnectingFromId(null);
+          return;
+        }
+        setFlow((prev) => prev.map((n) => {
+          if (n.id !== connectingFromId) return n;
+          if (n.next.includes(nodeId)) return n; // already connected
+          return { ...n, next: [...n.next, nodeId] };
+        }));
+        setConnectingFromId(null);
+        showToast(isAr ? "تم الربط ✓" : "Connected ✓");
+        return;
+      }
+      setSelectedNodeId(nodeId);
+    };
+
+    /* ---- Test mode — walks the flow as a fake chat ---- */
+    const advanceFromNode = (nodeId: string, choice?: string) => {
+      const node = flow.find((n) => n.id === nodeId);
+      if (!node) return;
+      const trace: typeof testTrace = [];
+
+      // Render the node's "what the bot says" line (if any).
+      switch (node.type) {
+        case "trigger":
+          trace.push({
+            kind: "system",
+            text: isAr ? `🚀 بدأ التدفّق من '${node.config?.keywords ?? "trigger"}'` : `🚀 Flow started from '${node.config?.keywords ?? "trigger"}'`,
+            nodeId,
+          });
+          break;
+        case "message":
+          if (node.config?.text) trace.push({ kind: "bot", text: String(node.config.text), nodeId });
+          break;
+        case "buttons":
+          if (node.config?.text) trace.push({ kind: "bot", text: String(node.config.text), nodeId });
+          break;
+        case "input":
+          if (node.config?.text) trace.push({ kind: "bot", text: String(node.config.text), nodeId });
+          break;
+        case "ai":
+          trace.push({
+            kind: "bot",
+            text: isAr ? "🧠 [وكيل AI يردّ هنا بناءً على قاعدة المعرفة]" : "🧠 [AI agent replies here from the knowledge base]",
+            nodeId,
+          });
+          break;
+        case "api":
+          trace.push({
+            kind: "system",
+            text: isAr ? `🔌 استدعاء API: ${node.config?.url ?? "—"}` : `🔌 API call: ${node.config?.url ?? "—"}`,
+            nodeId,
+          });
+          break;
+        case "condition":
+          trace.push({
+            kind: "system",
+            text: isAr ? `🔀 شرط: ${node.config?.expression ?? "—"} (سنأخذ المسار الأوّل)` : `🔀 Condition: ${node.config?.expression ?? "—"} (taking first path)`,
+            nodeId,
+          });
+          break;
+        case "transfer":
+          trace.push({
+            kind: "system",
+            text: isAr ? `👤 تحويل لـ ${node.config?.team ?? "وكيل بشري"} — انتهى مسار البوت` : `👤 Transfer to ${node.config?.team ?? "human agent"} — bot path ends`,
+            nodeId,
+          });
+          break;
+        case "end":
+          trace.push({
+            kind: "system",
+            text: isAr ? "🏁 انتهى التدفّق" : "🏁 Flow ended",
+            nodeId,
+          });
+          break;
+      }
+
+      if (choice) {
+        trace.push({ kind: "user", text: choice });
+      }
+
+      setTestTrace((prev) => [...prev, ...trace]);
+
+      // Buttons + Input wait for the user before advancing; everything
+      // else auto-advances to the first child.
+      const waitsForUser = node.type === "buttons" || node.type === "input";
+      const isTerminal = node.type === "end" || node.type === "transfer";
+
+      if (waitsForUser) {
+        setTestCurrentNodeId(nodeId);
+        return;
+      }
+
+      if (isTerminal || node.next.length === 0) {
+        setTestCurrentNodeId(null);
+        return;
+      }
+
+      // Auto-advance after a small delay so the user can read the
+      // bot's last line before the next one lands.
+      setTimeout(() => advanceFromNode(node.next[0]), 350);
+    };
+
+    const startTest = () => {
+      setTestTrace([]);
+      setTestInputValue("");
+      const start = flow.find((n) => n.type === "trigger") ?? flow[0];
+      setTestOpen(true);
+      if (!start) {
+        setTestTrace([{ kind: "system", text: isAr ? "لا توجد عقدة بداية" : "No starting node" }]);
+        return;
+      }
+      // Defer one tick so React mounts the panel before we push trace
+      setTimeout(() => advanceFromNode(start.id), 50);
+    };
+
+    const handleTestButton = (label: string, targetNodeId: string) => {
+      advanceFromNode(targetNodeId, label);
+    };
+
+    const handleTestInputSubmit = () => {
+      if (!testCurrentNodeId || !testInputValue.trim()) return;
+      const current = flow.find((n) => n.id === testCurrentNodeId);
+      if (!current) return;
+      const next = current.next[0];
+      if (!next) {
+        setTestTrace((prev) => [...prev, { kind: "user", text: testInputValue }]);
+        setTestCurrentNodeId(null);
+        setTestInputValue("");
+        return;
+      }
+      const value = testInputValue;
+      setTestInputValue("");
+      advanceFromNode(next, value);
+    };
+
     return (
       <div style={{ padding: "0 24px 24px", display: "flex", flexDirection: "column", gap: 20, overflow: "hidden" }}>
         {/* Back + Header */}
@@ -386,8 +553,33 @@ export default function BotBuilderPage() {
             </div>
             <p style={{ marginTop: 4, marginBottom: 0, fontSize: 13, color: C.t2 }}>{selectedBot.desc}</p>
           </div>
-          {/* Save + Add buttons */}
-          <div style={{ display: "flex", gap: 8, position: "relative" }}>
+          {/* Save + Add + Connect + Test buttons */}
+          <div style={{ display: "flex", gap: 8, position: "relative", flexWrap: "wrap" }}>
+            <Button
+              small
+              onClick={startTest}
+              style={{
+                background: "#7C3AED15",
+                color: "#7C3AED",
+                border: "1px solid #7C3AED40",
+              }}
+            >
+              \uD83E\uDDEA {isAr ? "\u0627\u062E\u062A\u0628\u0627\u0631" : "Test"}
+            </Button>
+            <Button
+              outline
+              small
+              onClick={connectingFromId ? () => setConnectingFromId(null) : startConnect}
+              style={connectingFromId ? {
+                background: "#10B98115",
+                color: "#10B981",
+                borderColor: "#10B98180",
+              } : undefined}
+            >
+              \uD83D\uDD17 {connectingFromId
+                ? (isAr ? "\u0625\u0644\u063A\u0627\u0621 \u0627\u0644\u0631\u0628\u0637 (Esc)" : "Cancel link (Esc)")
+                : (isAr ? "\u0631\u0628\u0637" : "Connect")}
+            </Button>
             <div style={{ position: "relative" }}>
               <Button
                 outline
@@ -508,6 +700,33 @@ export default function BotBuilderPage() {
           ))}
         </div>
 
+        {/* Connect-mode banner \u2014 sits above the canvas so the user
+            can't miss why the cursor + interactions changed. */}
+        {connectingFromId && (
+          <div style={{
+            padding: "10px 16px", borderRadius: 10,
+            background: "#10B98112", border: "1px solid #10B98140",
+            color: "#0F8B5E", fontSize: 13, fontWeight: 600,
+            display: "flex", alignItems: "center", gap: 8,
+          }}>
+            \ud83d\udd17 {isAr
+              ? "\u0648\u0636\u0639 \u0627\u0644\u0631\u0628\u0637: \u0627\u0636\u063a\u0637 \u0639\u0644\u0649 \u0639\u0642\u062f\u0629 \u0627\u0644\u0647\u062f\u0641. Esc \u0644\u0644\u0625\u0644\u063a\u0627\u0621."
+              : "Connect mode: click the target node. Esc to cancel."}
+            <button
+              type="button"
+              onClick={() => setConnectingFromId(null)}
+              style={{
+                marginInlineStart: "auto", padding: "4px 10px", borderRadius: 6,
+                border: "1px solid #10B98140", background: "transparent",
+                color: "#0F8B5E", fontFamily: FONT_FAMILY, fontSize: 11,
+                fontWeight: 600, cursor: "pointer",
+              }}
+            >
+              {isAr ? "\u0625\u0644\u063a\u0627\u0621" : "Cancel"}
+            </button>
+          </div>
+        )}
+
         {/* Flow Canvas + Node Config Panel */}
         <div style={{ display: "flex", gap: 16, flexDirection: isMobile ? "column" : "row" }}>
           {/* Canvas */}
@@ -580,6 +799,13 @@ export default function BotBuilderPage() {
                       onClick={(e) => {
                         if (draggingNodeId) return;
                         e.stopPropagation();
+                        // In connect mode, route through the helper
+                        // so the second click adds the edge instead
+                        // of just selecting.
+                        if (connectingFromId) {
+                          handleNodeClick(node.id);
+                          return;
+                        }
                         setSelectedNodeId(isSelected ? null : node.id);
                       }}
                       style={{
@@ -1202,6 +1428,195 @@ export default function BotBuilderPage() {
             </Card>
           )}
         </div>
+
+        {/* \u2500\u2500 Test panel \u2014 slides in from the side; chat-style preview
+              of the flow. Closes via the \u00D7 button or Esc (handled by
+              the parent). \u2500\u2500 */}
+        {testOpen && (
+          <>
+            <div
+              onClick={() => setTestOpen(false)}
+              style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 220 }}
+            />
+            <div style={{
+              position: "fixed",
+              top: 0,
+              insetInlineEnd: 0,
+              width: 380,
+              maxWidth: "92vw",
+              height: "100vh",
+              background: C.card,
+              borderInlineStart: `1px solid ${C.brd}`,
+              boxShadow: "-12px 0 30px rgba(0,0,0,0.18)",
+              zIndex: 221,
+              display: "flex",
+              flexDirection: "column",
+              fontFamily: FONT_FAMILY,
+            }}>
+              <div style={{
+                padding: "14px 18px", borderBottom: `1px solid ${C.brd}`,
+                display: "flex", alignItems: "center", gap: 10,
+              }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: 10,
+                  background: "#7C3AED15", color: "#7C3AED",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 18,
+                }}>\uD83E\uDDEA</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>
+                    {isAr ? "\u0648\u0636\u0639 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631" : "Test Mode"}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: C.t2 }}>
+                    {selectedBot?.name}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={startTest}
+                  title={isAr ? "\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0634\u063A\u064A\u0644" : "Restart"}
+                  style={{
+                    width: 30, height: 30, borderRadius: 8,
+                    border: `1px solid ${C.brd}`, background: "transparent",
+                    color: C.t2, cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 14,
+                  }}
+                >\uD83D\uDD04</button>
+                <button
+                  type="button"
+                  onClick={() => setTestOpen(false)}
+                  style={{
+                    width: 30, height: 30, borderRadius: 8,
+                    border: `1px solid ${C.brd}`, background: "transparent",
+                    color: C.t2, cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}
+                ><Icon name="x" size={14} /></button>
+              </div>
+
+              {/* Trace */}
+              <div style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 8, background: isDark ? "#0A0C14" : "#F5F3EF" }}>
+                {testTrace.length === 0 && (
+                  <div style={{ textAlign: "center", color: C.t3, fontSize: 12, marginTop: 30 }}>
+                    {isAr ? "\u062C\u0627\u0631\u064A \u0628\u062F\u0621 \u0627\u0644\u062A\u062F\u0641\u0651\u0642..." : "Starting flow..."}
+                  </div>
+                )}
+                {testTrace.map((t, i) => {
+                  if (t.kind === "system") {
+                    return (
+                      <div key={i} style={{
+                        textAlign: "center" as const,
+                        fontSize: 11, color: C.t3, fontStyle: "italic" as const,
+                        padding: "6px 12px",
+                      }}>
+                        {t.text}
+                      </div>
+                    );
+                  }
+                  const isUser = t.kind === "user";
+                  return (
+                    <div key={i} style={{
+                      display: "flex",
+                      justifyContent: isUser ? "flex-end" : "flex-start",
+                    }}>
+                      <div style={{
+                        maxWidth: "78%",
+                        padding: "9px 13px",
+                        borderRadius: isUser ? "14px 14px 0 14px" : "14px 14px 14px 0",
+                        background: isUser ? "#DCF8C6" : C.card,
+                        color: "#1A1A1A",
+                        fontSize: 13,
+                        lineHeight: 1.6,
+                        boxShadow: "0 1px 1px rgba(0,0,0,0.08)",
+                      }}>
+                        {t.text}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Buttons node \u2014 render the choices as tappable chips
+                    that advance the trace along the matching edge. */}
+                {testCurrentNodeId && (() => {
+                  const node = flow.find((n) => n.id === testCurrentNodeId);
+                  if (!node || node.type !== "buttons") return null;
+                  const labels: string[] = Array.isArray(node.config?.buttons) ? node.config.buttons : [];
+                  return (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                      {labels.map((label, idx) => {
+                        const target = node.next[idx] ?? node.next[0];
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => target && handleTestButton(label, target)}
+                            disabled={!target}
+                            style={{
+                              padding: "8px 14px", borderRadius: 18,
+                              background: target ? "#fff" : "#eee",
+                              border: `1px solid ${target ? "#4A90D9" : C.brd}`,
+                              color: target ? "#4A90D9" : C.t3,
+                              fontFamily: FONT_FAMILY, fontSize: 12, fontWeight: 600,
+                              cursor: target ? "pointer" : "not-allowed",
+                            }}
+                          >
+                            {label}{target ? "" : " \u26A0"}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Input footer \u2014 only when current node is "input" */}
+              {testCurrentNodeId && (() => {
+                const node = flow.find((n) => n.id === testCurrentNodeId);
+                if (!node || node.type !== "input") return null;
+                return (
+                  <div style={{
+                    padding: 12, borderTop: `1px solid ${C.brd}`,
+                    display: "flex", gap: 8,
+                  }}>
+                    <input
+                      value={testInputValue}
+                      onChange={(e) => setTestInputValue(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") handleTestInputSubmit(); }}
+                      placeholder={isAr ? "\u0627\u0643\u062A\u0628 \u0631\u062F\u0651 \u0627\u0644\u0639\u0645\u064A\u0644..." : "Type customer reply..."}
+                      style={{
+                        flex: 1, padding: "10px 14px", borderRadius: 10,
+                        background: C.inp, border: `1px solid ${C.brd}`,
+                        color: C.txt, fontFamily: FONT_FAMILY, fontSize: 13,
+                        outline: "none",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleTestInputSubmit}
+                      style={{
+                        padding: "10px 18px", borderRadius: 10,
+                        background: C.pri, color: "#fff", border: "none",
+                        fontFamily: FONT_FAMILY, fontSize: 12.5, fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {isAr ? "\u0625\u0631\u0633\u0627\u0644" : "Send"}
+                    </button>
+                  </div>
+                );
+              })()}
+              {!testCurrentNodeId && testTrace.length > 0 && (
+                <div style={{
+                  padding: "10px 14px", borderTop: `1px solid ${C.brd}`,
+                  fontSize: 11.5, color: C.t3, textAlign: "center" as const,
+                }}>
+                  {isAr ? "\uD83C\uDFC1 \u0627\u0646\u062A\u0647\u0649 \u0627\u0644\u062A\u062F\u0641\u0651\u0642 \u2014 \u0627\u0636\u063A\u0637 \uD83D\uDD04 \u0644\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0634\u063A\u064A\u0644" : "\uD83C\uDFC1 Flow ended \u2014 click \uD83D\uDD04 to restart"}
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
     );
   }
