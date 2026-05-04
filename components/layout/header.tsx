@@ -1,35 +1,27 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useState, useRef, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { Icon } from "@/components/icons/icon";
 import { navItems } from "@/data/nav-items";
 import { NotificationDropdown } from "./notification-dropdown";
+import { GlobalSearchModal } from "@/components/shared/global-search-modal";
 import { FONT_FAMILY } from "@/lib/constants/font";
 import { useUnreadCount } from "@/lib/api/hooks";
-import api from "@/lib/api/client";
 
 interface HeaderProps {
   onToggleSidebar: () => void;
   isMobile?: boolean;
 }
 
-interface SearchResult {
-  type: string;
-  id: string | number;
-  title: string;
-  subtitle?: string;
-  url: string;
-}
-
 export function Header({ onToggleSidebar, isMobile = false }: HeaderProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const { colors: C, isDark, toggleTheme } = useTheme();
   const { t, lang, toggleLang } = useLocale();
   const [notifOpen, setNotifOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   // Unread badge + audio chime when count goes UP. Polling interval
   // is set in useUnreadCount; we just diff the latest value against
   // the previously-seen one. Skip the chime on the very first read
@@ -70,76 +62,24 @@ export function Header({ onToggleSidebar, isMobile = false }: HeaderProps) {
     const id = setInterval(() => mutateUnread(), 20000);
     return () => clearInterval(id);
   }, [mutateUnread]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const searchRef = useRef<HTMLDivElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const currentNav = navItems.find((n) => pathname === n.path);
   const pageTitle = currentNav ? t(currentNav.labelKey) : "";
 
-  const doSearch = useCallback(async (query: string) => {
-    if (!query.trim()) {
-      setSearchResults([]);
-      setSearchOpen(false);
-      return;
-    }
-    setSearchLoading(true);
-    try {
-      const res = await api.get(`/search?q=${encodeURIComponent(query)}`);
-      const data = res.data?.data ?? res.data ?? [];
-      const results: SearchResult[] = Array.isArray(data) ? data : [];
-      setSearchResults(results);
-      setSearchOpen(results.length > 0);
-    } catch {
-      setSearchResults([]);
-      setSearchOpen(false);
-    } finally {
-      setSearchLoading(false);
-    }
-  }, []);
-
-  const handleSearchChange = (value: string) => {
-    setSearchQuery(value);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      doSearch(value);
-    }, 400);
-  };
-
-  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      doSearch(searchQuery);
-    }
-  };
-
-  const handleResultClick = (result: SearchResult) => {
-    router.push(result.url);
-    setSearchQuery("");
-    setSearchResults([]);
-    setSearchOpen(false);
-  };
-
-  // Close search dropdown on outside click
+  // Global keyboard shortcut: Ctrl+K (Cmd+K on Mac) toggles the
+  // unified search modal from any page. Mirror Slack/Notion/VSCode
+  // so muscle memory carries over. We bail out when the user is
+  // already typing in another editable element except the search
+  // box itself.
   useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
-        setSearchOpen(false);
-      }
+    const onKey = (e: KeyboardEvent) => {
+      const isToggle = (e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K");
+      if (!isToggle) return;
+      e.preventDefault();
+      setSearchOpen((v) => !v);
     };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
   }, []);
-
-  const typeIcons: Record<string, string> = {
-    conversation: "msg",
-    contact: "users",
-    campaign: "megaphone",
-    template: "file",
-  };
 
   return (
     <header
@@ -184,146 +124,49 @@ export function Header({ onToggleSidebar, isMobile = false }: HeaderProps) {
         </h1>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-        {/* Search — desktop only; the icon button below opens it on phones */}
-        {!isMobile && (
-        <div
-          ref={searchRef}
-          style={{
-            position: "relative",
-          }}
-        >
-          <div
+        {/* Global search trigger.
+            Desktop: pill with shortcut hint, opens the modal.
+            Mobile: icon-only button to save room next to bell + theme. */}
+        {!isMobile ? (
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "6px 12px",
-              borderRadius: 10,
-              background: C.inp,
-              width: 180,
+              display: "flex", alignItems: "center", gap: 8,
+              padding: "6px 12px", borderRadius: 10,
+              background: C.inp, border: "none",
+              cursor: "pointer", color: C.t2,
+              fontFamily: FONT_FAMILY, fontSize: 12,
+              width: 220, justifyContent: "space-between",
             }}
+            title={lang === "ar" ? "بحث شامل (Ctrl+K)" : "Global search (Ctrl+K)"}
           >
-            <Icon name="search" size={14} />
-            {searchLoading ? (
-              <span style={{ fontSize: 11, color: C.t3 }}>...</span>
-            ) : null}
-            <input
-              placeholder={t("search")}
-              value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              onKeyDown={handleSearchKeyDown}
-              style={{
-                border: "none",
-                background: "none",
-                outline: "none",
-                fontFamily: FONT_FAMILY,
-                fontSize: 12,
-                color: C.txt,
-                width: "100%",
-              }}
-            />
-          </div>
-          {searchOpen && searchResults.length > 0 && (
-            <div
-              style={{
-                position: "absolute",
-                top: 40,
-                left: 0,
-                width: 320,
-                maxHeight: 360,
-                overflowY: "auto",
-                background: C.card,
-                borderRadius: 14,
-                border: "1px solid " + C.brd,
-                boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
-                zIndex: 100,
-              }}
-            >
-              {searchResults.map((result, i) => (
-                <div
-                  key={`${result.type}-${result.id}-${i}`}
-                  onClick={() => handleResultClick(result)}
-                  style={{
-                    padding: "10px 14px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    cursor: "pointer",
-                    borderBottom:
-                      i < searchResults.length - 1
-                        ? "1px solid " + C.brdL
-                        : "none",
-                    transition: "background 0.15s",
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLDivElement).style.background =
-                      C.inp;
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLDivElement).style.background =
-                      "transparent";
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 30,
-                      height: 30,
-                      borderRadius: 8,
-                      background: C.pri + "15",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                      color: C.pri,
-                    }}
-                  >
-                    <Icon
-                      name={typeIcons[result.type] || "search"}
-                      size={14}
-                    />
-                  </div>
-                  <div style={{ flex: 1, overflow: "hidden" }}>
-                    <div
-                      style={{
-                        fontWeight: 600,
-                        fontSize: 12.5,
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {result.title}
-                    </div>
-                    {result.subtitle && (
-                      <div
-                        style={{
-                          fontSize: 11,
-                          color: C.t2,
-                          marginTop: 1,
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        {result.subtitle}
-                      </div>
-                    )}
-                  </div>
-                  <span
-                    style={{
-                      fontSize: 10,
-                      color: C.t3,
-                      flexShrink: 0,
-                      textTransform: "capitalize",
-                    }}
-                  >
-                    {result.type}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Icon name="search" size={14} />
+              {t("search")}
+            </span>
+            <span style={{
+              fontSize: 9.5, padding: "2px 6px", borderRadius: 5,
+              background: C.card, color: C.t3, fontWeight: 600, fontFamily: "monospace",
+              border: "1px solid " + C.brd,
+            }}>
+              ⌘K
+            </span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
+            style={{
+              width: 36, height: 36, borderRadius: 10,
+              border: "1px solid " + C.brd, background: "transparent",
+              color: C.txt, cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+            title={lang === "ar" ? "بحث" : "Search"}
+          >
+            <Icon name="search" size={16} />
+          </button>
         )}
 
         {/* Language — icon-only on mobile to save room next to theme/bell */}
@@ -418,6 +261,10 @@ export function Header({ onToggleSidebar, isMobile = false }: HeaderProps) {
           )}
         </div>
       </div>
+      {/* Global Search overlay — rendered at the header so it lives
+          above the page content and the Cmd+K listener stays mounted
+          for the entire authed surface. */}
+      <GlobalSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
     </header>
   );
 }
