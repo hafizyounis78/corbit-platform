@@ -9,6 +9,7 @@ import { useIsMobile } from "@/hooks/use-media-query";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { PlanWarningBanner } from "@/components/plan/plan-warning-banner";
+import { FloatingHelpButton } from "@/components/help/floating-help-button";
 import { FONT_FAMILY } from "@/lib/constants/font";
 import { navItems, canAccessNav } from "@/data/nav-items";
 
@@ -128,6 +129,9 @@ export default function PlatformLayout({ children }: { children: ReactNode }) {
           {children}
         </main>
       </div>
+      {/* Floating Help button — shows on every authed page except
+          the Help Center itself; routes to /support?tab=guides. */}
+      <FloatingHelpButton />
     </div>
   );
 }
