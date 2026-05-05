@@ -1326,21 +1326,66 @@ export default function InboxPage() {
           )}
           {/* Window-open indicator with countdown — Meta only allows
               free-form replies inside this 24h window from the
-              customer's last message. Surfacing the remaining time
-              keeps operators aware of when they'll be forced into
-              templates only. Hidden when the window has fewer than
-              30 minutes left so the warning version (closed banner)
-              takes over visually before the cutoff. */}
-          {windowOpen && !isAiOn && windowRemaining && (windowRemaining.hours > 0 || windowRemaining.minutes >= 30) && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 10, background: dk ? "#0F1F15" : "#EBF7EF", border: "1px solid " + (dk ? "#1F3D2A" : "#C8E6CE"), marginBottom: 10, fontSize: 11.5 }}>
-              <div style={{ width: 6, height: 6, borderRadius: 3, background: COLORS.ok }} />
-              <span style={{ color: C.t2, flex: 1 }}>
-                {isAr
-                  ? `النافذة مفتوحة — متبقّي ${windowRemaining.hours > 0 ? `${windowRemaining.hours} ساعة` : ''}${windowRemaining.hours > 0 && windowRemaining.minutes > 0 ? ' و' : ''}${windowRemaining.minutes > 0 ? `${windowRemaining.minutes} دقيقة` : ''}`
-                  : `Window open — ${windowRemaining.hours > 0 ? `${windowRemaining.hours}h` : ''}${windowRemaining.minutes > 0 ? ` ${windowRemaining.minutes}m` : ''} left`}
-              </span>
-            </div>
-          )}
+              customer's last message. We render three flavours so the
+              operator always knows where they stand:
+                - >2h left:  green "النافذة مفتوحة"
+                - 30m-2h:    amber "النافذة على وشك الانتهاء"
+                - <30m:      red urgent "ستُغلق قريباً — استخدم قالب الآن"
+              The closed banner above takes over once the window
+              actually expires. Without this transition the operator
+              had a silent gap of 30 minutes where neither indicator
+              showed — the QA flagged that on 2026-05-05.
+            */}
+          {windowOpen && !isAiOn && windowRemaining && (() => {
+            const totalMin = windowRemaining.hours * 60 + windowRemaining.minutes;
+            const isUrgent = totalMin < 30;
+            const isWarning = totalMin >= 30 && totalMin < 120; // 30m..2h
+            const isOk = totalMin >= 120;
+
+            const tone = isUrgent
+              ? { fg: "#EF4444", bgDark: "#2A1010", bgLight: "#FEF2F2", borderDark: "#5A1A1A", borderLight: "#FCA5A5", dot: "#EF4444" }
+              : isWarning
+              ? { fg: "#D97706", bgDark: "#2A1F08", bgLight: "#FFFBEB", borderDark: "#5A4515", borderLight: "#FCD34D", dot: "#F59E0B" }
+              : { fg: COLORS.ok, bgDark: "#0F1F15", bgLight: "#EBF7EF", borderDark: "#1F3D2A", borderLight: "#C8E6CE", dot: COLORS.ok };
+
+            const remainingText = isAr
+              ? `${windowRemaining.hours > 0 ? `${windowRemaining.hours} ساعة` : ''}${windowRemaining.hours > 0 && windowRemaining.minutes > 0 ? ' و' : ''}${windowRemaining.minutes > 0 ? `${windowRemaining.minutes} دقيقة` : ''}`
+              : `${windowRemaining.hours > 0 ? `${windowRemaining.hours}h` : ''}${windowRemaining.minutes > 0 ? ` ${windowRemaining.minutes}m` : ''}`;
+
+            const headline = isUrgent
+              ? (isAr ? `⚠️ النافذة ستُغلق خلال ${remainingText} — جهّز قالباً!` : `⚠️ Closes in ${remainingText} — get a template ready`)
+              : isWarning
+              ? (isAr ? `🟠 النافذة على وشك الانتهاء — متبقّي ${remainingText}` : `🟠 Window closing soon — ${remainingText} left`)
+              : (isAr ? `النافذة مفتوحة — متبقّي ${remainingText}` : `Window open — ${remainingText} left`);
+
+            return (
+              <div style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "6px 12px", borderRadius: 10,
+                background: dk ? tone.bgDark : tone.bgLight,
+                border: "1px solid " + (dk ? tone.borderDark : tone.borderLight),
+                marginBottom: 10, fontSize: 11.5,
+              }}>
+                <div style={{ width: 6, height: 6, borderRadius: 3, background: tone.dot }} />
+                <span style={{ color: isUrgent || isWarning ? tone.fg : C.t2, flex: 1, fontWeight: isUrgent ? 600 : 400 }}>
+                  {headline}
+                </span>
+                {(isUrgent || isWarning) && (
+                  <button
+                    onClick={() => setShowInboxTemplatePicker(true)}
+                    style={{
+                      padding: "4px 10px", borderRadius: 6,
+                      background: tone.fg, color: "#fff", border: "none",
+                      fontFamily: FONT_FAMILY, fontSize: 11, fontWeight: 600,
+                      cursor: "pointer", whiteSpace: "nowrap",
+                    }}
+                  >
+                    {isAr ? "إرسال قالب" : "Send template"}
+                  </button>
+                )}
+              </div>
+            );
+          })()}
           {/*
             Composer lock = AI agent on OR 24h window closed. The
             wrapper used to set pointerEvents:none on the whole row,

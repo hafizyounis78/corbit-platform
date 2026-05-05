@@ -564,7 +564,7 @@ export default function BotBuilderPage() {
                 border: "1px solid #7C3AED40",
               }}
             >
-              \uD83E\uDDEA {isAr ? "\u0627\u062E\u062A\u0628\u0627\u0631" : "Test"}
+              {"\uD83E\uDDEA "}{isAr ? "\u0627\u062E\u062A\u0628\u0627\u0631" : "Test"}
             </Button>
             <Button
               outline
@@ -576,7 +576,7 @@ export default function BotBuilderPage() {
                 borderColor: "#10B98180",
               } : undefined}
             >
-              \uD83D\uDD17 {connectingFromId
+              {"\uD83D\uDD17 "}{connectingFromId
                 ? (isAr ? "\u0625\u0644\u063A\u0627\u0621 \u0627\u0644\u0631\u0628\u0637 (Esc)" : "Cancel link (Esc)")
                 : (isAr ? "\u0631\u0628\u0637" : "Connect")}
             </Button>
@@ -1462,7 +1462,7 @@ export default function BotBuilderPage() {
                   background: "#7C3AED15", color: "#7C3AED",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: 18,
-                }}>\uD83E\uDDEA</div>
+                }}>{"\uD83E\uDDEA"}</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, fontSize: 14 }}>
                     {isAr ? "\u0648\u0636\u0639 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631" : "Test Mode"}
