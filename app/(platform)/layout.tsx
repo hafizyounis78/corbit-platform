@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { useTheme } from "@/lib/theme/theme-provider";
 import { useAuth } from "@/lib/auth/auth-context";
-import { useIsMobile } from "@/hooks/use-media-query";
+import { useIsMobile, useIsTablet } from "@/hooks/use-media-query";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { PlanWarningBanner } from "@/components/plan/plan-warning-banner";
@@ -15,6 +15,7 @@ import { navItems, canAccessNav } from "@/data/nav-items";
 
 export default function PlatformLayout({ children }: { children: ReactNode }) {
   const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
   const [sideOpen, setSideOpen] = useState(true);
   const { rtl } = useLocale();
   const { colors: C } = useTheme();
@@ -23,11 +24,20 @@ export default function PlatformLayout({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading, user } = useAuth();
   const isInbox = pathname === "/inbox";
 
-  // On mobile we default the drawer closed so the chrome doesn't
-  // eat half the viewport; on desktop it stays open.
+  // Sidebar default state, by viewport:
+  //   mobile (<768): drawer closed — chrome would eat half the viewport.
+  //   tablet (768-1023): rail collapsed — 260px sidebar squeezed
+  //     content too much in the QA-reported case.
+  //   desktop (>=1024): full sidebar expanded.
   useEffect(() => {
-    setSideOpen(!isMobile);
-  }, [isMobile]);
+    if (isMobile) {
+      setSideOpen(false);
+    } else if (isTablet) {
+      setSideOpen(false); // start collapsed on tablet; user can expand
+    } else {
+      setSideOpen(true);
+    }
+  }, [isMobile, isTablet]);
 
   // Closing the drawer on route change feels expected on phones —
   // tapping a nav item shouldn't leave the overlay covering the page.
