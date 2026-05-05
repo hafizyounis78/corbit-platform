@@ -333,7 +333,32 @@ export default function TeamsPage() {
                     <td style={{ padding: "12px 14px", fontWeight: 600 }}>{m.stats.convos}</td>
                     <td style={{ padding: "12px 14px" }}>{m.stats.frt}</td>
                     <td style={{ padding: "12px 14px" }}><span style={{ fontWeight: 600, color: m.stats.csat >= 95 ? C.ok : C.warn }}>{m.stats.csat}%</span></td>
-                    <td style={{ padding: "12px 14px", width: 100 }}><ProgressBar value={m.stats.load} color={m.stats.load > 70 ? C.err : m.stats.load > 50 ? C.warn : C.ok} /></td>
+                    <td style={{ padding: "12px 14px", width: 110 }}>
+                      {/* Workload column was rendering an unlabelled
+                          ProgressBar so a 0% load looked identical to
+                          a 100% one — flagged in 2026-05-05 QA. Pair
+                          the bar with the numeric percent + the raw
+                          (active/max) ratio in a tooltip so an
+                          operator can both eyeball and dig in. */}
+                      {(() => {
+                        const load = Number(m.stats?.load ?? 0);
+                        const color = load > 70 ? C.err : load > 50 ? C.warn : C.ok;
+                        return (
+                          <div title={ar ? `${load}% من الطاقة الاستيعابيّة` : `${load}% of capacity`}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11, marginBottom: 2 }}>
+                              <span style={{ fontWeight: 600, color }}>{load}%</span>
+                              <span style={{ color: C.t3, fontSize: 10 }}>
+                                {load >= 90 ? (ar ? "ممتلئ" : "Full")
+                                  : load >= 70 ? (ar ? "مرتفع" : "High")
+                                  : load >= 30 ? (ar ? "متوسّط" : "Medium")
+                                  : (ar ? "خفيف" : "Light")}
+                              </span>
+                            </div>
+                            <ProgressBar value={load} color={color} />
+                          </div>
+                        );
+                      })()}
+                    </td>
                     <td style={{ padding: "12px 14px" }}>
                       <button onClick={() => openEditMember(m)} style={{ background: "none", border: "none", cursor: "pointer", color: C.t2, padding: 4, borderRadius: 6 }} title={ar ? "تعديل" : "Edit"}>
                         <Icon name="pencil" size={16} />

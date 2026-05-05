@@ -208,16 +208,75 @@ export default function DashboardPage() {
                 {isAr ? "لا توجد أرقام" : "No numbers"}
               </div>
             )}
-            {waNumbers.map((n: any, i: number) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: 10, background: C.inp, marginBottom: i === 0 ? 8 : 0 }}>
-                <Icon name="phone" size={16} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13 }}>{isAr ? (n.labelAr ?? n.label) : n.label}</div>
-                  <div style={{ fontSize: 12, color: C.t2, direction: "ltr" }}>{n.number}</div>
+            {waNumbers.map((n: any, i: number) => {
+              // Quality rating colour: GREEN ✅ healthy, YELLOW ⚠️
+              // approaching limits, RED 🚨 throttled by Meta. Maps
+              // to the cached quality_rating column populated by
+              // the Meta Insights cron.
+              const qr = (n.qualityRating || "UNKNOWN") as string;
+              const qrColor = qr === "GREEN" ? "#10b981"
+                : qr === "YELLOW" ? "#f59e0b"
+                : qr === "RED"    ? "#ef4444"
+                : C.t3;
+              const qrEmoji = qr === "GREEN" ? "🟢" : qr === "YELLOW" ? "🟡" : qr === "RED" ? "🔴" : "⚪";
+              const qrLabel = qr === "GREEN"  ? (isAr ? "ممتاز" : "Healthy")
+                : qr === "YELLOW" ? (isAr ? "تحذير" : "Warning")
+                : qr === "RED"    ? (isAr ? "مقيّد" : "Throttled")
+                : (isAr ? "—" : "—");
+
+              const dailyCap = n.dailySendCap;
+              const tierLabel = n.messagingTier === "TIER_UNLIMITED"
+                ? (isAr ? "بلا حدّ" : "Unlimited")
+                : dailyCap !== null && dailyCap !== undefined
+                ? `${dailyCap.toLocaleString()}${isAr ? " /يوم" : "/day"}`
+                : "—";
+
+              const blockRate = n.blockRatePct;
+              const blockHigh = blockRate !== null && blockRate !== undefined && Number(blockRate) >= 5;
+
+              return (
+                <div key={i} style={{ padding: "10px 14px", borderRadius: 10, background: C.inp, marginBottom: i === 0 ? 8 : 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <Icon name="phone" size={16} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>{isAr ? (n.labelAr ?? n.label) : n.label}</div>
+                      <div style={{ fontSize: 12, color: C.t2, direction: "ltr" }}>{n.number}</div>
+                    </div>
+                    <StatusDot color={C.ok} label={t("connected")} />
+                  </div>
+                  {/* Meta quality metrics — only renders when we have
+                      data. New numbers (no metrics yet) get the row
+                      hidden so the dashboard isn't littered with —s. */}
+                  {(n.qualityRating || n.messagingTier || blockRate !== null) && (
+                    <div style={{
+                      marginTop: 10, paddingTop: 10,
+                      borderTop: `1px dashed ${C.brd}`,
+                      display: "grid",
+                      gridTemplateColumns: "repeat(3, 1fr)",
+                      gap: 8,
+                      fontSize: 11,
+                    }}>
+                      <div title={isAr ? "تقييم Meta لجودة الرسائل" : "Meta quality rating"}>
+                        <div style={{ color: C.t3, marginBottom: 2 }}>{isAr ? "الجودة" : "Quality"}</div>
+                        <div style={{ fontWeight: 700, color: qrColor }}>
+                          {qrEmoji} {qrLabel}
+                        </div>
+                      </div>
+                      <div title={isAr ? "حدّ الإرسال اليومي من Meta" : "Meta daily send cap"}>
+                        <div style={{ color: C.t3, marginBottom: 2 }}>{isAr ? "حدّ يومي" : "Daily limit"}</div>
+                        <div style={{ fontWeight: 700, color: C.txt }}>{tierLabel}</div>
+                      </div>
+                      <div title={isAr ? "نسبة الحظر — أعلى من 5٪ تستوجب مراجعة Meta" : "Block rate — above 5% triggers Meta review"}>
+                        <div style={{ color: C.t3, marginBottom: 2 }}>{isAr ? "نسبة الحظر" : "Block rate"}</div>
+                        <div style={{ fontWeight: 700, color: blockHigh ? "#ef4444" : C.txt }}>
+                          {blockRate !== null && blockRate !== undefined ? `${Number(blockRate).toFixed(1)}%` : "—"}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <StatusDot color={C.ok} label={t("connected")} />
-              </div>
-            ))}
+              );
+            })}
           </Card>
 
           {/* AI Usage */}
