@@ -327,6 +327,39 @@ export function Sidebar({ open, onToggle, isMobile = false }: SidebarProps) {
               <Icon name="logout" size={18} />
             </button>
           </div>
+
+          {/* Legal links — surfaced on every authenticated page so a
+              tenant (or a Meta reviewer) can always reach Privacy +
+              Terms. The pages exist already; this gives them a
+              reliable entry point per WhatsApp Business Policy. */}
+          <div style={{
+            marginTop: 10,
+            paddingTop: 10,
+            borderTop: `1px solid ${C.brd}`,
+            display: "flex",
+            justifyContent: "center",
+            gap: 8,
+            fontSize: 10,
+            color: C.t3,
+            flexWrap: "wrap",
+          }}>
+            <Link href="/privacy" style={{ color: C.t3, textDecoration: "none" }}>
+              {isAr ? "الخصوصيّة" : "Privacy"}
+            </Link>
+            <span style={{ opacity: 0.4 }}>·</span>
+            <Link href="/terms" style={{ color: C.t3, textDecoration: "none" }}>
+              {isAr ? "الشروط" : "Terms"}
+            </Link>
+            <span style={{ opacity: 0.4 }}>·</span>
+            <a
+              href="https://www.whatsapp.com/legal/business-policy"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: C.t3, textDecoration: "none" }}
+            >
+              {isAr ? "سياسة واتساب" : "WA Policy"}
+            </a>
+          </div>
         </div>
       )}
     </div>

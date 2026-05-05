@@ -180,6 +180,19 @@ export default function LoginPage() {
               أنشئ حسابك الآن
             </a>
           </div>
+
+          {/* Legal footer — Privacy + Terms required by Meta WhatsApp
+              Business Policy. Both pages exist (/privacy, /terms) but
+              were missing visible entry points; surface them here on
+              every login screen so a tenant can review before signing
+              in / signing up. */}
+          <div style={{ textAlign: 'center', marginTop: 16, fontSize: 11, color: '#6B7785', display: 'flex', justifyContent: 'center', gap: 14, flexWrap: 'wrap' }}>
+            <a href="/privacy" style={{ color: '#8B99AD', textDecoration: 'none' }}>سياسة الخصوصيّة</a>
+            <span style={{ opacity: 0.5 }}>·</span>
+            <a href="/terms" style={{ color: '#8B99AD', textDecoration: 'none' }}>شروط الاستخدام</a>
+            <span style={{ opacity: 0.5 }}>·</span>
+            <a href="https://www.whatsapp.com/legal/business-policy" target="_blank" rel="noopener noreferrer" style={{ color: '#8B99AD', textDecoration: 'none' }}>سياسة واتساب</a>
+          </div>
         </form>
       </div>
     </div>

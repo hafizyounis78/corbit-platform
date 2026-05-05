@@ -847,6 +847,20 @@ export default function TemplatesPage() {
             showToast(isAr ? "يرجى إدخال اسم القالب" : "Please enter template name");
             return;
           }
+          // Meta requires snake_case names — lowercase letters, digits,
+          // and underscores only. Without this client-side gate, every
+          // typo (capital letter, space, dash) was costing the operator
+          // a 24-hour Meta-review round-trip just to find out the name
+          // was malformed. Match the backend regex exactly.
+          if (! /^[a-z0-9_]+$/.test(newTemplate.name.trim())) {
+            showToast(
+              isAr
+                ? "اسم القالب يجب أن يحتوي على أحرف إنجليزيّة صغيرة وأرقام و _ فقط (مثال: order_confirmation)"
+                : "Template name must contain only lowercase letters, digits, and underscores (e.g. order_confirmation)",
+              "error",
+            );
+            return;
+          }
           const ln = newTemplate.language;
           const needsBody = ln === "en" || ln === "ar+en";
           const needsBodyAr = ln === "ar" || ln === "ar+en";
@@ -924,10 +938,24 @@ export default function TemplatesPage() {
               </label>
               <input
                 value={newTemplate.name}
-                onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })}
-                placeholder={isAr ? "مثال: رسالة ترحيب" : "e.g. Welcome Message"}
+                // Live-strip illegal chars and lowercase as the operator
+                // types so they never end up with a name Meta will
+                // reject. Spaces and dashes auto-convert to underscores.
+                onChange={(e) => {
+                  const cleaned = e.target.value
+                    .toLowerCase()
+                    .replace(/[\s-]+/g, "_")
+                    .replace(/[^a-z0-9_]/g, "");
+                  setNewTemplate({ ...newTemplate, name: cleaned });
+                }}
+                placeholder={isAr ? "مثال: order_confirmation" : "e.g. order_confirmation"}
                 style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none", boxSizing: "border-box" }}
               />
+              <div style={{ fontSize: 11, color: C.t3, marginTop: 6, lineHeight: 1.5 }}>
+                {isAr
+                  ? "💡 يقبل: أحرف إنجليزيّة صغيرة، أرقام، شرطة سفليّة فقط. Meta ترفض أيّ شيء آخر."
+                  : "💡 Allowed: lowercase letters, digits, underscores only. Meta rejects anything else."}
+              </div>
             </div>
 
             {/* Category & Language Row */}
@@ -965,6 +993,20 @@ export default function TemplatesPage() {
                     {isAr
                       ? "سياسة Meta: القوالب التسويقية يجب أن تتضمن طريقة لإلغاء الاشتراك. تم تعبئة حقل التذييل تلقائياً، يمكنك تعديله."
                       : "Meta policy: marketing templates must include an opt-out method. A default footer was added — feel free to edit."}
+                  </div>
+                )}
+                {/* Authentication category — Meta has very strict
+                    rules: buttons can't carry variables, no emojis in
+                    body, content must be a one-time code prompt only.
+                    Surfacing this BEFORE the operator submits saves
+                    them a 24-hour rejection round-trip. The CSAT
+                    template (corbit_csat) was rejected for exactly
+                    this reason on 2026-05-05's external test. */}
+                {newTemplate.category === "authentication" && (
+                  <div style={{ marginTop: 6, fontSize: 11, color: C.t2, lineHeight: 1.6, padding: "8px 10px", borderRadius: 8, background: `${COLORS.err}12`, border: `1px solid ${COLORS.err}30` }}>
+                    ⚠️ {isAr
+                      ? "سياسة Meta لقوالب المصادقة: الأزرار لا تقبل متغيّرات أو ايموجي، النصّ يجب أن يحتوي رمز تحقّق فقط (مثل: {{1}} هو رمز التحقّق الخاصّ بك). أيّ تخصيص آخر سيؤدّي للرفض."
+                      : "Meta auth-template policy: buttons cannot contain variables or emojis; body must be a verification code only (e.g. {{1}} is your verification code). Anything fancier gets rejected."}
                   </div>
                 )}
               </div>
