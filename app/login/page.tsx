@@ -191,6 +191,8 @@ export default function LoginPage() {
             <span style={{ opacity: 0.5 }}>·</span>
             <a href="/terms" style={{ color: '#8B99AD', textDecoration: 'none' }}>شروط الاستخدام</a>
             <span style={{ opacity: 0.5 }}>·</span>
+            <a href="/dpa" style={{ color: '#8B99AD', textDecoration: 'none' }}>اتفاقية معالجة البيانات</a>
+            <span style={{ opacity: 0.5 }}>·</span>
             <a href="https://www.whatsapp.com/legal/business-policy" target="_blank" rel="noopener noreferrer" style={{ color: '#8B99AD', textDecoration: 'none' }}>سياسة واتساب</a>
           </div>
         </form>

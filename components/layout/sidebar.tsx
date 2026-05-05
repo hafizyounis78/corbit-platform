@@ -351,6 +351,10 @@ export function Sidebar({ open, onToggle, isMobile = false }: SidebarProps) {
               {isAr ? "الشروط" : "Terms"}
             </Link>
             <span style={{ opacity: 0.4 }}>·</span>
+            <Link href="/dpa" style={{ color: C.t3, textDecoration: "none" }}>
+              {isAr ? "DPA" : "DPA"}
+            </Link>
+            <span style={{ opacity: 0.4 }}>·</span>
             <a
               href="https://www.whatsapp.com/legal/business-policy"
               target="_blank"

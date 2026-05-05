@@ -41,6 +41,24 @@ export default function TemplatesPage() {
   const [deleteTarget, setDeleteTarget] = useState<Template | null>(null);
   const [deletingTemplate, setDeletingTemplate] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  // Content-policy violations detected in the active template body.
+  // Refreshed on body blur via /templates/content-check (cheap regex
+  // server-side). Surfaces a red banner before submit so an operator
+  // never wastes a 24h Meta review on a guaranteed rejection.
+  const [contentReport, setContentReport] = useState<{
+    has_violations: boolean;
+    summary?: string;
+    violations: { category: string; category_label: string; terms: string[]; message: string }[];
+  } | null>(null);
+  // Last successful sync timestamp — surfaced next to the Sync
+  // button so the operator knows if the templates list is fresh.
+  // Persists across browser reloads so a refresh doesn't reset it
+  // to "—" until the next sync. localStorage is per-device which is
+  // fine; cross-device freshness isn't a real requirement here.
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("corbit:templates:last-sync");
+  });
   const [errorDetailsTarget, setErrorDetailsTarget] = useState<any | null>(null);
   const [creatingTemplate, setCreatingTemplate] = useState(false);
   const [previewLang, setPreviewLang] = useState<"ar" | "en">("ar");
@@ -471,27 +489,53 @@ export default function TemplatesPage() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
         <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: C.txt }}>{t("templates")}</h2>
         <div style={{ display: "flex", gap: 8 }}>
-          <Button
-            outline
-            disabled={syncing}
-            onClick={async () => {
-              setSyncing(true);
-              try {
-                const res = await api.post('/templates/sync');
-                const n = res?.data?.data?.synced ?? 0;
-                showToast(isAr ? `\u062A\u0645\u062A \u0627\u0644\u0645\u0632\u0627\u0645\u0646\u0629 (${n} \u0642\u0627\u0644\u0628)` : `Synced ${n} templates`);
-                mutate();
-              } catch (err: any) {
-                const msg = err?.response?.data?.message || (isAr ? "\u0641\u0634\u0644\u062A \u0627\u0644\u0645\u0632\u0627\u0645\u0646\u0629" : "Sync failed");
-                showToast(msg);
-              } finally {
-                setSyncing(false);
-              }
-            }}
-          >
-            <Icon name="refresh" size={14} />
-            {syncing ? (isAr ? "\u062C\u0627\u0631\u064D \u0627\u0644\u0645\u0632\u0627\u0645\u0646\u0629..." : "Syncing...") : (isAr ? "\u0645\u0632\u0627\u0645\u0646\u0629" : "Sync")}
-          </Button>
+          {/* Sync button + last-sync timestamp pair. The timestamp
+              answers "is this list current or stale?" \u2014 operators
+              were syncing repeatedly because they had no signal.
+              Pulse animation while the request is in flight. */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {lastSyncAt && !syncing && (
+              <span style={{ fontSize: 11, color: C.t3, whiteSpace: "nowrap" }} title={new Date(lastSyncAt).toLocaleString(isAr ? "ar-SA" : "en-US")}>
+                {(() => {
+                  const diff = Date.now() - new Date(lastSyncAt).getTime();
+                  const mins = Math.round(diff / 60000);
+                  if (mins < 1)  return isAr ? "\u0622\u062E\u0631 \u0645\u0632\u0627\u0645\u0646\u0629: \u0627\u0644\u0622\u0646" : "Synced just now";
+                  if (mins < 60) return isAr ? `\u0622\u062E\u0631 \u0645\u0632\u0627\u0645\u0646\u0629: \u0642\u0628\u0644 ${mins} \u062F` : `Synced ${mins}m ago`;
+                  const hrs = Math.round(mins / 60);
+                  if (hrs < 24) return isAr ? `\u0622\u062E\u0631 \u0645\u0632\u0627\u0645\u0646\u0629: \u0642\u0628\u0644 ${hrs} \u0633` : `Synced ${hrs}h ago`;
+                  const days = Math.round(hrs / 24);
+                  return isAr ? `\u0622\u062E\u0631 \u0645\u0632\u0627\u0645\u0646\u0629: \u0642\u0628\u0644 ${days} \u064A\u0648\u0645` : `Synced ${days}d ago`;
+                })()}
+              </span>
+            )}
+            <Button
+              outline
+              disabled={syncing}
+              onClick={async () => {
+                setSyncing(true);
+                try {
+                  const res = await api.post('/templates/sync');
+                  const n = res?.data?.data?.synced ?? 0;
+                  showToast(isAr ? `\u062A\u0645\u062A \u0627\u0644\u0645\u0632\u0627\u0645\u0646\u0629 (${n} \u0642\u0627\u0644\u0628)` : `Synced ${n} templates`);
+                  const nowIso = new Date().toISOString();
+                  setLastSyncAt(nowIso);
+                  if (typeof window !== "undefined") {
+                    localStorage.setItem("corbit:templates:last-sync", nowIso);
+                  }
+                  mutate();
+                } catch (err: any) {
+                  const msg = err?.response?.data?.message || (isAr ? "\u0641\u0634\u0644\u062A \u0627\u0644\u0645\u0632\u0627\u0645\u0646\u0629" : "Sync failed");
+                  showToast(msg);
+                } finally {
+                  setSyncing(false);
+                }
+              }}
+              style={syncing ? { opacity: 0.7 } : undefined}
+            >
+              <Icon name="refresh" size={14} />
+              {syncing ? (isAr ? "\u062C\u0627\u0631\u064D \u0627\u0644\u0645\u0632\u0627\u0645\u0646\u0629..." : "Syncing...") : (isAr ? "\u0645\u0632\u0627\u0645\u0646\u0629" : "Sync")}
+            </Button>
+          </div>
           <Button primary onClick={() => { setNewTemplate({ name: "", category: "utility", language: "ar", header: "", header_format: "none", header_media_url: "", header_media_disk: "", header_media_path: "", header_meta_handle: "", header_upload_status: "", header_upload_error: "", body: "", body_ar: "", footer: "", buttons: [], body_examples: [] }); setPreviewLang("ar"); setShowCreateModal(true); }}>
             <Icon name="file" size={14} />
             {t("createTmpl")}
@@ -897,6 +941,31 @@ export default function TemplatesPage() {
             showToast(isAr ? "النص يتجاوز 1024 حرف" : "Body exceeds 1024 characters");
             return;
           }
+          // Final content-policy gate — re-run the check at submit
+          // even if the operator already saw the warning. Blocks
+          // submission entirely so a guaranteed-rejected template
+          // never burns Meta's review queue.
+          try {
+            const bodyToScan = (newTemplate.body_ar || newTemplate.body || "").trim();
+            if (bodyToScan) {
+              const r = await api.post("/templates/content-check", { body: bodyToScan });
+              const data = r.data?.data ?? r.data;
+              if (data?.has_violations) {
+                setContentReport(data);
+                showToast(
+                  isAr
+                    ? "النصّ يحوي محتوى محظور من Meta. عدّل النصّ ثم حاول مرّة أخرى."
+                    : "Body contains content prohibited by Meta. Edit and retry.",
+                  "error",
+                );
+                return;
+              }
+              setContentReport(null);
+            }
+          } catch {
+            // Content-check failure must NOT block the submit —
+            // Meta will still review. Just log and continue.
+          }
           const payload: Record<string, any> = {
             name: newTemplate.name,
             category: newTemplate.category,
@@ -1251,6 +1320,18 @@ export default function TemplatesPage() {
                   onChange={(e) => {
                     if (e.target.value.length <= 1024) setNewTemplate({ ...newTemplate, body_ar: e.target.value });
                   }}
+                  onBlur={async () => {
+                    // Live content-policy scan when the operator
+                    // tabs out of the field. Cheap (regex-only on
+                    // server) so safe to call on every blur.
+                    const txt = (newTemplate.body_ar || "").trim();
+                    if (!txt) { setContentReport(null); return; }
+                    try {
+                      const r = await api.post("/templates/content-check", { body: txt });
+                      const data = r.data?.data ?? r.data;
+                      setContentReport(data?.has_violations ? data : null);
+                    } catch { /* never block typing on a check failure */ }
+                  }}
                   placeholder={isAr ? "مرحباً {{1}}! شكراً لانضمامك لمتجرنا..." : "مرحباً {{1}}! شكراً لانضمامك..."}
                   rows={4}
                   dir="rtl"
@@ -1265,6 +1346,32 @@ export default function TemplatesPage() {
                     {isAr ? "متغيرات" : "variables"}
                   </span>
                 </div>
+                {/* Content-policy banner — populated by the body-blur
+                    content-check call. Renders only when violations
+                    exist; lists exact terms so the operator knows
+                    what to remove. */}
+                {contentReport?.has_violations && (
+                  <div style={{
+                    marginTop: 10, padding: "12px 14px", borderRadius: 10,
+                    background: `${COLORS.err}10`, border: `1.5px solid ${COLORS.err}50`,
+                    fontSize: 12, lineHeight: 1.7,
+                  }}>
+                    <div style={{ fontWeight: 700, color: COLORS.err, marginBottom: 6 }}>
+                      🚫 {isAr ? "محتوى محظور من Meta" : "Content prohibited by Meta"}
+                    </div>
+                    {contentReport.violations.map((v, i) => (
+                      <div key={i} style={{ marginBottom: 6 }}>
+                        <span style={{ fontWeight: 600, color: C.txt }}>{v.category_label}:</span>{" "}
+                        <span style={{ color: C.t2 }}>{v.terms.slice(0, 5).join(", ")}</span>
+                      </div>
+                    ))}
+                    <div style={{ fontSize: 11, color: C.t2, marginTop: 6 }}>
+                      {isAr
+                        ? "احذف الكلمات أعلاه ثم اضغط خارج الحقل لإعادة الفحص."
+                        : "Remove the highlighted terms then click outside the field to recheck."}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
