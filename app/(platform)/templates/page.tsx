@@ -15,6 +15,7 @@ import type { Template } from "@/data/templates";
 import { useTemplates, useTemplateStats } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
 import { COLORS } from "@/lib/constants/colors";
+import { translateMetaError, extractMetaCode, hasMetaTechnicalDetails } from "@/lib/meta-error-translator";
 import { FONT_FAMILY } from "@/lib/constants/font";
 import { GRADIENT } from "@/lib/constants/colors";
 
@@ -780,6 +781,26 @@ export default function TemplatesPage() {
                 >
                   {JSON.stringify(errorDetailsTarget.provider_error_details.raw ?? errorDetailsTarget.provider_error_details, null, 2)}
                 </pre>
+              </div>
+              {/* Friendly translated reason — replaces the raw JSON
+                  flagged by the 2026-05-05 external QA. Falls back
+                  to the original message when no pattern matches. */}
+              <div style={{ marginTop: 14, padding: "12px 14px", borderRadius: 8, background: "#EF444410", border: "1px solid #EF444430" }}>
+                <div style={{ fontSize: 12, color: C.t2, marginBottom: 4 }}>{isAr ? "ترجمة سبب الرفض" : "Translated reason"}</div>
+                <div style={{ fontSize: 13, color: "#EF4444", lineHeight: 1.7 }}>
+                  {translateMetaError(
+                    errorDetailsTarget?.provider_error_details?.raw ?? errorDetailsTarget?.provider_error_details ?? errorDetailsTarget?.rejection_reason,
+                    isAr,
+                  )}
+                </div>
+                {(() => {
+                  const code = extractMetaCode(errorDetailsTarget?.provider_error_details?.raw ?? errorDetailsTarget?.provider_error_details);
+                  return code !== null ? (
+                    <div style={{ fontSize: 10.5, color: C.t3, marginTop: 4, textAlign: isAr ? "left" : "right", fontFamily: "monospace" }}>
+                      {isAr ? "رمز Meta:" : "Meta code:"} {code}
+                    </div>
+                  ) : null;
+                })()}
               </div>
             </>
           )}
