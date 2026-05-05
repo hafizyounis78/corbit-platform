@@ -62,7 +62,7 @@ export default function ContactsPage() {
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 50;
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newContact, setNewContact] = useState({ name: "", phone: "", email: "", city: "", tags: "" });
+  const [newContact, setNewContact] = useState({ name: "", phone: "", email: "", city: "", tags: "", optInConsent: false });
   const [showSegmentModal, setShowSegmentModal] = useState(false);
   const [newSegment, setNewSegment] = useState({ name: "", status: "all", tags: [] as string[], scoreMin: 0, scoreMax: 100, cityFilter: "", orderMin: 0 });
   const [showEditModal, setShowEditModal] = useState(false);
@@ -332,7 +332,7 @@ export default function ContactsPage() {
           <p style={{ margin: "4px 0 0", fontSize: 13, color: C.t2 }}>{isAr ? "\u0625\u062F\u0627\u0631\u0629 \u062C\u0647\u0627\u062A \u0627\u0644\u0627\u062A\u0635\u0627\u0644 \u0648\u0627\u0644\u0634\u0631\u0627\u0626\u062D" : "Manage your contacts and segments"}</p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Button primary onClick={() => { setNewContact({ name: "", phone: "", email: "", city: "", tags: "" }); setShowAddModal(true); }}>
+          <Button primary onClick={() => { setNewContact({ name: "", phone: "", email: "", city: "", tags: "", optInConsent: false }); setShowAddModal(true); }}>
             <Icon name="userPlus" size={14} />
             {isAr ? "\u0625\u0636\u0627\u0641\u0629 \u062C\u0647\u0629 \u0627\u062A\u0635\u0627\u0644" : "Add Contact"}
           </Button>
@@ -645,12 +645,22 @@ export default function ContactsPage() {
         onSubmit={() => {
           if (!newContact.name.trim()) { showToast(isAr ? "يرجى إدخال الاسم" : "Please enter name"); return; }
           if (!newContact.phone.trim()) { showToast(isAr ? "يرجى إدخال الرقم" : "Please enter phone"); return; }
+          // Opt-in consent — Meta WhatsApp Business Policy requires
+          // explicit declaration that the contact agreed to receive
+          // marketing messages before we add them to the platform.
+          // Without this checkbox the backend rejects with 422.
+          if (!newContact.optInConsent) {
+            showToast(isAr ? "يجب تأكيد موافقة العميل قبل الإضافة" : "Customer consent must be confirmed before adding", "error");
+            return;
+          }
           api.post("/contacts", {
             name: newContact.name,
             phone: newContact.phone,
             email: newContact.email,
             city: newContact.city,
             tags: newContact.tags ? newContact.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
+            opt_in_consent: true,
+            opt_in_source: "manual_entry",
           }).then(() => {
             showToast(isAr ? "تم إضافة جهة الاتصال ✓" : "Contact added ✓");
             setShowAddModal(false);
@@ -748,6 +758,37 @@ export default function ContactsPage() {
               </div>
             )}
           </div>
+
+          {/* Opt-in consent — Meta WhatsApp Business Policy mandates
+              that the operator explicitly confirm the contact agreed
+              to receive marketing messages BEFORE the row is created.
+              The backend rejects payloads without this checkbox set. */}
+          <label style={{
+            display: "flex", alignItems: "flex-start", gap: 10,
+            padding: "12px 14px", borderRadius: 12,
+            background: newContact.optInConsent ? `${COLORS.ok}10` : `${COLORS.warn}10`,
+            border: `1.5px solid ${newContact.optInConsent ? `${COLORS.ok}40` : `${COLORS.warn}50`}`,
+            cursor: "pointer",
+          }}>
+            <input
+              type="checkbox"
+              checked={newContact.optInConsent}
+              onChange={(e) => setNewContact({ ...newContact, optInConsent: e.target.checked })}
+              required
+              style={{ marginTop: 3, width: 18, height: 18, accentColor: COLORS.ok, cursor: "pointer", flexShrink: 0 }}
+            />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.txt, marginBottom: 4 }}>
+                ✓ {isAr ? "أُؤكّد أنّ هذا العميل وافق على استلام رسائل تسويقيّة" : "I confirm this contact has consented to receive marketing messages"}
+                <span style={{ color: COLORS.err, marginInlineStart: 4 }}>*</span>
+              </div>
+              <div style={{ fontSize: 11, color: C.t2, lineHeight: 1.6 }}>
+                {isAr
+                  ? "سياسة Meta تتطلّب موافقة صريحة من العميل قبل إضافته لقواعد البيانات التسويقيّة. أيّ إضافة بدون موافقة قد تؤدّي لتعليق رقم الواتساب."
+                  : "Meta policy requires explicit consent before adding a contact for marketing purposes. Adding without consent risks suspension of your WhatsApp number."}
+              </div>
+            </div>
+          </label>
 
           {/* WhatsApp Info */}
           <div style={{ padding: 14, borderRadius: 12, background: `${COLORS.wa}10`, border: `1px solid ${COLORS.wa}20`, display: "flex", alignItems: "center", gap: 10 }}>
