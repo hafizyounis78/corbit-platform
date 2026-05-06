@@ -7,18 +7,20 @@ import { Icon } from "@/components/icons/icon";
 import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { useSupportTickets } from "@/lib/api/hooks";
+import { useAuth } from "@/lib/auth/auth-context";
 import { ReportIssueModal } from "@/components/support/report-issue-modal";
 import { FONT_FAMILY } from "@/lib/constants/font";
 import { GuidesPanel } from "@/components/help/guides-panel";
 import { FaqPanel } from "@/components/help/faq-panel";
 import { ContactPanel } from "@/components/help/contact-panel";
 import { LiveChatPanel } from "@/components/help/live-chat-panel";
+import { SalesPlaybookPanel } from "@/components/help/sales-playbook-panel";
 
 const STATUSES = ["all", "open", "in_progress", "awaiting_user", "resolved", "closed"] as const;
 
-type Tab = "guides" | "faq" | "tickets" | "live-chat" | "contact";
+type Tab = "guides" | "faq" | "tickets" | "live-chat" | "contact" | "playbook";
 
-const VALID_TABS: Tab[] = ["guides", "faq", "tickets", "live-chat", "contact"];
+const VALID_TABS: Tab[] = ["guides", "faq", "tickets", "live-chat", "contact", "playbook"];
 
 /**
  * Help Center — replaces the old single-purpose Tickets page with
@@ -31,9 +33,17 @@ export default function HelpCenterPage() {
   const { isAr } = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
+  // Internal Sales Playbook surfaces only to admin role — never to
+  // end-tenant agents. Same gate as the role-based nav in layout.tsx.
+  const isAdmin = user?.role === "admin";
 
   const initialTab = (searchParams?.get("tab") as Tab) ?? "guides";
-  const [tab, setTab] = useState<Tab>(VALID_TABS.includes(initialTab) ? initialTab : "guides");
+  const [tab, setTab] = useState<Tab>(
+    VALID_TABS.includes(initialTab) && (initialTab !== "playbook" || isAdmin)
+      ? initialTab
+      : "guides"
+  );
 
   // Reflect tab choice in the URL so a deep link from a guide step's
   // "Open this in Help Center" works, and a refresh keeps the user
@@ -50,6 +60,7 @@ export default function HelpCenterPage() {
     { key: "tickets",   label: isAr ? "🎫 التذاكر" : "🎫 Tickets" },
     { key: "live-chat", label: isAr ? "💬 محادثة الدعم" : "💬 Live Chat" },
     { key: "contact",   label: isAr ? "📞 تواصل معنا" : "📞 Contact" },
+    ...(isAdmin ? [{ key: "playbook", label: isAr ? "📚 دليل المبيعات" : "📚 Sales Playbook" }] : []),
   ];
 
   return (
@@ -74,6 +85,7 @@ export default function HelpCenterPage() {
       {tab === "tickets" && <TicketsTab router={router} />}
       {tab === "live-chat" && <LiveChatPanel />}
       {tab === "contact" && <ContactPanel />}
+      {tab === "playbook" && isAdmin && <SalesPlaybookPanel />}
     </div>
   );
 }

@@ -1346,6 +1346,20 @@ export default function TemplatesPage() {
                     {isAr ? "متغيرات" : "variables"}
                   </span>
                 </div>
+                {/* Smart-variable hint — surfaces the friendly tokens the
+                    backend personalization engine resolves at send time
+                    (name, tier, top_segment, etc). Renders as a soft
+                    tip strip so it doesn't shout over the body field. */}
+                <div style={{
+                  marginTop: 8, padding: "8px 12px", borderRadius: 8,
+                  background: `${C.ai}08`, border: `1px dashed ${C.ai}30`,
+                  fontSize: 11, color: C.t2, lineHeight: 1.6,
+                }}>
+                  <span style={{ fontWeight: 700, color: C.ai }}>✨ {isAr ? "متغيّرات ذكيّة" : "Smart variables"}:</span>{" "}
+                  {isAr
+                    ? "اكتب {{name}} أو {{first_name}} أو {{tier}} أو {{top_segment}} أو {{city}} ليستبدلها النظام تلقائياً عند الإرسال."
+                    : "Type {{name}}, {{first_name}}, {{tier}}, {{top_segment}}, or {{city}} — they're auto-replaced per recipient at send time."}
+                </div>
                 {/* Content-policy banner — populated by the body-blur
                     content-check call. Renders only when violations
                     exist; lists exact terms so the operator knows

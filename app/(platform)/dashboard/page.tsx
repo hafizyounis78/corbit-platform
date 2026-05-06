@@ -14,6 +14,7 @@ import { useIsMobile } from "@/hooks/use-media-query";
 import { useRouter } from "next/navigation";
 import { useDashboardStats } from "@/lib/api/hooks";
 import { OnboardingChecklist } from "@/components/onboarding/onboarding-checklist";
+import { QualityChecklistWidget } from "@/components/dashboard/quality-checklist";
 
 
 export default function DashboardPage() {
@@ -91,6 +92,12 @@ export default function DashboardPage() {
       {/* Onboarding checklist — renders only when there's an incomplete
           step and the tenant hasn't dismissed it. Self-hides afterwards. */}
       <OnboardingChecklist />
+
+      {/* Daily 6-metric quality scoreboard from team guide v2.0
+          §2.5 — Quality / Block Rate / Templates / Opt-out / Open
+          Rate / Reply Rate. Sits high on the dashboard for the
+          morning supervisor scan. */}
+      <QualityChecklistWidget />
 
       {/* Welcome Banner */}
       <div style={{ padding: isMobile ? "20px 18px" : "32px 36px", borderRadius: 18, background: GRADIENT, marginBottom: isMobile ? 16 : 24, position: "relative", overflow: "hidden" }}>

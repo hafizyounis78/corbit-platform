@@ -1564,6 +1564,37 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
         </div>
       </div>
 
+      {/* Meta pacing indicator — shows when actual throughput drops
+          below 50% of the configured rate for ≥10 minutes. Backend
+          heuristic in CampaignService::detectMetaPacing. Sits above
+          the progress card so it's the first thing the operator sees
+          when something's slowing the campaign down. */}
+      {isLive && (progress as any)?.pacing?.active && (() => {
+        const p = (progress as any).pacing;
+        return (
+          <Card style={{ marginBottom: 16, padding: 16, background: `${COLORS.warn}10`, border: `1px solid ${COLORS.warn}40` }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+              <div style={{ fontSize: 22, lineHeight: 1 }}>🐢</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: C.txt, marginBottom: 4 }}>
+                  {isAr ? "Meta يخفّض سرعة الإرسال (Pacing)" : "Meta is throttling send rate (Pacing)"}
+                </div>
+                <div style={{ fontSize: 12, color: C.t2, lineHeight: 1.6, marginBottom: 8 }}>
+                  {isAr
+                    ? `السرعة الفعليّة الآن ${p.actualRatePerMin?.toFixed?.(0) ?? p.actualRatePerMin} رسالة/دقيقة، بينما المتوقّع ${p.expectedRatePerMin?.toFixed?.(0) ?? p.expectedRatePerMin} رسالة/دقيقة (منذ ${p.minutesElapsed} دقيقة).`
+                    : `Actual rate ${p.actualRatePerMin?.toFixed?.(0) ?? p.actualRatePerMin} msg/min — expected ${p.expectedRatePerMin?.toFixed?.(0) ?? p.expectedRatePerMin} msg/min (over ${p.minutesElapsed} minutes).`}
+                </div>
+                {p.tip && (
+                  <div style={{ fontSize: 11.5, color: C.t3, lineHeight: 1.6, padding: "6px 10px", background: C.card, borderRadius: 6, border: `1px solid ${C.brd}` }}>
+                    💡 {p.tip}
+                  </div>
+                )}
+              </div>
+            </div>
+          </Card>
+        );
+      })()}
+
       {/* Live Progress — only while the campaign is doing work. The
           status banner above already shows draft/scheduled/completed;
           this card adds the moving parts (counters + bar) for active
