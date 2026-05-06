@@ -20,6 +20,7 @@ import { WhatsAppConnect } from "@/components/settings/whatsapp-connect";
 import { ApiAndWebhooksPanel } from "@/components/settings/api-webhooks-panel";
 import { SmsSettingsPanel } from "@/components/settings/sms-settings-panel";
 import { CsatSettingsPanel } from "@/components/settings/csat-settings-panel";
+import { SendingPolicyCard } from "@/components/settings/sending-policy-card";
 import api from "@/lib/api/client";
 
 /* ─── helpers ─── */
@@ -1210,6 +1211,12 @@ export default function SettingsPage() {
       {/* ═══════════ CHANNELS TAB ═══════════ */}
       {tab === "channels" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* Org-wide sending policy — frequency cap + send window.
+              Per-campaign overrides live in the campaign create
+              modal; this is the global default that applies when
+              the operator doesn't override. */}
+          <SendingPolicyCard />
+
           <div style={grid2Style}>
             {/* WhatsApp */}
             <Card style={{ padding: 18 }}>
