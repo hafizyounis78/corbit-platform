@@ -246,13 +246,16 @@ export default function DashboardPage() {
                   </div>
                   {/* Meta quality metrics — only renders when we have
                       data. New numbers (no metrics yet) get the row
-                      hidden so the dashboard isn't littered with —s. */}
-                  {(n.qualityRating || n.messagingTier || blockRate !== null) && (
+                      hidden so the dashboard isn't littered with —s.
+                      Throughput (from the org's plan) always renders
+                      so the operator knows their per-second send
+                      capacity. */}
+                  {(n.qualityRating || n.messagingTier || blockRate !== null || n.throughputMsgPerSec) && (
                     <div style={{
                       marginTop: 10, paddingTop: 10,
                       borderTop: `1px dashed ${C.brd}`,
                       display: "grid",
-                      gridTemplateColumns: "repeat(3, 1fr)",
+                      gridTemplateColumns: "repeat(4, 1fr)",
                       gap: 8,
                       fontSize: 11,
                     }}>
@@ -265,6 +268,12 @@ export default function DashboardPage() {
                       <div title={isAr ? "حدّ الإرسال اليومي من Meta" : "Meta daily send cap"}>
                         <div style={{ color: C.t3, marginBottom: 2 }}>{isAr ? "حدّ يومي" : "Daily limit"}</div>
                         <div style={{ fontWeight: 700, color: C.txt }}>{tierLabel}</div>
+                      </div>
+                      <div title={isAr ? "السرعة القصوى للإرسال (رسالة/ثانية) من باقتك. +HT = 1000، الباقات الأخرى 80." : "Send-rate ceiling from your plan (msg/sec). +HT = 1000; other plans 80."}>
+                        <div style={{ color: C.t3, marginBottom: 2 }}>{isAr ? "السرعة" : "Throughput"}</div>
+                        <div style={{ fontWeight: 700, color: n.throughputMsgPerSec >= 1000 ? "#10b981" : C.txt }}>
+                          {n.throughputMsgPerSec ?? 80}/{isAr ? "ث" : "s"}
+                        </div>
                       </div>
                       <div title={isAr ? "نسبة الحظر — أعلى من 5٪ تستوجب مراجعة Meta" : "Block rate — above 5% triggers Meta review"}>
                         <div style={{ color: C.t3, marginBottom: 2 }}>{isAr ? "نسبة الحظر" : "Block rate"}</div>

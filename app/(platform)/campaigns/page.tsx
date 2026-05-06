@@ -76,6 +76,18 @@ export default function CampaignsPage() {
     //   wa_sms   — WhatsApp first, fall back to SMS if WA send fails
     //   dual     — both channels in parallel (each contact gets two messages)
     channelMode: "wa_only" as "wa_only" | "sms_only" | "wa_sms" | "dual",
+    // Sending-policy overrides — empty string means "inherit from
+    // org defaults" (which themselves default to 2/7 and 09:00-21:00
+    // skip-Fridays per the team guide v2.0). Operator can override
+    // per campaign here; Quiet Hours + Frequency Cap are enforced
+    // by SendingPolicyGate at dispatch time.
+    overrideSendWindow: false,
+    sendWindowStart: "09:00",
+    sendWindowEnd: "21:00",
+    sendWindowSkipFridays: true,
+    overrideFrequencyCap: false,
+    frequencyCapCount: 2,
+    frequencyCapDays: 7,
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -300,7 +312,7 @@ export default function CampaignsPage() {
             <Icon name="brain" size={14} />
             {isAr ? "\uD83E\uDDE0 \u0645\u0646\u0634\u0626 \u0630\u0643\u064A" : "\uD83E\uDDE0 AI Builder"}
           </Button>
-          <Button primary onClick={() => { setNewCampaign({ name: "", template: "", segment: "", scheduledDate: "", scheduledTime: "09:00", sendNow: true, budget: "", abTest: false, variantA: "", variantB: "", abSplit: 50, abTestSize: 30, channelMode: "wa_only" }); setFormErrors({}); setIsSubmitting(false); setShowCreateModal(true); }}>
+          <Button primary onClick={() => { setNewCampaign({ name: "", template: "", segment: "", scheduledDate: "", scheduledTime: "09:00", sendNow: true, budget: "", abTest: false, variantA: "", variantB: "", abSplit: 50, abTestSize: 30, channelMode: "wa_only", overrideSendWindow: false, sendWindowStart: "09:00", sendWindowEnd: "21:00", sendWindowSkipFridays: true, overrideFrequencyCap: false, frequencyCapCount: 2, frequencyCapDays: 7 }); setFormErrors({}); setIsSubmitting(false); setShowCreateModal(true); }}>
             <Icon name="megaphone" size={14} />
             {isAr ? "\u062D\u0645\u0644\u0629 \u062C\u062F\u064A\u062F\u0629" : "New Campaign"}
           </Button>
@@ -513,6 +525,13 @@ export default function CampaignsPage() {
             abSplit: 50,
             abTestSize: 30,
             channelMode: "wa_only",
+            overrideSendWindow: false,
+            sendWindowStart: "09:00",
+            sendWindowEnd: "21:00",
+            sendWindowSkipFridays: true,
+            overrideFrequencyCap: false,
+            frequencyCapCount: 2,
+            frequencyCapDays: 7,
           });
           setFormErrors({});
           setIsSubmitting(false);
@@ -579,6 +598,19 @@ export default function CampaignsPage() {
             scheduledTime: newCampaign.scheduledTime || undefined,
             budget: newCampaign.budget ? Number(newCampaign.budget) : undefined,
             channel_mode: newCampaign.channelMode,
+            // Sending-policy overrides — only sent when the operator
+            // explicitly toggled the override on. NULL on the backend
+            // means "inherit org_settings defaults" (2/7, 09:00-21:00,
+            // skip Fridays per the team guide v2.0).
+            ...(newCampaign.overrideSendWindow ? {
+              send_window_start:        newCampaign.sendWindowStart + ":00",
+              send_window_end:          newCampaign.sendWindowEnd + ":00",
+              send_window_skip_fridays: newCampaign.sendWindowSkipFridays,
+            } : {}),
+            ...(newCampaign.overrideFrequencyCap ? {
+              frequency_cap_count: newCampaign.frequencyCapCount,
+              frequency_cap_days:  newCampaign.frequencyCapDays,
+            } : {}),
           }).then(async (res) => {
             // If A/B is on, configure it on the just-created campaign
             // before closing the modal. We do this in two steps because
@@ -833,6 +865,127 @@ export default function CampaignsPage() {
               )}
             </div>
           )}
+
+          {/* ── Sending Policy (override org defaults) ──
+              Frequency cap + send window come from org_settings by
+              default (2/7 + 09:00-21:00 skip-Fridays per the team
+              guide). The two collapsibles below let the operator
+              override per campaign — either narrow the cap, broaden
+              the window, or both. */}
+          <div style={{ borderTop: `1px solid ${C.brd}`, paddingTop: 16 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: C.txt, marginBottom: 4 }}>
+              {isAr ? "🛡️ سياسة الإرسال" : "🛡️ Sending Policy"}
+            </div>
+            <div style={{ fontSize: 11, color: C.t3, marginBottom: 12, lineHeight: 1.6 }}>
+              {isAr
+                ? "افتراضياً تستخدم الحملة قواعد المؤسّسة (نافذة 9-21 + تجنّب الجمعة، حدّ 2 رسالة/7 أيام لكلّ عميل). فعّل التعديل لتجاوز هذه القواعد في هذه الحملة فقط."
+                : "By default this campaign inherits org rules (window 9-21 + skip-Fridays, cap 2 msg/7d per contact). Enable override to customise just this campaign."}
+            </div>
+
+            {/* Send Window override */}
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", padding: "10px 14px", borderRadius: 10, background: newCampaign.overrideSendWindow ? `${C.pri}10` : "transparent", border: `1.5px solid ${newCampaign.overrideSendWindow ? C.pri : C.brd}` }}>
+                <input
+                  type="checkbox"
+                  checked={newCampaign.overrideSendWindow}
+                  onChange={(e) => setNewCampaign({ ...newCampaign, overrideSendWindow: e.target.checked })}
+                  style={{ width: 16, height: 16, accentColor: C.pri, cursor: "pointer" }}
+                />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.txt }}>
+                    {isAr ? "🕒 تخصيص نافذة الإرسال" : "🕒 Customise send window"}
+                  </div>
+                  <div style={{ fontSize: 11, color: C.t2 }}>
+                    {isAr ? "الافتراضي: 09:00 - 21:00، تجنّب الجمعة" : "Default: 09:00 - 21:00, skip Fridays"}
+                  </div>
+                </div>
+              </label>
+              {newCampaign.overrideSendWindow && (
+                <div style={{ marginTop: 8, padding: 12, borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr", gap: 10 }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: 11, color: C.t2, marginBottom: 4 }}>{isAr ? "من" : "From"}</label>
+                    <input
+                      type="time"
+                      value={newCampaign.sendWindowStart}
+                      onChange={(e) => setNewCampaign({ ...newCampaign, sendWindowStart: e.target.value })}
+                      style={{ width: "100%", padding: "6px 10px", borderRadius: 8, border: `1px solid ${C.brd}`, background: C.card, color: C.txt, fontFamily: FONT_FAMILY, fontSize: 12 }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: 11, color: C.t2, marginBottom: 4 }}>{isAr ? "إلى" : "To"}</label>
+                    <input
+                      type="time"
+                      value={newCampaign.sendWindowEnd}
+                      onChange={(e) => setNewCampaign({ ...newCampaign, sendWindowEnd: e.target.value })}
+                      style={{ width: "100%", padding: "6px 10px", borderRadius: 8, border: `1px solid ${C.brd}`, background: C.card, color: C.txt, fontFamily: FONT_FAMILY, fontSize: 12 }}
+                    />
+                  </div>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: C.txt, cursor: "pointer", paddingTop: isMobile ? 4 : 18 }}>
+                    <input
+                      type="checkbox"
+                      checked={newCampaign.sendWindowSkipFridays}
+                      onChange={(e) => setNewCampaign({ ...newCampaign, sendWindowSkipFridays: e.target.checked })}
+                      style={{ width: 14, height: 14, accentColor: C.pri, cursor: "pointer" }}
+                    />
+                    {isAr ? "تجنّب الجمعة" : "Skip Fridays"}
+                  </label>
+                </div>
+              )}
+            </div>
+
+            {/* Frequency cap override */}
+            <div>
+              <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", padding: "10px 14px", borderRadius: 10, background: newCampaign.overrideFrequencyCap ? `${C.pri}10` : "transparent", border: `1.5px solid ${newCampaign.overrideFrequencyCap ? C.pri : C.brd}` }}>
+                <input
+                  type="checkbox"
+                  checked={newCampaign.overrideFrequencyCap}
+                  onChange={(e) => setNewCampaign({ ...newCampaign, overrideFrequencyCap: e.target.checked })}
+                  style={{ width: 16, height: 16, accentColor: C.pri, cursor: "pointer" }}
+                />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.txt }}>
+                    {isAr ? "📊 تخصيص حد الإرسال للعميل" : "📊 Customise per-contact cap"}
+                  </div>
+                  <div style={{ fontSize: 11, color: C.t2 }}>
+                    {isAr ? "الافتراضي: 2 رسائل / 7 أيام لكلّ عميل" : "Default: 2 messages / 7 days per contact"}
+                  </div>
+                </div>
+              </label>
+              {newCampaign.overrideFrequencyCap && (
+                <div style={{ marginTop: 8, padding: 12, borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: 11, color: C.t2, marginBottom: 4 }}>
+                      {isAr ? "الحدّ الأقصى للرسائل" : "Max messages"}
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={10}
+                      value={newCampaign.frequencyCapCount}
+                      onChange={(e) => setNewCampaign({ ...newCampaign, frequencyCapCount: Math.max(0, Math.min(10, Number(e.target.value) || 0)) })}
+                      style={{ width: "100%", padding: "6px 10px", borderRadius: 8, border: `1px solid ${C.brd}`, background: C.card, color: C.txt, fontFamily: FONT_FAMILY, fontSize: 12 }}
+                    />
+                    <div style={{ fontSize: 10, color: C.t3, marginTop: 4 }}>
+                      {isAr ? "0 = إيقاف الحدّ" : "0 = disable cap"}
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: 11, color: C.t2, marginBottom: 4 }}>
+                      {isAr ? "خلال (أيام)" : "Within (days)"}
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={90}
+                      value={newCampaign.frequencyCapDays}
+                      onChange={(e) => setNewCampaign({ ...newCampaign, frequencyCapDays: Math.max(1, Math.min(90, Number(e.target.value) || 1)) })}
+                      style={{ width: "100%", padding: "6px 10px", borderRadius: 8, border: `1px solid ${C.brd}`, background: C.card, color: C.txt, fontFamily: FONT_FAMILY, fontSize: 12 }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Send Now or Schedule */}
           <div>
