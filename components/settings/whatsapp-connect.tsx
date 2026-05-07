@@ -17,6 +17,11 @@ type Status = {
   waba_id?: string;
   last_connected_at?: string | null;
   status?: string;
+  has_api_key?: boolean;
+  // 'api_key_decrypt_failed' = the encrypted blob is in DB but the
+  // current APP_KEY can't decrypt it (key was rotated). The customer
+  // must reconnect so the api_key gets re-encrypted with the new key.
+  key_error?: string | null;
 };
 
 export function WhatsAppConnect({ showHeader = true }: { showHeader?: boolean }) {
@@ -122,6 +127,33 @@ export function WhatsAppConnect({ showHeader = true }: { showHeader?: boolean })
               : "Connect your WhatsApp Business number to Corbit to start sending and receiving"}
           </p>
         </div>
+      )}
+
+      {/* APP_KEY rotation banner — the encrypted blob is in DB but
+          can't be decrypted with the current key, so sends will fail
+          with "WhatsApp number not connected". The fix is one click:
+          disconnect + reconnect. Surfaced as its own banner so the
+          customer sees a clear explanation instead of generic "Not
+          Connected" or a confused "Connected but nothing works". */}
+      {!status.connected && status.key_error === 'api_key_decrypt_failed' && (
+        <Card style={{ padding: 16, marginBottom: 14, borderRight: `4px solid #ef4444`, background: `#ef444410` }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+            <div style={{ fontSize: 22, lineHeight: 1 }}>🔐</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.txt, marginBottom: 4 }}>
+                {isAr ? "مفتاح التشفير لا يطابق الربط القديم" : "Encryption key mismatch"}
+              </div>
+              <div style={{ fontSize: 12.5, color: C.t2, lineHeight: 1.7, marginBottom: 10 }}>
+                {isAr
+                  ? "الربط محفوظ لكن لا يمكن قراءة مفتاح API بشكل صحيح. اضغط 'فصل الربط' ثم أعد الربط بنفس المفاتيح من 360dialog Hub — العمليّة تستغرق دقيقة."
+                  : "Your connection is saved, but the API key can't be decrypted. Click Disconnect, then reconnect with the same 360dialog Hub keys — takes about a minute."}
+              </div>
+              <Button onClick={() => setShowDisconnect(true)}>
+                {isAr ? "فصل الربط الآن" : "Disconnect Now"}
+              </Button>
+            </div>
+          </div>
+        </Card>
       )}
 
       {status.connected ? (
