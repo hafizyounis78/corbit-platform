@@ -1290,14 +1290,24 @@ export default function TemplatesPage() {
                           <span style={{ color: COLORS.ok, fontWeight: 600 }}>✓ {isAr ? "جاهز للإرسال إلى Meta" : "Ready to ship to Meta"}</span>
                         )}
                         {newTemplate.header_upload_status === "pending_handle" && (
-                          <div style={{ flex: 1, padding: "8px 10px", borderRadius: 6, background: "#f59e0b15", border: "1px solid #f59e0b40", color: "#92400e", fontSize: 11, lineHeight: 1.5 }}>
-                            ⚠️ {isAr
-                              ? "الملف محفوظ، لكن الرفع لـ Meta لم يكتمل. سيتمّ حفظ القالب كمسوّدة محليّاً، وسيُحاوَل الرفع لاحقاً عند تفعيل التكامل."
-                              : "File saved, but Meta upload didn't complete. Template will save as a local draft and we'll retry the Meta upload once the integration is configured."}
+                          <div style={{ flex: 1, padding: "10px 12px", borderRadius: 8, background: "#f59e0b15", border: "1px solid #f59e0b40", color: "#92400e", fontSize: 12, lineHeight: 1.7 }}>
+                            <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 12.5 }}>
+                              ⚠️ {isAr ? "تكامل Meta لم يُفعَّل بعد" : "Meta integration not yet configured"}
+                            </div>
+                            <div>
+                              {isAr
+                                ? "الملف محفوظ بالفعل في حسابك. القالب يُحفظ كـ مسوَّدة وسنعيد محاولة الرفع لـ Meta تلقائياً بعد ما يضيف الأدمن مفاتيح الـ App."
+                                : "File saved successfully in your account. Template will be saved as a draft and we'll retry the Meta upload automatically once the admin configures the App keys."}
+                            </div>
                             {newTemplate.header_upload_error && (
-                              <div style={{ marginTop: 4, fontSize: 10, opacity: 0.85 }}>
-                                {newTemplate.header_upload_error}
-                              </div>
+                              <details style={{ marginTop: 8 }}>
+                                <summary style={{ cursor: "pointer", fontSize: 10.5, opacity: 0.7, userSelect: "none" }}>
+                                  {isAr ? "▸ تفاصيل تقنيّة (للدعم)" : "▸ Technical details (for support)"}
+                                </summary>
+                                <div style={{ marginTop: 4, fontSize: 10, opacity: 0.85, fontFamily: "monospace", direction: "ltr", textAlign: "left", padding: "4px 6px", borderRadius: 4, background: "#00000010", wordBreak: "break-word" }}>
+                                  {newTemplate.header_upload_error}
+                                </div>
+                              </details>
                             )}
                           </div>
                         )}
