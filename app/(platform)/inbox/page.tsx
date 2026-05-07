@@ -1226,7 +1226,7 @@ export default function InboxPage() {
                   </div>
                 </div>
                 {canReport && (
-                  <div className="msg-actions" style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6, opacity: 0, transition: "opacity 0.15s" }}>
+                  <div className="msg-actions" style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6, transition: "opacity 0.15s" }}>
                     <button
                       onClick={() => requestTranslation(String(m.id), m.text)}
                       title={
@@ -1507,7 +1507,13 @@ export default function InboxPage() {
                 </span>
                 <style>{`
                   @keyframes ai-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+                  .msg-actions { opacity: 0; }
                   .msg-row:hover .msg-actions { opacity: 1; }
+                  /* Mobile / touch devices have no hover — keep buttons
+                     visible at half opacity so they're still tappable. */
+                  @media (hover: none) {
+                    .msg-actions { opacity: 0.55; }
+                  }
                 `}</style>
               </button>
               {/* AI bot toggle — also stays live so the agent can flip
