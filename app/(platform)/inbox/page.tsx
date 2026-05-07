@@ -1177,7 +1177,7 @@ export default function InboxPage() {
                   </div>
                 </div>
                 {canReport && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6 }}>
+                  <div className="msg-actions" style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6, opacity: 0, transition: "opacity 0.15s" }}>
                     <button
                       onClick={() => requestTranslation(String(m.id), m.text)}
                       title={
@@ -1456,7 +1456,10 @@ export default function InboxPage() {
                 <span style={{ display: "inline-flex", animation: aiSuggesting ? "ai-spin 1s linear infinite" : undefined }}>
                   <Icon name={aiSuggesting ? "loader" : "sparkles"} size={16} />
                 </span>
-                <style>{`@keyframes ai-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+                <style>{`
+                  @keyframes ai-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+                  .msg-row:hover .msg-actions { opacity: 1; }
+                `}</style>
               </button>
               {/* AI bot toggle — also stays live so the agent can flip
                   control with one click instead of hunting the bigger

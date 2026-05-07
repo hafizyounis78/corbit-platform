@@ -155,6 +155,25 @@ const PATTERNS: Pattern[] = [
     ar: "خطأ في صلاحيّات الاتصال مع Meta. تحقّق من ربط حساب 360dialog/Meta.",
     en: "Authentication error with Meta. Verify your 360dialog/Meta connection.",
   },
+
+  // — Internal platform errors (not from Meta — from Corbit itself) —
+  // These appear when template submission was blocked before even
+  // reaching Meta, e.g. the org's WhatsApp credentials weren't ready.
+  {
+    match: /whatsapp.*number.*not.*connected|channel.*not.*connected/i,
+    ar: "رقم الواتساب غير متصل. اذهب لـ الإعدادات > ربط الواتساب وأعد الربط، ثمّ احذف هذا القالب وأنشئه من جديد.",
+    en: "WhatsApp number isn't connected. Go to Settings > WhatsApp, reconnect, then delete this template and recreate it.",
+  },
+  {
+    match: /template.*missing|missing.*template/i,
+    ar: "القالب غير موجود في قاعدة البيانات. أعد إنشاءه.",
+    en: "Template no longer exists in DB. Recreate it.",
+  },
+  {
+    match: /api.*key.*decrypt|decrypt.*failed|payload.*invalid/i,
+    ar: "تعذّر قراءة مفتاح الـ API بسبب تغيير مفتاح التشفير. افصل ربط الواتساب وأعده من /settings/whatsapp.",
+    en: "API key cannot be decrypted (encryption key drift). Disconnect and reconnect from /settings/whatsapp.",
+  },
 ];
 
 /**
@@ -165,7 +184,11 @@ function extractMessage(payload: MetaErrorPayload): string {
   if (typeof payload === "string") return payload;
 
   // Walk known fields by fidelity. error_user_msg is Meta's own
-  // friendly version when they bother to include one.
+  // friendly version when they bother to include one. Falls back
+  // to the bare 'error' string used by Corbit's internal errors
+  // (e.g. {error: "WhatsApp number not connected"}).
+  if (typeof payload.error === "string") return payload.error;
+
   return (
     payload.error?.error_user_msg ||
     payload.error?.message ||

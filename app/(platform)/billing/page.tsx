@@ -255,18 +255,54 @@ export default function BillingPage() {
           <div style={{ display: "grid", gridTemplateColumns: isMob ? "1fr" : "1fr 1fr", gap: 16 }}>
             <Card style={{ padding: 20 }}>
               <h3 style={{ margin: "0 0 16px", fontSize: 14, fontWeight: 700 }}>{ar ? "توزيع التكاليف" : "Cost Breakdown"}</h3>
-              <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-                <Donut segments={[{ value: 51, color: C.pri }, { value: 7, color: "#7C3AED" }, { value: 42, color: C.ok }]} size={100} strokeWidth={12} />
-                <div style={{ fontSize: 12 }}>
-                  {[["WhatsApp", "51%", C.pri], ["AI", "7%", "#7C3AED"], [ar ? "اشتراك" : "Subscription", "42%", C.ok]].map(([l, v, c], i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: c as string }} />
-                      <span style={{ color: C.t2 }}>{l}</span>
-                      <span style={{ fontWeight: 600, marginInlineStart: "auto" }}>{v}</span>
+              {(() => {
+                // Compute real percentages from the API's costBreakdown.
+                // Empty months render an explanatory empty state instead
+                // of a fake hardcoded donut — the QA flagged that the
+                // 51/7/42 figures looked invented because they were.
+                const cb: any = (overview as any).costBreakdown || {};
+                const wa = Number(cb?.whatsapp?.total ?? cb?.wa ?? 0);
+                const sms = Number(cb?.sms ?? 0);
+                const ai = Number(cb?.ai ?? 0);
+                const sub = Number(cb?.subscription ?? cb?.sub ?? 0);
+                const total = wa + sms + ai + sub;
+
+                if (total <= 0) {
+                  return (
+                    <div style={{ padding: "20px 4px", textAlign: "center", color: C.t2, fontSize: 12.5, lineHeight: 1.7 }}>
+                      📊 {ar
+                        ? "لا توجد تكاليف هذا الشهر بعد. ستظهر النسب فور بدء الإرسال."
+                        : "No costs this month yet. Breakdown will populate once sending starts."}
                     </div>
-                  ))}
-                </div>
-              </div>
+                  );
+                }
+
+                const pct = (n: number) => Math.round((n / total) * 100);
+                const segments = [
+                  { value: pct(wa),  color: C.pri,    label: "WhatsApp",                       amount: wa },
+                  { value: pct(sms), color: C.info,   label: "SMS",                            amount: sms },
+                  { value: pct(ai),  color: "#7C3AED", label: "AI",                            amount: ai },
+                  { value: pct(sub), color: C.ok,    label: ar ? "اشتراك" : "Subscription",   amount: sub },
+                ].filter((s) => s.amount > 0);
+
+                return (
+                  <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
+                    <Donut segments={segments.map((s) => ({ value: s.value, color: s.color }))} size={100} strokeWidth={12} />
+                    <div style={{ fontSize: 12, flex: 1, minWidth: 160 }}>
+                      {segments.map((s, i) => (
+                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                          <span style={{ width: 8, height: 8, borderRadius: "50%", background: s.color }} />
+                          <span style={{ color: C.t2 }}>{s.label}</span>
+                          <span style={{ fontWeight: 600, marginInlineStart: "auto" }}>{s.value}%</span>
+                        </div>
+                      ))}
+                      <div style={{ marginTop: 6, paddingTop: 6, borderTop: `1px solid ${C.brd}`, fontSize: 11, color: C.t3 }}>
+                        {ar ? "الإجمالي" : "Total"}: {total.toLocaleString()} {ar ? "ر.س" : "SAR"}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </Card>
             <Card style={{ padding: 20 }}>
               <h3 style={{ margin: "0 0 16px", fontSize: 14, fontWeight: 700 }}>{ar ? "الاستهلاك اليومي" : "Daily Usage"}</h3>

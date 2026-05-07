@@ -791,13 +791,40 @@ export default function TemplatesPage() {
 
           <div style={{ marginBottom: 12 }}>
             <div style={{ fontSize: 12, color: C.t2, marginBottom: 4 }}>{isAr ? "\u0631\u0633\u0627\u0644\u0629 \u0627\u0644\u062E\u0637\u0623" : "Error message"}</div>
-            <div style={{ fontSize: 13, color: "#EF4444", padding: "10px 12px", borderRadius: 8, background: "#EF444410", border: "1px solid #EF444430" }}>
+            <div style={{ fontSize: 12, color: C.t2, padding: "8px 12px", borderRadius: 8, background: C.inp, border: `1px solid ${C.brd}`, fontFamily: "monospace", direction: "ltr", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
               {errorDetailsTarget?.rejection_reason ?? "—"}
             </div>
           </div>
 
+          {/* Friendly explanation — translates Meta/internal payload
+              into actionable Arabic. Sits ABOVE the technical block
+              so the operator reads guidance before the JSON dump. */}
+          <div style={{ marginBottom: 14, padding: "12px 14px", borderRadius: 8, background: "#EF444410", border: "1.5px solid #EF444430" }}>
+            <div style={{ fontSize: 12, color: C.t2, marginBottom: 4, fontWeight: 600 }}>
+              {isAr ? "تفسير الخطأ" : "What this means"}
+            </div>
+            <div style={{ fontSize: 13.5, color: "#B91C1C", lineHeight: 1.8, fontWeight: 500 }}>
+              {translateMetaError(
+                errorDetailsTarget?.provider_error_details?.raw ?? errorDetailsTarget?.provider_error_details ?? errorDetailsTarget?.rejection_reason,
+                isAr,
+              )}
+            </div>
+            {(() => {
+              const code = extractMetaCode(errorDetailsTarget?.provider_error_details?.raw ?? errorDetailsTarget?.provider_error_details);
+              return code !== null ? (
+                <div style={{ fontSize: 10.5, color: C.t3, marginTop: 6, textAlign: isAr ? "left" : "right", fontFamily: "monospace" }}>
+                  {isAr ? "رمز Meta:" : "Meta code:"} {code}
+                </div>
+              ) : null;
+            })()}
+          </div>
+
           {errorDetailsTarget?.provider_error_details && (
-            <>
+            <details>
+              <summary style={{ cursor: "pointer", fontSize: 12, color: C.t2, padding: "4px 0", userSelect: "none" }}>
+                {isAr ? "▸ تفاصيل تقنيّة (للدعم)" : "▸ Full technical details (for support)"}
+              </summary>
+              <div style={{ marginTop: 8 }}>
               {errorDetailsTarget.provider_error_details.status && (
                 <div style={{ marginBottom: 12 }}>
                   <div style={{ fontSize: 12, color: C.t2, marginBottom: 4 }}>{isAr ? "\u062d\u0627\u0644\u0629 HTTP" : "HTTP Status"}</div>
@@ -826,27 +853,8 @@ export default function TemplatesPage() {
                   {JSON.stringify(errorDetailsTarget.provider_error_details.raw ?? errorDetailsTarget.provider_error_details, null, 2)}
                 </pre>
               </div>
-              {/* Friendly translated reason — replaces the raw JSON
-                  flagged by the 2026-05-05 external QA. Falls back
-                  to the original message when no pattern matches. */}
-              <div style={{ marginTop: 14, padding: "12px 14px", borderRadius: 8, background: "#EF444410", border: "1px solid #EF444430" }}>
-                <div style={{ fontSize: 12, color: C.t2, marginBottom: 4 }}>{isAr ? "ترجمة سبب الرفض" : "Translated reason"}</div>
-                <div style={{ fontSize: 13, color: "#EF4444", lineHeight: 1.7 }}>
-                  {translateMetaError(
-                    errorDetailsTarget?.provider_error_details?.raw ?? errorDetailsTarget?.provider_error_details ?? errorDetailsTarget?.rejection_reason,
-                    isAr,
-                  )}
-                </div>
-                {(() => {
-                  const code = extractMetaCode(errorDetailsTarget?.provider_error_details?.raw ?? errorDetailsTarget?.provider_error_details);
-                  return code !== null ? (
-                    <div style={{ fontSize: 10.5, color: C.t3, marginTop: 4, textAlign: isAr ? "left" : "right", fontFamily: "monospace" }}>
-                      {isAr ? "رمز Meta:" : "Meta code:"} {code}
-                    </div>
-                  ) : null;
-                })()}
               </div>
-            </>
+            </details>
           )}
 
           {!errorDetailsTarget?.provider_error_details && (

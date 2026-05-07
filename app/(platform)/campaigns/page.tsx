@@ -376,13 +376,18 @@ export default function CampaignsPage() {
                 <span>{isAr ? "\u0627\u0644\u062A\u0648\u0635\u064A\u0644" : "Delivery"}: {Number(c.delivery) || 0}%</span>
                 <span>{isAr ? "\u0627\u0644\u0642\u0631\u0627\u0621\u0629" : "Read"}: {Number(c.readRate) || 0}%</span>
                 <span>{isAr ? "\u0627\u0644\u0631\u062F" : "Reply"}: {Number(c.replyRate) || 0}%</span>
-                <span>{isAr ? "\u0627\u0644\u062A\u0643\u0644\u0641\u0629" : "Cost"}: ${c.cost}</span>
+                <span>{isAr ? "\u0627\u0644\u062A\u0643\u0644\u0641\u0629" : "Cost"}: {(Number(c.cost) || 0).toLocaleString()} {isAr ? "\u0631.\u0633" : "SAR"}</span>
                 <span>ROI: {c.roi}</span>
               </div>
               <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                <Button small outline onClick={(e: React.MouseEvent) => { e.stopPropagation(); showToast(isAr ? "\u062A\u0639\u062F\u064A\u0644 \u0627\u0644\u062D\u0645\u0644\u0629" : "Edit campaign"); }}>
-                  <Icon name="pencil" size={12} />
-                </Button>
+                {/* Edit only makes sense for drafts and scheduled \u2014 once
+                    the dispatcher has touched the campaign, we hide the
+                    pencil so QA stops asking why it doesn't open an editor. */}
+                {(c.st === 'draft' || c.st === 'scheduled') && (
+                  <Button small outline onClick={(e: React.MouseEvent) => { e.stopPropagation(); showToast(isAr ? "\u062A\u0639\u062F\u064A\u0644 \u0627\u0644\u062D\u0645\u0644\u0629" : "Edit campaign"); }}>
+                    <Icon name="pencil" size={12} />
+                  </Button>
+                )}
                 <Button small outline onClick={(e: React.MouseEvent) => {
                   e.stopPropagation();
                   api.post(`/campaigns/${c.id}/duplicate`).then(() => {
@@ -425,7 +430,7 @@ export default function CampaignsPage() {
               <span key="del">{Number(c.delivery) || 0}%</span>,
               <span key="read">{Number(c.readRate) || 0}%</span>,
               <span key="reply">{Number(c.replyRate) || 0}%</span>,
-              <span key="cost">${(Number(c.cost) || 0).toLocaleString()}</span>,
+              <span key="cost">{(Number(c.cost) || 0).toLocaleString()} {isAr ? "ر.س" : "SAR"}</span>,
               <span key="roi" style={{ fontWeight: 600, color: c.roi.startsWith("+") ? COLORS.ok : undefined }}>
                 {c.roi}
               </span>,
@@ -433,9 +438,11 @@ export default function CampaignsPage() {
                 <Button small outline onClick={() => setSelectedId(c.id)}>
                   <Icon name="chart" size={12} />
                 </Button>
-                <Button small outline onClick={() => showToast(isAr ? "\u062A\u0639\u062F\u064A\u0644 \u0627\u0644\u062D\u0645\u0644\u0629" : "Edit campaign")}>
-                  <Icon name="pencil" size={12} />
-                </Button>
+                {(c.st === 'draft' || c.st === 'scheduled') && (
+                  <Button small outline onClick={() => showToast(isAr ? "\u062A\u0639\u062F\u064A\u0644 \u0627\u0644\u062D\u0645\u0644\u0629" : "Edit campaign")}>
+                    <Icon name="pencil" size={12} />
+                  </Button>
+                )}
                 <Button small outline onClick={() => {
                   api.post(`/campaigns/${c.id}/duplicate`).then(() => {
                     showToast(isAr ? "\u062A\u0645 \u062A\u0643\u0631\u0627\u0631 \u0627\u0644\u062D\u0645\u0644\u0629" : "Campaign duplicated");
@@ -1794,32 +1801,48 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
         </Card>
       )}
 
-      {/* Behavior Funnel */}
+      {/* Behavior Funnel \u2014 when sent count is 0 the funnel is just
+          5 empty bars which confuses operators on a fresh campaign.
+          Show a friendly empty state instead until something ships. */}
       <Card style={{ marginBottom: 24 }}>
         <CardHeader title={isAr ? "\u0645\u0633\u0627\u0631 \u0627\u0644\u0633\u0644\u0648\u0643" : "Behavior Funnel"} />
-        <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
-          {funnel.map((step, i) => (
-            <div key={step.label}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, fontSize: 13 }}>
-                <span style={{ fontWeight: 500, color: C.txt }}>{step.label}</span>
-                <span style={{ color: C.t2 }}>
-                  {step.value.toLocaleString()} ({step.pct}%)
-                </span>
-              </div>
-              <div style={{ width: "100%", height: 10, borderRadius: 5, background: C.inp, overflow: "hidden" }}>
-                <div
-                  style={{
-                    height: "100%",
-                    borderRadius: 5,
-                    width: `${step.pct}%`,
-                    background: funnelColors[i],
-                    transition: "width 0.6s ease-out",
-                  }}
-                />
-              </div>
+        {sentLive <= 1 && (c.st === 'draft' || c.st === 'scheduled') ? (
+          <div style={{ padding: "32px 20px", textAlign: "center" }}>
+            <div style={{ fontSize: 36, marginBottom: 10 }}>\ud83d\udcca</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: C.txt, marginBottom: 6 }}>
+              {isAr ? "\u0641\u064a \u0627\u0646\u062a\u0638\u0627\u0631 \u0628\u062f\u0621 \u0627\u0644\u0625\u0631\u0633\u0627\u0644" : "Waiting for sends to start"}
             </div>
-          ))}
-        </div>
+            <div style={{ fontSize: 12, color: C.t2, lineHeight: 1.7, maxWidth: 380, margin: "0 auto" }}>
+              {isAr
+                ? "\u0633\u062a\u0638\u0647\u0631 \u0645\u0631\u0627\u062d\u0644 \u0627\u0644\u0645\u0633\u0627\u0631 (\u0627\u0644\u0625\u0631\u0633\u0627\u0644 \u2192 \u0627\u0644\u062a\u0648\u0635\u064a\u0644 \u2192 \u0627\u0644\u0641\u062a\u062d \u2192 \u0627\u0644\u0646\u0642\u0631 \u2192 \u0627\u0644\u062a\u062d\u0648\u064a\u0644) \u0647\u0646\u0627 \u0641\u0648\u0631 \u0628\u062f\u0621 \u0627\u0644\u062d\u0645\u0644\u0629."
+                : "Funnel stages (Sent \u2192 Delivered \u2192 Opened \u2192 Clicked \u2192 Converted) will populate once the campaign starts."}
+            </div>
+          </div>
+        ) : (
+          <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
+            {funnel.map((step, i) => (
+              <div key={step.label}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, fontSize: 13 }}>
+                  <span style={{ fontWeight: 500, color: C.txt }}>{step.label}</span>
+                  <span style={{ color: C.t2 }}>
+                    {step.value.toLocaleString()} ({step.pct}%)
+                  </span>
+                </div>
+                <div style={{ width: "100%", height: 10, borderRadius: 5, background: C.inp, overflow: "hidden" }}>
+                  <div
+                    style={{
+                      height: "100%",
+                      borderRadius: 5,
+                      width: `${step.pct}%`,
+                      background: funnelColors[i],
+                      transition: "width 0.6s ease-out",
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       {/* Channel Breakdown \u2014 only when the campaign actually used >1
