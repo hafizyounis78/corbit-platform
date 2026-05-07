@@ -1588,14 +1588,26 @@ export default function InboxPage() {
             <button
               onClick={() => setShowTagsEditor(true)}
               style={{
-                background: "none", border: `1px dashed ${C.brd}`,
-                borderRadius: 12, padding: "2px 10px",
-                color: C.t2, cursor: "pointer", fontSize: 11,
+                display: "inline-flex", alignItems: "center", gap: 5,
+                background: C.pri, border: "none",
+                borderRadius: 14, padding: "5px 14px",
+                color: "#fff", cursor: "pointer", fontSize: 12, fontWeight: 700,
                 fontFamily: FONT_FAMILY,
+                boxShadow: `0 2px 6px ${C.pri}40`,
+                transition: "transform 0.12s, box-shadow 0.12s",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
+                (e.currentTarget as HTMLElement).style.boxShadow = `0 4px 10px ${C.pri}55`;
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
+                (e.currentTarget as HTMLElement).style.boxShadow = `0 2px 6px ${C.pri}40`;
               }}
               title={isAr ? "تحرير التصنيفات" : "Edit tags"}
             >
-              + {isAr ? "تصنيف" : "Tag"}
+              <span style={{ fontSize: 13, lineHeight: 1 }}>🏷️</span>
+              {isAr ? "تصنيف" : "Tag"}
             </button>
           </div>
         </div>
