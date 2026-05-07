@@ -11,6 +11,9 @@ export interface Conversation {
   st: string;
   pri: string;
   tag: string;
+  /** Multi-tag support — added 2026-05-07. The legacy `tag` is kept
+   * populated with the dominant label so older read paths still work. */
+  tags?: string[];
   sentiment: string;
   intent: string;
   online: boolean;

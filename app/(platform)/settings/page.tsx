@@ -21,6 +21,7 @@ import { ApiAndWebhooksPanel } from "@/components/settings/api-webhooks-panel";
 import { SmsSettingsPanel } from "@/components/settings/sms-settings-panel";
 import { CsatSettingsPanel } from "@/components/settings/csat-settings-panel";
 import { SendingPolicyCard } from "@/components/settings/sending-policy-card";
+import { QuickRepliesPanel } from "@/components/settings/quick-replies-panel";
 import api from "@/lib/api/client";
 
 /* ─── helpers ─── */
@@ -674,6 +675,7 @@ export default function SettingsPage() {
     { key: "security", label: ar ? "الأمان" : "Security" },
     { key: "channels", label: ar ? "القنوات" : "Channels" },
     { key: "csat", label: ar ? "⭐ التقييم" : "⭐ CSAT" },
+    { key: "quick-replies", label: ar ? "⚡ الردود السريعة" : "⚡ Quick Replies" },
     { key: "whatsapp", label: ar ? "ربط الواتساب" : "WhatsApp" },
     { key: "sms", label: ar ? "📱 SMS" : "📱 SMS" },
     { key: "team", label: ar ? "الفريق" : "Team" },
@@ -1402,6 +1404,11 @@ export default function SettingsPage() {
       {/* ═══════════ CSAT TAB ═══════════ */}
       {tab === "csat" && (
         <CsatSettingsPanel />
+      )}
+
+      {/* ═══════════ QUICK REPLIES TAB ═══════════ */}
+      {tab === "quick-replies" && (
+        <QuickRepliesPanel />
       )}
 
       {/* ═══════════ TEAM TAB ═══════════ */}

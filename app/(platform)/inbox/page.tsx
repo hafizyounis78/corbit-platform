@@ -11,14 +11,19 @@ import { Button, Avatar, Badge, Toggle } from "@/components/ui";
 import { Icon } from "@/components/icons/icon";
 import { getStatusColor, getPriorityColor } from "@/lib/utils/status-color";
 import type { Conversation, ChatMessage } from "@/data/conversations";
-import { useConversations, useMessages, useWindowStatus, useTeams } from "@/lib/api/hooks";
+import { useConversations, useMessages, useWindowStatus, useTeams, useQuickReplies } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
 import { COLORS } from "@/lib/constants/colors";
 import { TemplatePicker } from "@/components/shared/template-picker";
 import { ReportIssueModal, type IssueContext } from "@/components/support/report-issue-modal";
+import { TagsEditorModal } from "@/components/inbox/tags-editor-modal";
+import { NewConversationModal } from "@/components/inbox/new-conversation-modal";
 
-const QUICK_REPLIES_AR = ["شكراً لتواصلك!", "سأتحقق وأعود لك", "هل تحتاج مساعدة أخرى؟", "تم إرسال التفاصيل"];
-const QUICK_REPLIES_EN = ["Thanks for reaching out!", "Let me check and get back to you", "Anything else I can help with?", "Details sent"];
+// Fallbacks shown only when the org has zero quick replies in DB
+// (fresh tenant, or hasn't customized the list yet). Settings UI
+// at /settings → ⚡ Quick Replies lets admins manage the live set.
+const QUICK_REPLIES_AR_FALLBACK = ["شكراً لتواصلك!", "سأتحقق وأعود لك", "هل تحتاج مساعدة أخرى؟", "تم إرسال التفاصيل"];
+const QUICK_REPLIES_EN_FALLBACK = ["Thanks for reaching out!", "Let me check and get back to you", "Anything else I can help with?", "Details sent"];
 
 type FilterTab = "all" | "unread" | "open";
 
@@ -87,6 +92,10 @@ function mapApiConversation(c: any): Conversation {
     st: c.st || c.status || "open",
     pri: c.pri || c.priority || "medium",
     tag: typeof c.tag === "object" ? (c.tag?.name || "") : (c.tag || c.tags?.[0]?.name || c.tags?.[0] || ""),
+    tags: Array.isArray(c.tags)
+      ? c.tags.map((t: any) => typeof t === "string" ? t : (t?.name || ""))
+        .filter((t: string) => t.length > 0)
+      : (c.tag ? [typeof c.tag === "object" ? c.tag.name : c.tag] : []),
     sentiment: c.sentiment || "neutral",
     intent: c.intent || "",
     online: c.online ?? false,
@@ -147,6 +156,8 @@ export default function InboxPage() {
   const [aiAgentOn, setAiAgentOn] = useState(true);
   const [showQuickReplies, setShowQuickReplies] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showTagsEditor, setShowTagsEditor] = useState(false);
+  const [showNewConversation, setShowNewConversation] = useState(false);
   const [mobileView, setMobileView] = useState<"list" | "chat" | "detail">("list");
   // Per-conversation AI override map keyed by conversation id. Only set
   // for conversations the user toggled this session — for the rest we
@@ -196,7 +207,16 @@ export default function InboxPage() {
   const stickToBottomRef = useRef<boolean>(true);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const quickReplies = isAr ? QUICK_REPLIES_AR : QUICK_REPLIES_EN;
+  // Live quick replies from /api/quick-replies. Admin manages from
+  // settings; falls back to a starter set when the org hasn't saved
+  // any yet so a fresh tenant isn't staring at an empty panel.
+  const { data: quickRepliesData } = useQuickReplies();
+  const quickRepliesList = Array.isArray(quickRepliesData) ? quickRepliesData : [];
+  const quickReplies = quickRepliesList.length > 0
+    ? quickRepliesList
+        .map((q: any) => isAr ? (q.text_ar || q.text || "") : (q.text || q.text_ar || ""))
+        .filter((t: string) => t.length > 0)
+    : (isAr ? QUICK_REPLIES_AR_FALLBACK : QUICK_REPLIES_EN_FALLBACK);
 
   // Get selected conversation ID for API calls
   const selected: Conversation = convos[selectedIdx] || convos[0];
@@ -662,8 +682,29 @@ export default function InboxPage() {
   function renderConversationList() {
     return (
       <div style={{ width: isMobile ? "100%" : 320, borderInlineEnd: "1px solid " + (dk ? C.brd : "#EAE7E2"), display: "flex", flexDirection: "column", background: C.card }}>
+        {/* Header — start new conversation entry point. Outbound
+            requires an approved template (Meta rule), the modal
+            walks the agent through it. */}
+        <div style={{ padding: "12px 16px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>
+            {isAr ? "المحادثات" : "Conversations"}
+          </h2>
+          <button
+            onClick={() => setShowNewConversation(true)}
+            title={isAr ? "بدء محادثة جديدة (يتطلّب قالباً معتمداً)" : "Start new conversation (requires approved template)"}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 4,
+              padding: "5px 10px", borderRadius: 8,
+              background: C.pri, color: "#fff", border: "none",
+              fontSize: 11.5, fontWeight: 700, fontFamily: FONT_FAMILY, cursor: "pointer",
+            }}
+          >
+            <Icon name="plus" size={11} />
+            {isAr ? "جديدة" : "New"}
+          </button>
+        </div>
         {/* Search */}
-        <div style={{ padding: "16px 16px 12px" }}>
+        <div style={{ padding: "12px 16px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 14px", borderRadius: 12, background: C.inp, marginBottom: 12 }}>
             <Icon name="search" size={14} />
             <input
@@ -726,7 +767,15 @@ export default function InboxPage() {
                   <div style={{ fontSize: 12.5, color: C.t2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.msg}</div>
                   <div style={{ display: "flex", gap: 5, marginTop: 6, alignItems: "center", flexWrap: "wrap" }}>
                     <Badge color={getStatusColor(c.st)}>{c.st}</Badge>
-                    {c.tag && <Badge color={C.pri}>{c.tag}</Badge>}
+                    {/* All applied tags — render up to 3 inline so the
+                        card height stays stable. The conversation
+                        detail panel shows the full list + edit. */}
+                    {(c.tags && c.tags.length > 0 ? c.tags.slice(0, 3) : (c.tag ? [c.tag] : [])).map((t: string, i: number) => (
+                      <Badge key={i} color={C.pri}>{t}</Badge>
+                    ))}
+                    {c.tags && c.tags.length > 3 && (
+                      <span style={{ fontSize: 10, color: C.t3 }}>+{c.tags.length - 3}</span>
+                    )}
                     {/* Sentiment pill — emoji + 5-tier vivid label so
                         the operator spots an angry customer at a glance.
                         Score-aware: AI score wins over the 3-class string
@@ -1532,8 +1581,22 @@ export default function InboxPage() {
           <div style={{ fontWeight: 700, fontSize: 16, marginTop: 12 }}>{selected.name}</div>
           <div style={{ fontSize: 12.5, color: C.t2, marginTop: 4 }}>{selected.ph}</div>
           <div style={{ fontSize: 12, color: C.t3, marginTop: 2 }}>{selected.email}</div>
-          <div style={{ display: "flex", justifyContent: "center", gap: 6, marginTop: 12 }}>
-            <Badge color={C.pri}>{selected.tag}</Badge>
+          <div style={{ display: "flex", justifyContent: "center", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
+            {((selected as any).tags?.length ? (selected as any).tags : (selected.tag ? [selected.tag] : [])).map((t: string, i: number) => (
+              <Badge key={i} color={C.pri}>{t}</Badge>
+            ))}
+            <button
+              onClick={() => setShowTagsEditor(true)}
+              style={{
+                background: "none", border: `1px dashed ${C.brd}`,
+                borderRadius: 12, padding: "2px 10px",
+                color: C.t2, cursor: "pointer", fontSize: 11,
+                fontFamily: FONT_FAMILY,
+              }}
+              title={isAr ? "تحرير التصنيفات" : "Edit tags"}
+            >
+              + {isAr ? "تصنيف" : "Tag"}
+            </button>
           </div>
         </div>
 
@@ -1634,6 +1697,38 @@ export default function InboxPage() {
         open={!!reportContext}
         onClose={() => setReportContext(null)}
         context={reportContext ?? { type: "general" }}
+      />
+
+      {/* Conversation tags editor — opens from the contact panel
+          "+ Tag" affordance. Persists via PATCH /conversations/{id}/tags. */}
+      <TagsEditorModal
+        open={showTagsEditor}
+        onClose={() => setShowTagsEditor(false)}
+        conversationId={selectedId}
+        initialTags={(selected as any)?.tags ?? (selected?.tag ? [selected.tag] : [])}
+        onSaved={(newTags) => {
+          // Optimistically refresh the visible card so the chips
+          // update without waiting for the next list poll.
+          mutateConvos();
+          setShowTagsEditor(false);
+          // No-op for newTags here — mutateConvos will refetch.
+          void newTags;
+        }}
+      />
+
+      {/* Outbound conversation starter. Sends an approved template
+          via /conversations/start (Meta-compliant), then jumps the
+          inbox selection to the freshly-created conversation. */}
+      <NewConversationModal
+        open={showNewConversation}
+        onClose={() => setShowNewConversation(false)}
+        onStarted={(cid) => {
+          mutateConvos();
+          // Selecting by id after the next poll: the convo list will
+          // refresh shortly. We try to find it immediately too.
+          const idx = convos.findIndex((c: any) => c.id === cid);
+          if (idx >= 0) setSelectedIdx(idx);
+        }}
       />
     </div>
   );
