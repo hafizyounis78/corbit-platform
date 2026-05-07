@@ -98,9 +98,16 @@ export default function TemplatesPage() {
 
   const PAGE_SIZE = 50;
 
-  // Fetch from API, fall back to mock data
+  // Fetch from API. The tabs filter by CATEGORY (utility / marketing
+  // / authentication), not by status — easy to confuse because the
+  // backend exposes both as query params. Sending status=marketing
+  // would always return zero rows since status only takes
+  // approved/pending/rejected.
+  const tabCategory = activeTab === "all"
+    ? undefined
+    : (activeTab === "auth" ? "authentication" : activeTab);
   const { data: apiResponse, isLoading, mutate } = useTemplates({
-    status: activeTab === "all" ? undefined : activeTab,
+    category: tabCategory,
     search: serverSearch || undefined,
     page,
   });

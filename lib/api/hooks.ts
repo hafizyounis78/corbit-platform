@@ -221,9 +221,10 @@ export function useCampaignBuilderPresets() {
 }
 
 // ─── Templates ────────────────────────────────────────────
-export function useTemplates(params?: { status?: string; search?: string; page?: number }) {
+export function useTemplates(params?: { status?: string; category?: string; search?: string; page?: number }) {
   const qs = new URLSearchParams();
   if (params?.status) qs.set('status', params.status);
+  if (params?.category) qs.set('category', params.category);
   if (params?.search) qs.set('search', params.search);
   if (params?.page) qs.set('page', String(params.page));
   const q = qs.toString();
