@@ -1371,19 +1371,25 @@ export default function TemplatesPage() {
                     {isAr ? "متغيرات" : "variables"}
                   </span>
                 </div>
-                {/* Smart-variable hint — surfaces the friendly tokens the
-                    backend personalization engine resolves at send time
-                    (name, tier, top_segment, etc). Renders as a soft
-                    tip strip so it doesn't shout over the body field. */}
+                {/* Meta-only template variables hint. The smart variables
+                    ({{name}}, {{tier}}, …) work on SMS bodies and inbox
+                    free-form replies, but Meta templates ONLY accept
+                    numeric placeholders {{1}}, {{2}}, etc. Surfacing the
+                    smart tokens here was misleading — it suggested they
+                    work in templates when they don't. The backend never
+                    substitutes friendly tokens in the WhatsApp template
+                    payload (only in the SMS render path), so there's no
+                    actual policy violation at send time, but we shouldn't
+                    nudge operators toward typing them in templates. */}
                 <div style={{
                   marginTop: 8, padding: "8px 12px", borderRadius: 8,
-                  background: `${C.ai}08`, border: `1px dashed ${C.ai}30`,
+                  background: `${C.info}08`, border: `1px dashed ${C.info}30`,
                   fontSize: 11, color: C.t2, lineHeight: 1.6,
                 }}>
-                  <span style={{ fontWeight: 700, color: C.ai }}>✨ {isAr ? "متغيّرات ذكيّة" : "Smart variables"}:</span>{" "}
+                  <span style={{ fontWeight: 700, color: C.info }}>ℹ️ {isAr ? "ملاحظة عن المتغيّرات" : "About variables"}:</span>{" "}
                   {isAr
-                    ? "اكتب {{name}} أو {{first_name}} أو {{tier}} أو {{top_segment}} أو {{city}} ليستبدلها النظام تلقائياً عند الإرسال."
-                    : "Type {{name}}, {{first_name}}, {{tier}}, {{top_segment}}, or {{city}} — they're auto-replaced per recipient at send time."}
+                    ? "Meta تقبل فقط متغيّرات رقميّة مثل {{1}} و {{2}} في القوالب. القيم تُحدَّد عند الإرسال من بيانات جهة الاتّصال."
+                    : "Meta only accepts numeric placeholders like {{1}} and {{2}} in templates. Values are filled at send time from the contact's data."}
                 </div>
                 {/* Content-policy banner — populated by the body-blur
                     content-check call. Renders only when violations
