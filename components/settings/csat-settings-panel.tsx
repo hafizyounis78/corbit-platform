@@ -94,8 +94,8 @@ export function CsatSettingsPanel() {
         </div>
         <div style={{ fontSize: 12, color: C.t2, marginTop: 6, lineHeight: 1.6 }}>
           {isAr
-            ? "بعد إغلاق المحادثة، يُرسَل قالب واتساب معتمد للعميل بأزرار تقييم 1-5. ردّ العميل يُسجَّل تلقائياً في customer_score ويظهر في تقارير الفريق."
-            : "When a conversation is resolved, an approved WhatsApp template is sent to the customer with 1–5 rating buttons. Their reply is captured automatically and surfaced in team reports."}
+            ? "بعد إغلاق المحادثة، يُرسَل قالب واتساب معتمد للعميل بأزرار تقييم من 1 إلى 5. ردّ العميل يُحفَظ تلقائياً ضمن نقاط رضا العميل، ويظهر في تقارير الفريق."
+            : "When a conversation is resolved, an approved WhatsApp template is sent to the customer with 1–5 rating buttons. Their reply is captured automatically as their satisfaction score and surfaced in team reports."}
         </div>
       </div>
 
