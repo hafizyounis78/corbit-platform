@@ -21,6 +21,7 @@ import { ApiAndWebhooksPanel } from "@/components/settings/api-webhooks-panel";
 import { SmsSettingsPanel } from "@/components/settings/sms-settings-panel";
 import { CsatSettingsPanel } from "@/components/settings/csat-settings-panel";
 import { SendingPolicyCard } from "@/components/settings/sending-policy-card";
+import { ClickTrackingCard } from "@/components/settings/click-tracking-card";
 import { QuickRepliesPanel } from "@/components/settings/quick-replies-panel";
 import api from "@/lib/api/client";
 
@@ -1218,6 +1219,11 @@ export default function SettingsPage() {
               modal; this is the global default that applies when
               the operator doesn't override. */}
           <SendingPolicyCard />
+
+          {/* Click tracking opt-out — when off, outgoing URLs match
+              the approved Meta template content exactly. Default ON
+              so existing behaviour is preserved. */}
+          <ClickTrackingCard />
 
           <div style={grid2Style}>
             {/* WhatsApp */}
