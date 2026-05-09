@@ -54,7 +54,7 @@ export default function DpaPage() {
             اتفاقية معالجة البيانات (DPA)
           </h1>
           <div style={{ color: "#8B99AD", fontSize: 13 }}>
-            Data Processing Agreement · آخر تحديث: 5 مايو 2026
+            Data Processing Agreement · آخر تحديث: 9 مايو 2026
           </div>
         </header>
 
@@ -81,13 +81,15 @@ export default function DpaPage() {
             <li><b>المتحكّم بالبيانات (Data Controller):</b> الشركة المشتركة في WhatsBit (يُشار إليها بـ "المشترك" / "أنت").</li>
             <li><b>المعالج (Data Processor):</b> شركة Corbit للحلول التقنيّة، السجل التجاري السعودي، المملكة العربيّة السعوديّة.</li>
             <li>
-              <b>المعالج الفرعي (Sub-processors):</b>
-              Meta Platforms (WhatsApp Business API) ·
-              Laravel Forge (استضافة) ·
-              Vercel (واجهة) ·
-              360dialog (BSP) ·
-              mobile.net.sa (SMS) ·
-              Anthropic (اختياري — عند تفعيل AI).
+              <b>المعالجون الفرعيّون (Sub-processors):</b>
+              Meta Platforms Ireland (WhatsApp Business API) ·
+              360dialog GmbH (BSP) ·
+              Laravel Forge على DigitalOcean/AWS (استضافة backend + frontend) ·
+              Alibaba Cloud OSS (تخزين المرفقات) ·
+              mobile.net.sa / مدار (SMS النظامي) ·
+              OpenAI أو Anthropic (اختياري — عند تفعيل AI) ·
+              Spatie Flare (مراقبة الأخطاء — backend) ·
+              Functional Software / Sentry (مراقبة الأخطاء — frontend).
             </li>
           </ul>
         </Section>
@@ -153,8 +155,9 @@ export default function DpaPage() {
             خوادم Forge. النقل خارج المملكة يحدث في الحالات التالية فقط:
           </p>
           <ul style={ulStyle}>
-            <li>إرسال الرسائل إلى Meta WhatsApp Cloud API (مطلب فنّي للخدمة، خوادم Meta في الاتحاد الأوروبي).</li>
-            <li>عند تفعيل AI: استدعاءات مؤقّتة لـ Anthropic API (المحتوى يُعالج ثم يُحذف من جانب Anthropic بعد 30 يوماً، لا يستخدم لتدريب نماذج).</li>
+            <li>إرسال الرسائل إلى Meta WhatsApp Cloud API (مطلب فنّي للخدمة، خوادم Meta في الاتّحاد الأوروبي).</li>
+            <li>عند تفعيل AI: استدعاءات مؤقّتة لـ OpenAI أو Anthropic API (الولايات المتّحدة)، المحتوى يُعالج ثمّ يُحذف من جانب المزوّد خلال 30 يوماً، ولا يُستخدم لتدريب نماذج عامّة.</li>
+            <li>تخزين المرفقات على Alibaba Cloud OSS (مناطق الشرق الأوسط).</li>
           </ul>
           <p style={{ ...pStyle, marginTop: 10 }}>
             جميع عمليّات النقل محميّة بـ Standard Contractual Clauses (SCCs)
@@ -178,9 +181,9 @@ export default function DpaPage() {
 
         <Section title="8 — مدّة الاحتفاظ والحذف">
           <ul style={ulStyle}>
-            <li>أثناء الاشتراك: نحتفظ بالبيانات حسب الإعدادات + الحدود التقنيّة (المحادثات 24 شهراً).</li>
-            <li>بعد إنهاء الاشتراك: يُمنح المشترك 30 يوماً لتصدير بياناته.</li>
-            <li>بعد الـ 30 يوماً: تُحذف كل البيانات نهائياً، باستثناء:
+            <li>أثناء الاشتراك: نحتفظ بالبيانات حسب الإعدادات + الحدود التقنيّة (المحادثات سنة من الإغلاق، AI logs 6 أشهر).</li>
+            <li>بعد إنهاء الاشتراك: يُمنح المشترك 90 يوماً لتصدير بياناته.</li>
+            <li>بعد الـ 90 يوماً: تُحذف كلّ البيانات نهائياً، باستثناء:
               <ul style={{ ...ulStyle, marginTop: 6 }}>
                 <li>سجلات الفوترة (5 سنوات — متطلّب زكوي/ضريبي سعودي).</li>
                 <li>سجلات الـ Audit Log (سنتان — متطلّب امتثال).</li>
