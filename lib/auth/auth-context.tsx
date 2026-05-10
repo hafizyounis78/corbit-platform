@@ -1,5 +1,6 @@
 "use client";
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import * as Sentry from "@sentry/nextjs";
 import api from '../api/client';
 import { API } from '../api/endpoints';
 
@@ -60,10 +61,44 @@ const AuthContext = createContext<AuthContextType>({
   updateUser: () => {},
 });
 
+/**
+ * Tag every Sentry error with the current user + their org. Without
+ * this, the dashboard shows "an error happened in /campaigns" with
+ * no way to tell which tenant or operator hit it — diagnosis turns
+ * into a guessing game.
+ *
+ * Strips PII to the minimum useful set: id + email + role + org id +
+ * org name. We deliberately don't ship phone, last_active_at, or any
+ * other field a Sentry support engineer doesn't need to reproduce
+ * the bug.
+ *
+ * Pass null to clear (logout / failed-token paths) so the next user
+ * on the same browser session doesn't inherit the prior identity.
+ */
+function syncSentryUser(user: User | null) {
+  if (user) {
+    Sentry.setUser({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      org_id: user.org?.id ?? null,
+      org_name: user.org?.name ?? null,
+    });
+  } else {
+    Sentry.setUser(null);
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Mirror auth state into Sentry so every reported error carries
+  // user + org tags. Runs on every user change including logout.
+  useEffect(() => {
+    syncSentryUser(user);
+  }, [user]);
 
   // Check existing token on mount
   useEffect(() => {
