@@ -316,8 +316,67 @@ export default function TemplatesPage() {
               <div style={{ background: "#ECE5DD", padding: "20px 14px", minHeight: 320, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
                 {/* Message bubble */}
                 <div style={{ background: "#DCF8C6", borderRadius: "12px 12px 12px 0", padding: "8px 12px", maxWidth: "88%", boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }}>
-                  {/* Header */}
-                  {tmpl.header && (
+                  {/* Media header (image/video/document) — render the actual file
+                      so the operator sees what customers will see. Falls back to
+                      a typed placeholder if the URL is missing or fails to load. */}
+                  {(tmpl.header_format === "image" || tmpl.header_format === "video" || tmpl.header_format === "document") && (
+                    <div style={{
+                      width: "100%",
+                      height: 120,
+                      borderRadius: 6,
+                      overflow: "hidden",
+                      background: "#C8E6C9",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginBottom: 6,
+                      color: "#2E7D32",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      gap: 6,
+                    }}>
+                      {tmpl.header_media_url && tmpl.header_format === "image" && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={tmpl.header_media_url}
+                          alt="header"
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                        />
+                      )}
+                      {tmpl.header_media_url && tmpl.header_format === "video" && (
+                        <video
+                          src={tmpl.header_media_url}
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          muted
+                          playsInline
+                          controls
+                        />
+                      )}
+                      {tmpl.header_media_url && tmpl.header_format === "document" && (
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                          <span style={{ fontSize: 28 }}>📄</span>
+                          <a href={tmpl.header_media_url} target="_blank" rel="noreferrer" style={{ color: "#075E54", fontSize: 10, textDecoration: "underline" }}>
+                            {isAr ? "افتح المستند" : "Open document"}
+                          </a>
+                        </div>
+                      )}
+                      {!tmpl.header_media_url && (
+                        <>
+                          <span style={{ fontSize: 22 }}>
+                            {tmpl.header_format === "image" ? "🖼" : tmpl.header_format === "video" ? "🎬" : "📄"}
+                          </span>
+                          <span>
+                            {tmpl.header_format === "image" ? (isAr ? "صورة" : "Image")
+                              : tmpl.header_format === "video" ? (isAr ? "فيديو" : "Video")
+                              : (isAr ? "مستند" : "Document")}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  )}
+                  {/* Text header */}
+                  {tmpl.header && tmpl.header_format !== "image" && tmpl.header_format !== "video" && tmpl.header_format !== "document" && (
                     <div style={{ fontWeight: 700, fontSize: 13, color: "#1A1A1A", marginBottom: 4 }}>
                       {highlightVars(tmpl.header)}
                     </div>
@@ -1647,6 +1706,8 @@ export default function TemplatesPage() {
                 <div>
                   <WhatsAppPhonePreview
                     header={pHeader}
+                    headerFormat={newTemplate.header_format}
+                    headerMediaUrl={newTemplate.header_media_url || null}
                     body={pBody}
                     footer={pFooter}
                     buttons={(newTemplate.buttons || []).map((b) => ({
