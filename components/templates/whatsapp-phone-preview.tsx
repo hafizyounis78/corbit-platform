@@ -14,8 +14,21 @@ interface TemplateButton {
 }
 
 interface Props {
-  /** Optional header text/image label — Meta supports text/image/video/document headers. */
+  /** Optional header text — used for TEXT-format headers only. */
   header?: string | null;
+  /**
+   * Header format. When "image" / "video" / "document", we render the
+   * actual media (or a typed placeholder) at the top of the bubble
+   * instead of a text header. Defaults to "text" for backwards
+   * compatibility with callers that only set `header`.
+   */
+  headerFormat?: "none" | "text" | "image" | "video" | "document" | null;
+  /**
+   * Public/signed URL for the media header. When omitted but
+   * headerFormat is set to image/video/document, we still render a
+   * typed placeholder so the operator knows which slot they're in.
+   */
+  headerMediaUrl?: string | null;
   /** Body with {{1}}, {{2}} placeholders. We render them as filled chips
    *  (e.g. {{1}} → "[الاسم]") so the operator sees how the template
    *  looks once variables resolve. */
@@ -47,6 +60,8 @@ interface Props {
  */
 export function WhatsAppPhonePreview({
   header,
+  headerFormat,
+  headerMediaUrl,
   body,
   footer,
   buttons = [],
@@ -192,8 +207,16 @@ export function WhatsAppPhonePreview({
             boxShadow: "0 1px 0.5px rgba(0,0,0,0.13)",
           }}
         >
-          {/* Header — image placeholder when set */}
-          {header && (
+          {/*
+            Header rendering. Three modes:
+              1. Media (image/video/document) with a URL → render the
+                 actual file in a 110px-high preview tile. Image uses
+                 object-fit:cover so any aspect ratio looks reasonable.
+              2. Media format set but URL missing → typed placeholder
+                 (camera icon, etc.) so the operator sees the slot.
+              3. Text header → green tinted band with the text.
+          */}
+          {(headerFormat === "image" || headerFormat === "video" || headerFormat === "document") && (
             <div
               style={{
                 width: "100%",
@@ -208,9 +231,73 @@ export function WhatsAppPhonePreview({
                 fontSize: 11,
                 fontWeight: 600,
                 gap: 6,
+                overflow: "hidden",
+                position: "relative",
               }}
             >
-              <span style={{ fontSize: 18 }}>🖼</span>
+              {headerMediaUrl && headerFormat === "image" && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={headerMediaUrl}
+                  alt="header"
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  // Fallback to typed placeholder when the URL fails
+                  // (private bucket, expired signed URL, broken host).
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.display = "none";
+                  }}
+                />
+              )}
+              {headerMediaUrl && headerFormat === "video" && (
+                <video
+                  src={headerMediaUrl}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  muted
+                  playsInline
+                />
+              )}
+              {headerMediaUrl && headerFormat === "document" && (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                  <span style={{ fontSize: 28 }}>📄</span>
+                  <a
+                    href={headerMediaUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ color: isDark ? "#9DC0B3" : "#075E54", fontSize: 10, textDecoration: "underline" }}
+                  >
+                    {direction ? "افتح المستند" : "Open document"}
+                  </a>
+                </div>
+              )}
+              {!headerMediaUrl && (
+                <>
+                  <span style={{ fontSize: 22 }}>
+                    {headerFormat === "image" ? "🖼" : headerFormat === "video" ? "🎬" : "📄"}
+                  </span>
+                  <span>
+                    {headerFormat === "image"
+                      ? (direction ? "صورة" : "Image")
+                      : headerFormat === "video"
+                      ? (direction ? "فيديو" : "Video")
+                      : (direction ? "مستند" : "Document")}
+                  </span>
+                </>
+              )}
+            </div>
+          )}
+          {(headerFormat === "text" || (!headerFormat && header)) && header && (
+            <div
+              style={{
+                width: "100%",
+                padding: "8px 10px",
+                borderRadius: 6,
+                background: isDark ? "#1a2a30" : "#C8E6C9",
+                marginBottom: 8,
+                color: isDark ? "#cfe8d8" : "#0E4A2E",
+                fontSize: 12,
+                fontWeight: 700,
+              }}
+            >
               {header}
             </div>
           )}

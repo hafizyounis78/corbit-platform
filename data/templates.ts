@@ -20,6 +20,16 @@ export interface Template {
   delivered: number;
   read: number;
   replied: number;
+  /**
+   * Header format. Optional because seed/fixture templates predate
+   * this column; live API rows always carry one of:
+   *   "none" | "text" | "image" | "video" | "document"
+   * The detail view branches on this to render a media preview vs a
+   * text header.
+   */
+  header_format?: "none" | "text" | "image" | "video" | "document" | null;
+  /** Public/signed URL for the media file when header_format is media. */
+  header_media_url?: string | null;
 }
 
 export function getTemplates(lang: Locale): Template[] {
