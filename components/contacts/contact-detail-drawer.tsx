@@ -80,6 +80,13 @@ export function ContactDetailDrawer({ contactId, onClose, onMutated }: Props) {
   const [contact, setContact] = useState<ContactDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [recomputing, setRecomputing] = useState(false);
+  // Delete confirmation modal — requires the operator to type the
+  // contact name exactly so a misclick can never erase the wrong row.
+  // Soft delete on the backend, so the contact stays in DB for ~30
+  // days for compliance + accidental-restore scenarios.
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!contactId) {
@@ -114,6 +121,27 @@ export function ContactDetailDrawer({ contactId, onClose, onMutated }: Props) {
       showToast(isAr ? "تعذّر التحديث" : "Couldn't update");
     } finally {
       setRecomputing(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!contactId || !contact) return;
+    // Belt-and-suspenders: button is already disabled when text doesn't
+    // match, but recheck here so an enabled state from a stale render
+    // can never bypass the gate.
+    if (deleteConfirmText.trim() !== contact.name.trim()) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/contacts/${contactId}`);
+      showToast(isAr ? "تم حذف جهة الاتصال" : "Contact deleted");
+      setShowDeleteModal(false);
+      setDeleteConfirmText("");
+      onMutated?.();
+      onClose();
+    } catch {
+      showToast(isAr ? "تعذّر الحذف" : "Couldn't delete");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -427,10 +455,117 @@ export function ContactDetailDrawer({ contactId, onClose, onMutated }: Props) {
                 }}>
                 <Icon name="lock" size={12} /> {isAr ? "حظر" : "Block"}
               </Button>
+              <Button outline small style={{ color: COLORS.err, borderColor: COLORS.err }}
+                onClick={() => {
+                  setDeleteConfirmText("");
+                  setShowDeleteModal(true);
+                }}>
+                <Icon name="trash" size={12} /> {isAr ? "حذف" : "Delete"}
+              </Button>
             </div>
           </>
         )}
       </div>
+
+      {/* Delete confirmation modal — sits above the drawer (zIndex 100)
+          so the backdrop still dims the drawer. We require typing the
+          contact name exactly because soft delete is reversible from
+          Nova but not from this UI, and a misclick on a high-LTV
+          contact would still surprise the operator. */}
+      {showDeleteModal && contact && (
+        <>
+          <div
+            onClick={() => !deleting && setShowDeleteModal(false)}
+            style={{
+              position: "fixed", inset: 0,
+              background: "rgba(0,0,0,0.6)",
+              zIndex: 100,
+            }}
+          />
+          <div
+            style={{
+              position: "fixed",
+              top: "50%", left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: "min(440px, 92vw)",
+              background: C.card,
+              borderRadius: 14,
+              padding: 24,
+              boxShadow: "0 20px 60px rgba(0,0,0,0.4)",
+              zIndex: 101,
+              fontFamily: FONT_FAMILY,
+              direction: isAr ? "rtl" : "ltr",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <div style={{
+                width: 36, height: 36,
+                borderRadius: 10,
+                background: COLORS.err + "20",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <Icon name="trash" size={18} />
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: C.txt }}>
+                {isAr ? "حذف جهة الاتصال؟" : "Delete contact?"}
+              </div>
+            </div>
+
+            <div style={{ fontSize: 13, color: C.t2, lineHeight: 1.6, marginBottom: 14 }}>
+              {isAr
+                ? "سيختفي العميل من القوائم. سجلّ المحادثات والرسائل وموافقات الواتساب تبقى محفوظة (يمكن للإدارة الاسترجاع خلال 30 يوماً قبل الحذف النهائي)."
+                : "The contact will vanish from your lists. Conversations, messages and WhatsApp opt-in records stay preserved (Admin can restore within 30 days before final purge)."}
+            </div>
+
+            <div style={{ fontSize: 12, color: C.t3, marginBottom: 6 }}>
+              {isAr
+                ? <>اكتب اسم العميل للتأكيد: <strong style={{ color: C.txt }}>{contact.name}</strong></>
+                : <>Type the contact name to confirm: <strong style={{ color: C.txt }}>{contact.name}</strong></>}
+            </div>
+
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              autoFocus
+              disabled={deleting}
+              placeholder={contact.name}
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                borderRadius: 8,
+                border: `1.5px solid ${C.brd}`,
+                background: C.inp,
+                color: C.txt,
+                fontSize: 13,
+                fontFamily: FONT_FAMILY,
+                marginBottom: 16,
+                boxSizing: "border-box",
+              }}
+            />
+
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <Button outline small disabled={deleting}
+                onClick={() => { setShowDeleteModal(false); setDeleteConfirmText(""); }}>
+                {isAr ? "إلغاء" : "Cancel"}
+              </Button>
+              <Button small
+                disabled={deleting || deleteConfirmText.trim() !== contact.name.trim()}
+                onClick={handleDelete}
+                style={{
+                  background: COLORS.err,
+                  borderColor: COLORS.err,
+                  color: "#fff",
+                  opacity: (deleting || deleteConfirmText.trim() !== contact.name.trim()) ? 0.5 : 1,
+                }}>
+                {deleting
+                  ? (isAr ? "جاري الحذف..." : "Deleting...")
+                  : (isAr ? "حذف نهائي" : "Delete")}
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
     </>
   );
 }
