@@ -1,5 +1,45 @@
 import type { Locale } from "@/types/common";
 
+/**
+ * Per-node config payload. Each node type uses a different subset:
+ *   - trigger:   keywords
+ *   - message:   text, media (or legacy imageUrl)
+ *   - buttons:   buttons[], text
+ *   - condition: expression
+ *   - ai:        model, knowledge_base, etc.
+ *   - api:       url
+ *   - transfer:  team
+ *
+ * The catch-all index signature lets future fields slip in without a
+ * compile error, but known fields are typed precisely so JSX consumers
+ * (e.g. {config.keywords && ...}) get a string back, not unknown — which
+ * React can't render.
+ */
+export interface FlowNodeConfig {
+  keywords?: string;
+  text?: string;
+  imageUrl?: string;
+  media?: {
+    type?: "image" | "video" | "document";
+    url?: string;
+    disk?: string;
+    path?: string;
+    filename?: string;
+    mime?: string;
+  };
+  buttons?: string[];
+  expression?: string;
+  url?: string;
+  team?: string;
+  model?: string;
+  knowledge_base?: boolean;
+  conversation_context?: boolean;
+  auto_escalate?: boolean;
+  confidence_threshold?: number;
+  // Forward-compat for any future flow-node feature
+  [key: string]: unknown;
+}
+
 export interface FlowNode {
   id: string;
   type: string;
@@ -7,12 +47,7 @@ export interface FlowNode {
   x: number;
   y: number;
   next: string[];
-  // Loose because nodes carry heterogenous payloads:
-  //   - trigger.keywords (string)
-  //   - message.text (string), message.media (object: {type,url,disk,...})
-  //   - buttons.buttons (string[])
-  //   - api.url (string)
-  config: Record<string, unknown>;
+  config: FlowNodeConfig;
 }
 
 export interface Bot {
