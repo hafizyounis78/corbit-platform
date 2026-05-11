@@ -434,6 +434,17 @@ export default function BotBuilderPage() {
           break;
         case "message":
           if (node.config?.text) trace.push({ kind: "bot", text: String(node.config.text), nodeId });
+          // Surface attached media in the test trace so the operator
+          // can see "yes, the PDF would also go out" without sending
+          // a real WhatsApp.
+          if (node.config?.media && typeof node.config.media === "object") {
+            const m = node.config.media as { type?: string; filename?: string };
+            const icon = m.type === "image" ? "🖼️" : m.type === "video" ? "🎬" : "📎";
+            const label = m.filename || (isAr ? "مرفق" : "attachment");
+            trace.push({ kind: "bot", text: `${icon} ${label}`, nodeId });
+          } else if (node.config?.imageUrl) {
+            trace.push({ kind: "bot", text: `🖼️ ${String(node.config.imageUrl)}`, nodeId });
+          }
           break;
         case "buttons":
           if (node.config?.text) trace.push({ kind: "bot", text: String(node.config.text), nodeId });
@@ -1115,28 +1126,12 @@ export default function BotBuilderPage() {
                         }}
                       />
                     </div>
-                    <div>
-                      <div style={{ fontSize: 11, color: C.t2, marginBottom: 4, fontWeight: 600 }}>
-                        {isAr ? "\u0631\u0627\u0628\u0637 \u0627\u0644\u0635\u0648\u0631\u0629" : "Image URL"} <span style={{ fontWeight: 400, color: C.t3 }}>({isAr ? "\u0627\u062E\u062A\u064A\u0627\u0631\u064A" : "optional"})</span>
-                      </div>
-                      <input
-                        value={String(selectedNode.config.imageUrl ?? "")}
-                        onChange={(e) => updateNodeConfig(selectedNode.id, { imageUrl: e.target.value })}
-                        placeholder="https://..."
-                        style={{
-                          width: "100%",
-                          padding: "8px 10px",
-                          borderRadius: 8,
-                          border: `1px solid ${C.brd}`,
-                          background: C.inp,
-                          color: C.txt,
-                          fontSize: 12.5,
-                          fontFamily: FONT_FAMILY,
-                          outline: "none",
-                          boxSizing: "border-box",
-                        }}
-                      />
-                    </div>
+                    <BotMediaUploader
+                      node={selectedNode}
+                      C={C}
+                      isAr={isAr}
+                      onChange={(media) => updateNodeConfig(selectedNode.id, { media, imageUrl: undefined })}
+                    />
                   </>
                 )}
 
@@ -2059,6 +2054,276 @@ function ConfigField({
       <div style={{ fontSize: 11, color: C.t2, marginBottom: 4 }}>{label}</div>
       <div style={{ fontSize: 12.5, padding: "7px 10px", borderRadius: 8, background: C.inp, wordBreak: "break-word" }}>
         {value}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Bot Media Uploader                                                 */
+/*                                                                     */
+/*  Lets the operator attach an image/video/document to a message      */
+/*  node. Uploads through the existing /api/templates/upload-header-   */
+/*  media endpoint (same OSS pipeline used for template headers — no   */
+/*  reason to maintain a parallel one). The returned disk+path are     */
+/*  stored on the node config so the backend can mint a fresh signed   */
+/*  URL at send time, which means a flow that's been sitting in the   */
+/*  canvas for weeks doesn't ship Meta a stale URL.                    */
+/* ------------------------------------------------------------------ */
+type BotMediaShape = {
+  type?: "image" | "video" | "document";
+  url?: string;
+  disk?: string;
+  path?: string;
+  filename?: string;
+  mime?: string;
+};
+
+const ALLOWED_MIME_BY_TYPE: Record<string, string[]> = {
+  image: ["image/jpeg", "image/png"],
+  video: ["video/mp4", "video/3gpp"],
+  document: ["application/pdf"],
+};
+
+const MAX_BYTES_BY_TYPE: Record<string, number> = {
+  image: 5 * 1024 * 1024,
+  video: 16 * 1024 * 1024,
+  document: 100 * 1024 * 1024,
+};
+
+function detectFormatFromMime(mime: string): "image" | "video" | "document" | null {
+  if (mime.startsWith("image/")) return "image";
+  if (mime.startsWith("video/")) return "video";
+  if (mime === "application/pdf") return "document";
+  return null;
+}
+
+function BotMediaUploader({
+  node,
+  C,
+  isAr,
+  onChange,
+}: {
+  node: FlowNode;
+  C: ThemeColors;
+  isAr: boolean;
+  onChange: (media: BotMediaShape | null) => void;
+}) {
+  const { showToast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  // Two shapes are tolerated for backwards compat:
+  //   - new: config.media = { type, url, disk, path, filename, mime }
+  //   - legacy: config.imageUrl = "https://..."
+  // The legacy form is shown read-only — saving a new file replaces it.
+  const media: BotMediaShape | null = (() => {
+    if (node.config?.media && typeof node.config.media === "object") {
+      return node.config.media as BotMediaShape;
+    }
+    if (node.config?.imageUrl && typeof node.config.imageUrl === "string") {
+      return { type: "image", url: node.config.imageUrl as string };
+    }
+    return null;
+  })();
+
+  const handlePickFile = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const format = detectFormatFromMime(file.type);
+    if (!format) {
+      showToast(isAr ? "نوع الملف غير مدعوم. ادعم: صورة JPG/PNG، فيديو MP4، أو PDF." : "Unsupported file type. Use JPG/PNG image, MP4 video, or PDF.");
+      e.target.value = "";
+      return;
+    }
+
+    if ((ALLOWED_MIME_BY_TYPE[format] ?? []).indexOf(file.type) === -1) {
+      showToast(isAr ? `نوع الملف (${file.type}) غير مقبول.` : `File type (${file.type}) not accepted.`);
+      e.target.value = "";
+      return;
+    }
+
+    if (file.size > (MAX_BYTES_BY_TYPE[format] ?? 0)) {
+      const maxMb = Math.round(MAX_BYTES_BY_TYPE[format] / 1024 / 1024);
+      showToast(isAr ? `حجم الملف يتجاوز الحد المسموح (${maxMb} ميجا).` : `File exceeds size limit (${maxMb}MB).`);
+      e.target.value = "";
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("format", format);
+      fd.append("file", file);
+
+      // Reuse the template-header upload endpoint — same OSS pipeline,
+      // same validation, same signed-URL story.
+      const res = await api.post("/templates/upload-header-media", fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      const data = res.data?.data ?? res.data ?? {};
+
+      const next: BotMediaShape = {
+        type: format,
+        url: data.media_url ?? data.url ?? "",
+        disk: data.media_disk ?? "",
+        path: data.media_path ?? "",
+        filename: file.name,
+        mime: file.type,
+      };
+
+      onChange(next);
+      showToast(isAr ? "تم رفع المرفق ✓" : "Media uploaded ✓");
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      const msg = e?.response?.data?.message || (isAr ? "فشل رفع الملف" : "Upload failed");
+      showToast(msg);
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleRemove = () => {
+    onChange(null);
+  };
+
+  const typeIcon = media?.type === "image" ? "🖼️" : media?.type === "video" ? "🎬" : "📎";
+  const typeLabel = media?.type === "image"
+    ? (isAr ? "صورة" : "Image")
+    : media?.type === "video"
+      ? (isAr ? "فيديو" : "Video")
+      : (isAr ? "مستند" : "Document");
+
+  return (
+    <div>
+      <div style={{ fontSize: 11, color: C.t2, marginBottom: 4, fontWeight: 600 }}>
+        {isAr ? "مرفق (اختياري)" : "Attachment (optional)"}
+      </div>
+
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileSelected}
+        accept="image/jpeg,image/png,video/mp4,video/3gpp,application/pdf"
+        style={{ display: "none" }}
+      />
+
+      {! media && (
+        <button
+          type="button"
+          onClick={handlePickFile}
+          disabled={uploading}
+          style={{
+            width: "100%",
+            padding: "10px 12px",
+            borderRadius: 8,
+            border: `1.5px dashed ${C.brd}`,
+            background: "transparent",
+            color: C.t2,
+            fontSize: 12,
+            fontFamily: FONT_FAMILY,
+            cursor: uploading ? "wait" : "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+          }}
+        >
+          {uploading
+            ? (isAr ? "جاري الرفع..." : "Uploading...")
+            : (isAr ? "📎 رفع صورة / فيديو / PDF" : "📎 Upload image / video / PDF")}
+        </button>
+      )}
+
+      {media && (
+        <div
+          style={{
+            border: `1px solid ${C.brd}`,
+            borderRadius: 8,
+            padding: 10,
+            background: C.inp,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 22 }}>{typeIcon}</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 600, color: C.txt, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {media.filename || (isAr ? "ملف مرفق" : "Attached file")}
+              </div>
+              <div style={{ fontSize: 11, color: C.t3 }}>
+                {typeLabel}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleRemove}
+              title={isAr ? "حذف" : "Remove"}
+              style={{
+                width: 26,
+                height: 26,
+                borderRadius: 6,
+                border: "none",
+                background: COLORS.err + "22",
+                color: COLORS.err,
+                cursor: "pointer",
+                fontSize: 14,
+                lineHeight: 1,
+              }}
+            >
+              ×
+            </button>
+          </div>
+
+          {media.type === "image" && media.url && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={media.url}
+              alt={media.filename || "preview"}
+              style={{
+                maxWidth: "100%",
+                maxHeight: 140,
+                borderRadius: 6,
+                objectFit: "contain",
+                background: "#0001",
+              }}
+            />
+          )}
+
+          <button
+            type="button"
+            onClick={handlePickFile}
+            disabled={uploading}
+            style={{
+              padding: "6px 10px",
+              borderRadius: 6,
+              border: `1px solid ${C.brd}`,
+              background: "transparent",
+              color: C.t2,
+              fontSize: 11,
+              fontFamily: FONT_FAMILY,
+              cursor: uploading ? "wait" : "pointer",
+            }}
+          >
+            {uploading
+              ? (isAr ? "جاري الرفع..." : "Uploading...")
+              : (isAr ? "🔄 استبدال" : "🔄 Replace")}
+          </button>
+        </div>
+      )}
+
+      <div style={{ fontSize: 10.5, color: C.t3, marginTop: 6, lineHeight: 1.6 }}>
+        {isAr
+          ? "يُرسل المرفق كرسالة واتساب منفصلة بعد النص. الحدود: صورة 5MB، فيديو 16MB، PDF 100MB."
+          : "Attachment is sent as a separate WhatsApp message after the text. Limits: image 5MB, video 16MB, PDF 100MB."}
       </div>
     </div>
   );

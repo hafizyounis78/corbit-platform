@@ -7,7 +7,12 @@ export interface FlowNode {
   x: number;
   y: number;
   next: string[];
-  config: Record<string, string | string[]>;
+  // Loose because nodes carry heterogenous payloads:
+  //   - trigger.keywords (string)
+  //   - message.text (string), message.media (object: {type,url,disk,...})
+  //   - buttons.buttons (string[])
+  //   - api.url (string)
+  config: Record<string, unknown>;
 }
 
 export interface Bot {
