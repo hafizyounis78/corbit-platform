@@ -24,6 +24,9 @@ export interface Bot {
   conversations: number;
   ai: boolean;
   desc: string;
+  // 0 disables the cooldown gate, default 24h. Limited to 0-72h
+  // by the API. Surfaced as an inline editor in the canvas header.
+  cooldownHours?: number;
   stats: { sessions: number; completed: number; dropped: number; avgTime: string; satisfaction: number };
   flow: FlowNode[];
 }

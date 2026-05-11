@@ -78,7 +78,8 @@ export default function BotBuilderPage() {
   const [filterTab, setFilterTab] = useState("all");
   const [page, setPage] = useState(1);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newBot, setNewBot] = useState({ name: "", description: "", trigger: "", aiEnabled: true, startNode: "welcome" });
+  const [newBot, setNewBot] = useState({ name: "", description: "", trigger: "", aiEnabled: true, startNode: "welcome", cooldownHours: 24 });
+  const [savingCooldown, setSavingCooldown] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Bot | null>(null);
   const [deletingBot, setDeletingBot] = useState(false);
 
@@ -183,7 +184,7 @@ export default function BotBuilderPage() {
 
   /* ---------- Handlers ---------- */
   const handleCreateFlow = useCallback(() => {
-    setNewBot({ name: "", description: "", trigger: "", aiEnabled: true, startNode: "welcome" });
+    setNewBot({ name: "", description: "", trigger: "", aiEnabled: true, startNode: "welcome", cooldownHours: 24 });
     setShowCreateModal(true);
   }, []);
 
@@ -561,6 +562,63 @@ export default function BotBuilderPage() {
               <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{selectedBot.name}</h2>
               <Badge color={getStatusColor(selectedBot.st)}>{selectedBot.st}</Badge>
               {selectedBot.ai && <Badge color={COLORS.ai}>AI</Badge>}
+
+              {/* Cooldown editor — inline number input. Saves on blur
+                  through PATCH /api/bots/{id}. cooldown_hours=0 disables
+                  the gate (bot fires every time, the pre-feature
+                  behaviour) so a tenant can opt out per-bot. */}
+              <div
+                title={isAr ? "فترة انتظار البوت قبل الردّ على نفس العميل (0 = بدون انتظار)" : "Cooldown before re-replying to same contact (0 = no cooldown)"}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: "3px 8px",
+                  borderRadius: 999,
+                  background: `${COLORS.warn}18`,
+                  color: COLORS.warn,
+                  fontSize: 11,
+                  fontWeight: 600,
+                }}
+              >
+                <Icon name="timer" size={11} />
+                <input
+                  type="number"
+                  min={0}
+                  max={72}
+                  defaultValue={(selectedBot as any).cooldownHours ?? 24}
+                  disabled={savingCooldown}
+                  onBlur={async (e) => {
+                    const v = Math.max(0, Math.min(72, Number(e.target.value) || 0));
+                    const current = Number((selectedBot as any).cooldownHours ?? 24);
+                    if (v === current) return;
+                    setSavingCooldown(true);
+                    try {
+                      await api.patch(`/bots/${selectedBotId}`, { cooldownHours: v });
+                      mutate();
+                      showToast(isAr ? "تم تحديث فترة الانتظار ✓" : "Cooldown updated ✓");
+                    } catch {
+                      showToast(isAr ? "تعذّر التحديث" : "Update failed");
+                      e.target.value = String(current);
+                    } finally {
+                      setSavingCooldown(false);
+                    }
+                  }}
+                  style={{
+                    width: 32,
+                    border: "none",
+                    background: "transparent",
+                    color: COLORS.warn,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    textAlign: "center",
+                    fontFamily: FONT_FAMILY,
+                    outline: "none",
+                    padding: 0,
+                  }}
+                />
+                <span>{isAr ? "س" : "h"}</span>
+              </div>
             </div>
             <p style={{ marginTop: 4, marginBottom: 0, fontSize: 13, color: C.t2 }}>{selectedBot.desc}</p>
           </div>
@@ -1860,6 +1918,7 @@ export default function BotBuilderPage() {
               trigger: newBot.trigger,
               aiEnabled: newBot.aiEnabled,
               startNode: newBot.startNode,
+              cooldownHours: newBot.cooldownHours,
             });
             mutate();
             showToast(isAr ? "\u062a\u0645 \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u062a\u062f\u0641\u0642 \u0628\u0646\u062c\u0627\u062d \u2713" : "Flow created \u2713");
@@ -1940,6 +1999,49 @@ export default function BotBuilderPage() {
                 </div>
               </div>
               <Toggle on={newBot.aiEnabled} onToggle={() => setNewBot({ ...newBot, aiEnabled: !newBot.aiEnabled })} />
+            </div>
+
+            {/* Cooldown — protects WABA quality rating from spam */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderRadius: 12, background: `${COLORS.warn}10`, border: `1px solid ${COLORS.warn}20` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: `${COLORS.warn}20`, display: "flex", alignItems: "center", justifyContent: "center", color: COLORS.warn }}>
+                  <Icon name="timer" size={18} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.txt }}>{isAr ? "فترة الانتظار بين الردود" : "Cooldown between replies"}</div>
+                  <div style={{ fontSize: 11.5, color: C.t2, marginTop: 2, lineHeight: 1.5 }}>
+                    {isAr
+                      ? "البوت لن يردّ على نفس العميل أكثر من مرة خلال هذه الفترة. 0 = يردّ على كل رسالة (يحمي تقييم الواتساب)"
+                      : "Bot will not re-reply to the same contact within this window. 0 = reply every time (protects WABA quality rating)"}
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                <input
+                  type="number"
+                  min={0}
+                  max={72}
+                  value={newBot.cooldownHours}
+                  onChange={(e) => {
+                    const v = Math.max(0, Math.min(72, Number(e.target.value) || 0));
+                    setNewBot({ ...newBot, cooldownHours: v });
+                  }}
+                  style={{
+                    width: 60,
+                    padding: "8px 10px",
+                    borderRadius: 8,
+                    border: `1px solid ${C.brd}`,
+                    background: C.inp,
+                    color: C.txt,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    textAlign: "center",
+                    fontFamily: FONT_FAMILY,
+                    outline: "none",
+                  }}
+                />
+                <span style={{ fontSize: 12, color: C.t2 }}>{isAr ? "ساعة" : "hours"}</span>
+              </div>
             </div>
 
             {/* Start Node Type */}
