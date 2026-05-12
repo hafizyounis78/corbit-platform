@@ -1799,6 +1799,19 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
         />
       )}
 
+      {/* Engagement Stats \u2014 cost per click / cost per lead + timeline.
+          Shown only when the campaign actually shipped messages, so a
+          fresh draft doesn't render an empty panel. */}
+      <CampaignEngagementPanel
+        campaignId={c.id}
+        costSar={Number(fCost?.cost_sar ?? c.cost ?? 0)}
+        clicks={stageCount('clicked') || (c.behavior?.clicked ?? 0)}
+        replies={stageCount('replied') || (c.behavior?.replied ?? 0)}
+        sentCount={stageCount('sent') || (c.recipients ?? 0)}
+        isAr={isAr}
+        C={C}
+      />
+
       {/* A/B Testing Results \u2014 only when this campaign is an A/B test */}
       {abResults && (
         <Card style={{ marginBottom: 24 }}>
@@ -2485,5 +2498,331 @@ function RecipientsModal({
         )}
       </div>
     </>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Campaign Engagement Panel                                          */
+/*                                                                     */
+/*  Sits between the KPI grid and the funnel. Two pieces:              */
+/*    - Cost per click + Cost per lead — pure math from data we        */
+/*      already have in the funnel response, so no extra fetch         */
+/*      unless the timeline below needs it.                            */
+/*    - Messages over time — fetches /api/campaigns/{id}/timeline     */
+/*      once on mount and renders a 3-line SVG chart (read,            */
+/*      clicked, replied). Pure SVG, no chart library, matches the     */
+/*      sparkline.tsx pattern already in the codebase.                 */
+/* ------------------------------------------------------------------ */
+
+interface TimelinePoint {
+  date: string;
+  sent: number;
+  delivered: number;
+  read: number;
+  clicked: number;
+  replied: number;
+}
+
+function CampaignEngagementPanel({
+  campaignId,
+  costSar,
+  clicks,
+  replies,
+  sentCount,
+  isAr,
+  C,
+}: {
+  campaignId: number | string;
+  costSar: number;
+  clicks: number;
+  replies: number;
+  sentCount: number;
+  isAr: boolean;
+  C: ThemeColors;
+}) {
+  const [series, setSeries] = useState<TimelinePoint[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    api.get(`/campaigns/${campaignId}/timeline`)
+      .then((res) => {
+        if (cancelled) return;
+        const data = res.data?.data ?? res.data ?? {};
+        setSeries(Array.isArray(data.series) ? data.series : []);
+      })
+      .catch(() => { if (!cancelled) setSeries([]); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [campaignId]);
+
+  // Hide entirely when there's nothing meaningful — keeps a fresh
+  // draft from rendering an empty section.
+  if (sentCount <= 0 && series.length === 0 && !loading) {
+    return null;
+  }
+
+  const fmtSar = (n: number) =>
+    n.toLocaleString(isAr ? "ar-SA" : "en-US", { maximumFractionDigits: 2 }) +
+    " " + (isAr ? "ر.س" : "SAR");
+
+  const cpc = clicks > 0 ? costSar / clicks : null;
+  const cpl = replies > 0 ? costSar / replies : null;
+
+  return (
+    <Card style={{ marginBottom: 24 }}>
+      <CardHeader title={isAr ? "📈 الأداء والتكلفة" : "📈 Engagement & Cost"} />
+      <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 20 }}>
+
+        {/* Cost metrics row */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gap: 12,
+        }}>
+          <CostMetric
+            label={isAr ? "تكلفة النقرة" : "Cost per click"}
+            value={cpc != null ? fmtSar(cpc) : "—"}
+            sub={isAr ? `${clicks.toLocaleString()} نقرة` : `${clicks.toLocaleString()} clicks`}
+            icon="link"
+            color={COLORS.warn}
+            C={C}
+          />
+          <CostMetric
+            label={isAr ? "تكلفة الردّ" : "Cost per reply"}
+            value={cpl != null ? fmtSar(cpl) : "—"}
+            sub={isAr ? `${replies.toLocaleString()} ردّ` : `${replies.toLocaleString()} replies`}
+            icon="send"
+            color={COLORS.sec}
+            C={C}
+          />
+          <CostMetric
+            label={isAr ? "إجمالي التكلفة" : "Total cost"}
+            value={fmtSar(costSar)}
+            sub={sentCount > 0 ? (isAr ? `${(costSar / sentCount).toFixed(3)} ر.س / رسالة` : `${(costSar / sentCount).toFixed(3)} SAR / msg`) : ""}
+            icon="wallet"
+            color={COLORS.err}
+            C={C}
+          />
+        </div>
+
+        {/* Timeline chart */}
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: C.txt, marginBottom: 10 }}>
+            {isAr ? "الرسائل عبر الزمن" : "Messages over time"}
+          </div>
+
+          {loading && (
+            <div style={{ padding: 30, textAlign: "center", color: C.t3, fontSize: 12 }}>
+              {isAr ? "جاري التحميل..." : "Loading..."}
+            </div>
+          )}
+
+          {!loading && series.length === 0 && (
+            <div style={{
+              padding: 30,
+              textAlign: "center",
+              color: C.t3,
+              fontSize: 12,
+              border: `1px dashed ${C.brd}`,
+              borderRadius: 8,
+            }}>
+              {isAr ? "لا توجد بيانات بعد." : "No data yet."}
+            </div>
+          )}
+
+          {!loading && series.length > 0 && (
+            <TimelineChart series={series} isAr={isAr} C={C} />
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function CostMetric({
+  label,
+  value,
+  sub,
+  icon,
+  color,
+  C,
+}: {
+  label: string;
+  value: string;
+  sub: string;
+  icon: string;
+  color: string;
+  C: ThemeColors;
+}) {
+  return (
+    <div style={{
+      padding: 14,
+      borderRadius: 10,
+      background: `${color}08`,
+      border: `1px solid ${color}20`,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <div style={{
+          width: 26, height: 26, borderRadius: 7,
+          background: `${color}18`, color,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <Icon name={icon} size={12} />
+        </div>
+        <span style={{ fontSize: 11.5, color: C.t2, fontWeight: 500 }}>{label}</span>
+      </div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: C.txt }}>{value}</div>
+      {sub && <div style={{ fontSize: 10.5, color: C.t3, marginTop: 4 }}>{sub}</div>}
+    </div>
+  );
+}
+
+/**
+ * Pure-SVG line chart for messages over time. Three series (read,
+ * clicked, replied) — sent/delivered are intentionally omitted to
+ * keep the chart readable; the operator already sees those totals on
+ * the KPI cards above. Matches the sparkline.tsx pattern (no chart
+ * library) so the bundle stays small.
+ */
+function TimelineChart({
+  series,
+  isAr,
+  C,
+}: {
+  series: TimelinePoint[];
+  isAr: boolean;
+  C: ThemeColors;
+}) {
+  const W = 720;
+  const H = 220;
+  const PAD_L = 36;
+  const PAD_R = 16;
+  const PAD_T = 16;
+  const PAD_B = 28;
+
+  const innerW = W - PAD_L - PAD_R;
+  const innerH = H - PAD_T - PAD_B;
+
+  const allValues = series.flatMap((p) => [p.read, p.clicked, p.replied]);
+  const maxY = Math.max(1, ...allValues);
+
+  // Tick spacing — 4 horizontal grid lines.
+  const yTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(maxY * f));
+
+  const xStep = series.length > 1 ? innerW / (series.length - 1) : 0;
+
+  const points = (key: "read" | "clicked" | "replied") =>
+    series.map((p, i) => {
+      const x = PAD_L + i * xStep;
+      const y = PAD_T + innerH - (p[key] / maxY) * innerH;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(" ");
+
+  // X-axis labels — show first, middle, last to avoid overlap when
+  // there are many dates.
+  const xLabels: { x: number; text: string }[] = [];
+  if (series.length > 0) {
+    const fmt = (s: string) => {
+      try {
+        return new Date(s).toLocaleDateString(isAr ? "ar-SA" : "en-US", { month: "short", day: "numeric" });
+      } catch { return s; }
+    };
+    const indices = series.length === 1 ? [0]
+      : series.length === 2 ? [0, 1]
+      : [0, Math.floor(series.length / 2), series.length - 1];
+    for (const i of indices) {
+      xLabels.push({ x: PAD_L + i * xStep, text: fmt(series[i].date) });
+    }
+  }
+
+  const lines: { key: "read" | "clicked" | "replied"; color: string; label: string }[] = [
+    { key: "read",    color: COLORS.info, label: isAr ? "تم الفتح" : "Read" },
+    { key: "clicked", color: COLORS.warn, label: isAr ? "تم النقر" : "Clicked" },
+    { key: "replied", color: COLORS.sec,  label: isAr ? "تم الردّ" : "Replied" },
+  ];
+
+  return (
+    <div>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        style={{ width: "100%", height: "auto", display: "block", direction: "ltr" }}
+        preserveAspectRatio="none"
+      >
+        {/* Y grid + labels */}
+        {yTicks.slice().reverse().map((v, idx) => {
+          const y = PAD_T + (idx / (yTicks.length - 1)) * innerH;
+          return (
+            <g key={idx}>
+              <line
+                x1={PAD_L} x2={W - PAD_R} y1={y} y2={y}
+                stroke={C.brdL} strokeWidth="1" strokeDasharray="3,4"
+              />
+              <text
+                x={PAD_L - 6} y={y + 3}
+                fill={C.t3} fontSize="9" textAnchor="end"
+                fontFamily={FONT_FAMILY}
+              >
+                {v.toLocaleString()}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* X labels */}
+        {xLabels.map((l, i) => (
+          <text
+            key={i}
+            x={l.x} y={H - 8}
+            fill={C.t3} fontSize="9.5" textAnchor="middle"
+            fontFamily={FONT_FAMILY}
+          >
+            {l.text}
+          </text>
+        ))}
+
+        {/* Lines + dots */}
+        {lines.map((line) => (
+          <g key={line.key}>
+            <polyline
+              points={points(line.key)}
+              fill="none"
+              stroke={line.color}
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            {series.map((p, i) => {
+              const x = PAD_L + i * xStep;
+              const y = PAD_T + innerH - (p[line.key] / maxY) * innerH;
+              return (
+                <circle
+                  key={i}
+                  cx={x} cy={y} r={2.5}
+                  fill={line.color}
+                />
+              );
+            })}
+          </g>
+        ))}
+      </svg>
+
+      {/* Legend */}
+      <div style={{
+        display: "flex", justifyContent: "center", gap: 16,
+        marginTop: 8, flexWrap: "wrap", fontSize: 11.5, color: C.t2,
+      }}>
+        {lines.map((l) => (
+          <div key={l.key} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <span style={{
+              width: 10, height: 10, borderRadius: "50%",
+              background: l.color, display: "inline-block",
+            }} />
+            {l.label}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
