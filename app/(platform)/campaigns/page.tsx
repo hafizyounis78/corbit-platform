@@ -9,6 +9,7 @@ import { Button, Card, CardHeader, Badge, TabBar, DataTable, Modal, SearchInput,
 import { Icon } from "@/components/icons/icon";
 import { getStatusColor } from "@/lib/utils/status-color";
 import type { Campaign } from "@/data/campaigns";
+import type { ThemeColors } from "@/types/common";
 
 /**
  * Defensive label-extractor. The API sometimes hydrates relations
@@ -1430,23 +1431,30 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
     }
   };
 
+  // viewStatus = which campaign_sends event this card drills into when
+  // clicked. Cards without it (Recipients, Cost, ROI) stay non-clickable.
   const kpis = useMemo(
     () => [
-      { label: isAr ? "\u0627\u0644\u0645\u0633\u062A\u0644\u0645\u0648\u0646" : "Recipients", value: c.recipients.toLocaleString(), icon: "users", color: COLORS.pri },
-      { label: isAr ? "\u062A\u0645 \u0627\u0644\u062A\u0648\u0635\u064A\u0644" : "Delivered", value: c.delivery + "%", icon: "check", color: COLORS.ok },
-      { label: isAr ? "\u0627\u0644\u0641\u062A\u062D" : "Opens", value: c.readRate + "%", icon: "msg", color: COLORS.info },
-      { label: isAr ? "\u0627\u0644\u0646\u0642\u0631\u0627\u062A" : "Clicks", value: (stageCount('clicked') || c.behavior?.clicked || 0).toLocaleString(), icon: "link", color: COLORS.warn },
-      { label: isAr ? "\u0627\u0644\u0631\u062F\u0648\u062F" : "Replies", value: c.replyRate + "%", icon: "send", color: COLORS.sec },
-      { label: isAr ? "\u0627\u0644\u062A\u062D\u0648\u064A\u0644" : "Conversion", value: (stageCount('converted') || c.behavior?.converted || 0).toLocaleString(), icon: "target", color: COLORS.ai },
+      { label: isAr ? "\u0627\u0644\u0645\u0633\u062A\u0644\u0645\u0648\u0646" : "Recipients", value: c.recipients.toLocaleString(), icon: "users", color: COLORS.pri, viewStatus: "all" as const },
+      { label: isAr ? "\u062A\u0645 \u0627\u0644\u062A\u0648\u0635\u064A\u0644" : "Delivered", value: c.delivery + "%", icon: "check", color: COLORS.ok, viewStatus: "delivered" as const },
+      { label: isAr ? "\u0627\u0644\u0641\u062A\u062D" : "Opens", value: c.readRate + "%", icon: "msg", color: COLORS.info, viewStatus: "read" as const },
+      { label: isAr ? "\u0627\u0644\u0646\u0642\u0631\u0627\u062A" : "Clicks", value: (stageCount('clicked') || c.behavior?.clicked || 0).toLocaleString(), icon: "link", color: COLORS.warn, viewStatus: "clicked" as const },
+      { label: isAr ? "\u0627\u0644\u0631\u062F\u0648\u062F" : "Replies", value: c.replyRate + "%", icon: "send", color: COLORS.sec, viewStatus: "replied" as const },
+      { label: isAr ? "\u0627\u0644\u062A\u062D\u0648\u064A\u0644" : "Conversion", value: (stageCount('converted') || c.behavior?.converted || 0).toLocaleString(), icon: "target", color: COLORS.ai, viewStatus: null },
       // Cost / ROI \u2014 read live from /funnel response when available so a
       // refreshed campaign updates without a full page reload. Currency
       // is SAR (matching the wallet) instead of $ \u2014 old code was using $.
-      { label: isAr ? "\u0627\u0644\u062A\u0643\u0644\u0641\u0629" : "Cost", value: ((fCost?.cost_sar ?? c.cost) || 0).toLocaleString() + " " + (isAr ? "\u0631.\u0633" : "SAR"), icon: "wallet", color: COLORS.err },
-      { label: "ROI", value: fCost?.roi_pct != null ? `${fCost.roi_pct > 0 ? "+" : ""}${fCost.roi_pct}%` : (c.roi || "\u2014"), icon: "chart", color: COLORS.ok },
+      { label: isAr ? "\u0627\u0644\u062A\u0643\u0644\u0641\u0629" : "Cost", value: ((fCost?.cost_sar ?? c.cost) || 0).toLocaleString() + " " + (isAr ? "\u0631.\u0633" : "SAR"), icon: "wallet", color: COLORS.err, viewStatus: null },
+      { label: "ROI", value: fCost?.roi_pct != null ? `${fCost.roi_pct > 0 ? "+" : ""}${fCost.roi_pct}%` : (c.roi || "\u2014"), icon: "chart", color: COLORS.ok, viewStatus: null },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [c, isAr, fStages, fCost]
   );
+
+  // Recipient drill-down modal \u2014 opens when the operator clicks a stat
+  // card with a viewStatus. Lifted to component scope so the same modal
+  // serves all the cards.
+  const [recipientStatus, setRecipientStatus] = useState<RecipientStatusFilter | null>(null);
 
   // Behavior funnel data \u2014 prefers live API counts; falls back to the
   // legacy c.behavior mock for old campaigns or while the funnel call
@@ -1662,37 +1670,121 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
 
       {/* KPI Cards Grid */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
-        {kpis.map((k) => (
-          <Card key={k.label} style={{ padding: 18 }}>
+        {kpis.map((k) => {
+          const isClickable = !!k.viewStatus;
+          return (
+            <Card
+              key={k.label}
+              style={{
+                padding: 18,
+                cursor: isClickable ? "pointer" : "default",
+                transition: "transform 0.12s ease, box-shadow 0.12s ease",
+              }}
+              onClick={isClickable ? () => setRecipientStatus(k.viewStatus as RecipientStatusFilter) : undefined}
+              onMouseEnter={isClickable ? (e) => {
+                (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
+                (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 14px rgba(0,0,0,0.08)";
+              } : undefined}
+              onMouseLeave={isClickable ? (e) => {
+                (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
+                (e.currentTarget as HTMLElement).style.boxShadow = "";
+              } : undefined}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                <div
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 9,
+                    background: `${k.color}18`,
+                    color: k.color,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Icon name={k.icon} size={15} />
+                </div>
+                <span style={{ fontSize: 11.5, color: C.t2, fontWeight: 500, flex: 1 }}>{k.label}</span>
+                {isClickable && (
+                  <span style={{ fontSize: 10, color: k.color, fontWeight: 600 }}>
+                    {isAr ? "عرض ←" : "view →"}
+                  </span>
+                )}
+              </div>
+              <div
+                style={{
+                  fontSize: 20,
+                  fontWeight: 700,
+                  color: k.label === "ROI" && c.roi.startsWith("+") ? COLORS.ok : C.txt,
+                }}
+              >
+                {k.value}
+              </div>
+            </Card>
+          );
+        })}
+
+        {/* Failed card — shown only when there are actual failures.
+            Always clickable so the operator can fix the bad numbers. */}
+        {live.failed > 0 && (
+          <Card
+            style={{
+              padding: 18,
+              cursor: "pointer",
+              border: `1px solid ${COLORS.err}40`,
+              background: `${COLORS.err}05`,
+              transition: "transform 0.12s ease, box-shadow 0.12s ease",
+            }}
+            onClick={() => setRecipientStatus("failed")}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
+              (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 14px rgba(0,0,0,0.08)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
+              (e.currentTarget as HTMLElement).style.boxShadow = "";
+            }}
+          >
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
               <div
                 style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 9,
-                  background: `${k.color}18`,
-                  color: k.color,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
+                  width: 32, height: 32, borderRadius: 9,
+                  background: `${COLORS.err}18`, color: COLORS.err,
+                  display: "flex", alignItems: "center", justifyContent: "center",
                 }}
               >
-                <Icon name={k.icon} size={15} />
+                <Icon name="x" size={15} />
               </div>
-              <span style={{ fontSize: 11.5, color: C.t2, fontWeight: 500 }}>{k.label}</span>
+              <span style={{ fontSize: 11.5, color: COLORS.err, fontWeight: 600, flex: 1 }}>
+                {isAr ? "فشل التوصيل" : "Failed"}
+              </span>
+              <span style={{ fontSize: 10, color: COLORS.err, fontWeight: 600 }}>
+                {isAr ? "عرض ←" : "view →"}
+              </span>
             </div>
-            <div
-              style={{
-                fontSize: 20,
-                fontWeight: 700,
-                color: k.label === "ROI" && c.roi.startsWith("+") ? COLORS.ok : C.txt,
-              }}
-            >
-              {k.value}
+            <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.err }}>
+              {live.failed.toLocaleString()}
+              {totalForBar > 0 && (
+                <span style={{ fontSize: 12, color: C.t3, marginInlineStart: 8, fontWeight: 500 }}>
+                  ({Math.round((live.failed / totalForBar) * 100)}%)
+                </span>
+              )}
             </div>
           </Card>
-        ))}
+        )}
       </div>
+
+      {/* Recipient drill-down modal */}
+      {recipientStatus && (
+        <RecipientsModal
+          campaignId={c.id}
+          initialStatus={recipientStatus}
+          isAr={isAr}
+          C={C}
+          onClose={() => setRecipientStatus(null)}
+        />
+      )}
 
       {/* A/B Testing Results \u2014 only when this campaign is an A/B test */}
       {abResults && (
@@ -2054,5 +2146,331 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
         </Button>
       </div>
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Recipient drill-down modal                                         */
+/*                                                                     */
+/*  Opens when the operator clicks a stat card on the campaign report  */
+/*  ("View those contacts"). Reads /api/campaigns/{id}/recipients,     */
+/*  paginates, and lets the operator switch the status filter without  */
+/*  closing the modal. Phase A delivery \u2014 focus is on the failed-list  */
+/*  use case (operator needs to know which numbers failed and why) so  */
+/*  we render the error column inline when status=failed.              */
+/* ------------------------------------------------------------------ */
+
+type RecipientStatusFilter = "all" | "sent" | "delivered" | "read" | "clicked" | "replied" | "failed";
+
+interface RecipientRow {
+  id: string;
+  contact_id: string | null;
+  contact_name: string;
+  phone: string;
+  channel: string;
+  status: string;
+  sent_at: string | null;
+  delivered_at: string | null;
+  read_at: string | null;
+  clicked_at: string | null;
+  replied_at: string | null;
+  failed_at: string | null;
+  error: string | null;
+}
+
+function RecipientsModal({
+  campaignId,
+  initialStatus,
+  isAr,
+  C,
+  onClose,
+}: {
+  campaignId: number | string;
+  initialStatus: RecipientStatusFilter;
+  isAr: boolean;
+  C: ThemeColors;
+  onClose: () => void;
+}) {
+  const [status, setStatus] = useState<RecipientStatusFilter>(initialStatus);
+  const [page, setPage] = useState(1);
+  const [items, setItems] = useState<RecipientRow[]>([]);
+  const [meta, setMeta] = useState<{ current_page: number; last_page: number; total: number } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Reset to page 1 whenever the operator switches status \u2014 otherwise
+  // they'd land on (say) page 5 of a smaller list.
+  useEffect(() => {
+    setPage(1);
+  }, [status]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    api.get(`/campaigns/${campaignId}/recipients`, { params: { status, page, limit: 50 } })
+      .then((res) => {
+        if (cancelled) return;
+        const data = res.data?.data ?? res.data ?? {};
+        setItems(Array.isArray(data.items) ? data.items : []);
+        setMeta(data.meta ?? null);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        const msg = err?.response?.data?.message || (isAr ? "\u062a\u0639\u0630\u0651\u0631 \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0642\u0627\u0626\u0645\u0629" : "Couldn't load the list");
+        setError(msg);
+        setItems([]);
+        setMeta(null);
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [campaignId, status, page, isAr]);
+
+  const STATUS_OPTIONS: Array<{ key: RecipientStatusFilter; labelAr: string; labelEn: string; color: string }> = [
+    { key: "all",       labelAr: "\u0627\u0644\u0643\u0644",          labelEn: "All",       color: COLORS.pri },
+    { key: "sent",      labelAr: "\u062a\u0645 \u0627\u0644\u0625\u0631\u0633\u0627\u0644",   labelEn: "Sent",      color: COLORS.info },
+    { key: "delivered", labelAr: "\u062a\u0645 \u0627\u0644\u062a\u0648\u0635\u064a\u0644",   labelEn: "Delivered", color: COLORS.ok },
+    { key: "read",      labelAr: "\u062a\u0645 \u0627\u0644\u0641\u062a\u062d",     labelEn: "Read",      color: COLORS.info },
+    { key: "clicked",   labelAr: "\u062a\u0645 \u0627\u0644\u0646\u0642\u0631",     labelEn: "Clicked",   color: COLORS.warn },
+    { key: "replied",   labelAr: "\u062a\u0645 \u0627\u0644\u0631\u062f\u0651",     labelEn: "Replied",   color: COLORS.sec },
+    { key: "failed",    labelAr: "\u0641\u0634\u0644",          labelEn: "Failed",    color: COLORS.err },
+  ];
+
+  const fmtDate = (iso: string | null) => {
+    if (!iso) return "\u2014";
+    try {
+      return new Date(iso).toLocaleString(isAr ? "ar-SA" : "en-US", {
+        month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+      });
+    } catch { return iso; }
+  };
+
+  // Pick the most relevant timestamp for the current filter.
+  const relevantTimestamp = (r: RecipientRow): string | null => {
+    switch (status) {
+      case "delivered": return r.delivered_at;
+      case "read":      return r.read_at;
+      case "clicked":   return r.clicked_at;
+      case "replied":   return r.replied_at;
+      case "failed":    return r.failed_at;
+      case "sent":      return r.sent_at;
+      default:          return r.sent_at ?? r.delivered_at ?? r.read_at;
+    }
+  };
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        style={{
+          position: "fixed", inset: 0,
+          background: "rgba(0,0,0,0.55)",
+          zIndex: 90,
+        }}
+      />
+      {/* Modal */}
+      <div
+        style={{
+          position: "fixed",
+          top: "50%", left: "50%",
+          transform: "translate(-50%, -50%)",
+          width: "min(900px, 96vw)",
+          maxHeight: "88vh",
+          background: C.card,
+          borderRadius: 14,
+          boxShadow: "0 20px 60px rgba(0,0,0,0.4)",
+          zIndex: 91,
+          fontFamily: FONT_FAMILY,
+          direction: isAr ? "rtl" : "ltr",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          padding: "16px 20px",
+          borderBottom: `1px solid ${C.brd}`,
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+        }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: C.txt }}>
+            {isAr ? "\u062c\u0647\u0627\u062a \u0627\u0644\u0627\u062a\u0635\u0627\u0644" : "Recipients"}
+            {meta && (
+              <span style={{ fontSize: 12, color: C.t2, fontWeight: 500, marginInlineStart: 8 }}>
+                ({meta.total.toLocaleString()})
+              </span>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: "transparent", border: "none",
+              fontSize: 22, cursor: "pointer", color: C.t2, padding: 0,
+              lineHeight: 1,
+            }}
+            title={isAr ? "\u0625\u063a\u0644\u0627\u0642" : "Close"}
+          >
+            \u00d7
+          </button>
+        </div>
+
+        {/* Status filter chips */}
+        <div style={{
+          padding: "12px 20px",
+          borderBottom: `1px solid ${C.brdL}`,
+          display: "flex", flexWrap: "wrap", gap: 6,
+        }}>
+          {STATUS_OPTIONS.map((opt) => {
+            const active = status === opt.key;
+            return (
+              <button
+                key={opt.key}
+                onClick={() => setStatus(opt.key)}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: 999,
+                  border: `1px solid ${active ? opt.color : C.brd}`,
+                  background: active ? `${opt.color}18` : "transparent",
+                  color: active ? opt.color : C.t2,
+                  fontSize: 12,
+                  fontWeight: active ? 700 : 500,
+                  cursor: "pointer",
+                  fontFamily: FONT_FAMILY,
+                }}
+              >
+                {isAr ? opt.labelAr : opt.labelEn}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "10px 20px" }}>
+          {loading && (
+            <div style={{ padding: 40, textAlign: "center", color: C.t2 }}>
+              <Icon name="timer" size={20} />
+              <div style={{ marginTop: 8, fontSize: 12 }}>{isAr ? "\u062c\u0627\u0631\u064a \u0627\u0644\u062a\u062d\u0645\u064a\u0644..." : "Loading..."}</div>
+            </div>
+          )}
+
+          {!loading && error && (
+            <div style={{ padding: 24, textAlign: "center", color: COLORS.err, fontSize: 13 }}>
+              {error}
+            </div>
+          )}
+
+          {!loading && !error && items.length === 0 && (
+            <div style={{ padding: 40, textAlign: "center", color: C.t3, fontSize: 13 }}>
+              {isAr ? "\u0644\u0627 \u064a\u0648\u062c\u062f \u0633\u062c\u0644\u0627\u062a \u0644\u0647\u0630\u0627 \u0627\u0644\u0641\u0644\u062a\u0631." : "No records for this filter."}
+            </div>
+          )}
+
+          {!loading && !error && items.length > 0 && (
+            <table style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              fontSize: 12.5,
+              fontFamily: FONT_FAMILY,
+            }}>
+              <thead>
+                <tr style={{ background: C.inp }}>
+                  <th style={{ padding: "10px 12px", textAlign: isAr ? "right" : "left", color: C.t2, fontWeight: 600, fontSize: 11.5 }}>
+                    {isAr ? "\u0627\u0644\u0627\u0633\u0645" : "Name"}
+                  </th>
+                  <th style={{ padding: "10px 12px", textAlign: isAr ? "right" : "left", color: C.t2, fontWeight: 600, fontSize: 11.5 }}>
+                    {isAr ? "\u0627\u0644\u062c\u0648\u0627\u0644" : "Phone"}
+                  </th>
+                  <th style={{ padding: "10px 12px", textAlign: isAr ? "right" : "left", color: C.t2, fontWeight: 600, fontSize: 11.5 }}>
+                    {isAr ? "\u0627\u0644\u0642\u0646\u0627\u0629" : "Channel"}
+                  </th>
+                  <th style={{ padding: "10px 12px", textAlign: isAr ? "right" : "left", color: C.t2, fontWeight: 600, fontSize: 11.5 }}>
+                    {isAr ? "\u0627\u0644\u062a\u0648\u0642\u064a\u062a" : "Time"}
+                  </th>
+                  {status === "failed" && (
+                    <th style={{ padding: "10px 12px", textAlign: isAr ? "right" : "left", color: C.t2, fontWeight: 600, fontSize: 11.5 }}>
+                      {isAr ? "\u0627\u0644\u0633\u0628\u0628" : "Reason"}
+                    </th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((r) => (
+                  <tr key={r.id} style={{ borderBottom: `1px solid ${C.brdL}` }}>
+                    <td style={{ padding: "10px 12px", color: C.txt, fontWeight: 500 }}>
+                      {r.contact_name}
+                    </td>
+                    <td style={{ padding: "10px 12px", color: C.t2, direction: "ltr" }}>
+                      {r.phone}
+                    </td>
+                    <td style={{ padding: "10px 12px", color: C.t3, fontSize: 11 }}>
+                      {r.channel?.toUpperCase() ?? "\u2014"}
+                    </td>
+                    <td style={{ padding: "10px 12px", color: C.t3, fontSize: 11 }}>
+                      {fmtDate(relevantTimestamp(r))}
+                    </td>
+                    {status === "failed" && (
+                      <td style={{ padding: "10px 12px", color: COLORS.err, fontSize: 11.5 }}>
+                        {r.error ?? "\u2014"}
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* Pagination footer */}
+        {meta && meta.last_page > 1 && (
+          <div style={{
+            padding: "10px 20px",
+            borderTop: `1px solid ${C.brd}`,
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            fontSize: 12, color: C.t2,
+          }}>
+            <span>
+              {isAr ? `\u0635\u0641\u062d\u0629 ${meta.current_page} \u0645\u0646 ${meta.last_page}` : `Page ${meta.current_page} of ${meta.last_page}`}
+            </span>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button
+                disabled={page <= 1 || loading}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                style={{
+                  padding: "5px 12px",
+                  borderRadius: 6,
+                  border: `1px solid ${C.brd}`,
+                  background: "transparent",
+                  cursor: page <= 1 ? "default" : "pointer",
+                  opacity: page <= 1 ? 0.4 : 1,
+                  color: C.t2,
+                  fontFamily: FONT_FAMILY,
+                  fontSize: 12,
+                }}
+              >
+                {isAr ? "\u0627\u0644\u0633\u0627\u0628\u0642" : "Previous"}
+              </button>
+              <button
+                disabled={page >= meta.last_page || loading}
+                onClick={() => setPage((p) => Math.min(meta.last_page, p + 1))}
+                style={{
+                  padding: "5px 12px",
+                  borderRadius: 6,
+                  border: `1px solid ${C.brd}`,
+                  background: "transparent",
+                  cursor: page >= meta.last_page ? "default" : "pointer",
+                  opacity: page >= meta.last_page ? 0.4 : 1,
+                  color: C.t2,
+                  fontFamily: FONT_FAMILY,
+                  fontSize: 12,
+                }}
+              >
+                {isAr ? "\u0627\u0644\u062a\u0627\u0644\u064a" : "Next"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   );
 }
