@@ -1433,14 +1433,36 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
 
   // viewStatus = which campaign_sends event this card drills into when
   // clicked. Cards without it (Recipients, Cost, ROI) stay non-clickable.
+  //
+  // "Sent" vs "Delivered" matter as separate metrics:
+  //   - Sent      = our system handed it to Meta (status='sent')
+  //   - Delivered = Meta confirmed via webhook it reached the device
+  // Older code lumped them together under a single "Delivered" card
+  // that showed sent_count/total \u2014 misleading because Meta-confirmed
+  // deliveries can lag (or never arrive for unreachable numbers). Now
+  // each metric is its own card, computed from its own column, so the
+  // operator sees the gap between "we sent it" and "it actually got
+  // there" \u2014 same shape Zoho/Manychat reports use.
+  const sentCnt      = stageCount('sent') || c.recipients || 0;
+  const deliveredCnt = stageCount('delivered');
+  const readCnt      = stageCount('read');
+  const clickedCnt   = stageCount('clicked') || (c.behavior?.clicked ?? 0);
+  const repliedCnt   = stageCount('replied');
+  const convertedCnt = stageCount('converted') || (c.behavior?.converted ?? 0);
+  const totalRecipients = c.recipients || 1;
+  const pct = (n: number, base: number) => base > 0 ? Math.round((n / base) * 100) : 0;
+  const fmtCount = (n: number, base: number) =>
+    `${n.toLocaleString()} (${pct(n, base)}%)`;
+
   const kpis = useMemo(
     () => [
-      { label: isAr ? "\u0627\u0644\u0645\u0633\u062A\u0644\u0645\u0648\u0646" : "Recipients", value: c.recipients.toLocaleString(), icon: "users", color: COLORS.pri, viewStatus: "all" as const },
-      { label: isAr ? "\u062A\u0645 \u0627\u0644\u062A\u0648\u0635\u064A\u0644" : "Delivered", value: c.delivery + "%", icon: "check", color: COLORS.ok, viewStatus: "delivered" as const },
-      { label: isAr ? "\u0627\u0644\u0641\u062A\u062D" : "Opens", value: c.readRate + "%", icon: "msg", color: COLORS.info, viewStatus: "read" as const },
-      { label: isAr ? "\u0627\u0644\u0646\u0642\u0631\u0627\u062A" : "Clicks", value: (stageCount('clicked') || c.behavior?.clicked || 0).toLocaleString(), icon: "link", color: COLORS.warn, viewStatus: "clicked" as const },
-      { label: isAr ? "\u0627\u0644\u0631\u062F\u0648\u062F" : "Replies", value: c.replyRate + "%", icon: "send", color: COLORS.sec, viewStatus: "replied" as const },
-      { label: isAr ? "\u0627\u0644\u062A\u062D\u0648\u064A\u0644" : "Conversion", value: (stageCount('converted') || c.behavior?.converted || 0).toLocaleString(), icon: "target", color: COLORS.ai, viewStatus: null },
+      { label: isAr ? "\u0627\u0644\u0645\u0633\u062A\u0644\u0645\u0648\u0646" : "Recipients", value: totalRecipients.toLocaleString(), icon: "users", color: COLORS.pri, viewStatus: "all" as const },
+      { label: isAr ? "\u062A\u0645 \u0627\u0644\u0625\u0631\u0633\u0627\u0644" : "Sent", value: fmtCount(sentCnt, totalRecipients), icon: "send", color: COLORS.info, viewStatus: "sent" as const },
+      { label: isAr ? "\u062A\u0645 \u0627\u0644\u062A\u0648\u0635\u064A\u0644" : "Delivered", value: fmtCount(deliveredCnt, totalRecipients), icon: "check", color: COLORS.ok, viewStatus: "delivered" as const },
+      { label: isAr ? "\u062A\u0645 \u0627\u0644\u0641\u062A\u062D" : "Read", value: fmtCount(readCnt, totalRecipients), icon: "msg", color: COLORS.info, viewStatus: "read" as const },
+      { label: isAr ? "\u0627\u0644\u0646\u0642\u0631\u0627\u062A" : "Clicks", value: fmtCount(clickedCnt, totalRecipients), icon: "link", color: COLORS.warn, viewStatus: "clicked" as const },
+      { label: isAr ? "\u0627\u0644\u0631\u062F\u0648\u062F" : "Replies", value: fmtCount(repliedCnt, totalRecipients), icon: "smile", color: COLORS.sec, viewStatus: "replied" as const },
+      { label: isAr ? "\u0627\u0644\u062A\u062D\u0648\u064A\u0644" : "Conversion", value: convertedCnt.toLocaleString(), icon: "target", color: COLORS.ai, viewStatus: null },
       // Cost / ROI \u2014 read live from /funnel response when available so a
       // refreshed campaign updates without a full page reload. Currency
       // is SAR (matching the wallet) instead of $ \u2014 old code was using $.
@@ -1448,7 +1470,7 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
       { label: "ROI", value: fCost?.roi_pct != null ? `${fCost.roi_pct > 0 ? "+" : ""}${fCost.roi_pct}%` : (c.roi || "\u2014"), icon: "chart", color: COLORS.ok, viewStatus: null },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [c, isAr, fStages, fCost]
+    [c, isAr, fStages, fCost, sentCnt, deliveredCnt, readCnt, clickedCnt, repliedCnt, convertedCnt, totalRecipients]
   );
 
   // Recipient drill-down modal \u2014 opens when the operator clicks a stat
