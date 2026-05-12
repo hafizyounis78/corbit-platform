@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, type MouseEvent as ReactMouseEvent } from "react";
 import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { useToast } from "@/hooks/use-toast";
@@ -1668,110 +1668,123 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
         </Card>
       )}
 
-      {/* KPI Cards Grid */}
+      {/* KPI Cards Grid — clickable cards drilldown into the recipient
+          list filtered by status. Card itself doesn't accept hover
+          handlers, so wrap in a div for the lift effect. */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
         {kpis.map((k) => {
           const isClickable = !!k.viewStatus;
+          const handleClick = isClickable ? () => setRecipientStatus(k.viewStatus as RecipientStatusFilter) : undefined;
+          const handleEnter = isClickable ? (e: ReactMouseEvent<HTMLDivElement>) => {
+            e.currentTarget.style.transform = "translateY(-1px)";
+            e.currentTarget.style.boxShadow = "0 4px 14px rgba(0,0,0,0.08)";
+          } : undefined;
+          const handleLeave = isClickable ? (e: ReactMouseEvent<HTMLDivElement>) => {
+            e.currentTarget.style.transform = "translateY(0)";
+            e.currentTarget.style.boxShadow = "";
+          } : undefined;
           return (
-            <Card
+            <div
               key={k.label}
+              onClick={handleClick}
+              onMouseEnter={handleEnter}
+              onMouseLeave={handleLeave}
               style={{
-                padding: 18,
                 cursor: isClickable ? "pointer" : "default",
                 transition: "transform 0.12s ease, box-shadow 0.12s ease",
+                borderRadius: 12,
               }}
-              onClick={isClickable ? () => setRecipientStatus(k.viewStatus as RecipientStatusFilter) : undefined}
-              onMouseEnter={isClickable ? (e) => {
-                (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
-                (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 14px rgba(0,0,0,0.08)";
-              } : undefined}
-              onMouseLeave={isClickable ? (e) => {
-                (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
-                (e.currentTarget as HTMLElement).style.boxShadow = "";
-              } : undefined}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+              <Card style={{ padding: 18 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                  <div
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 9,
+                      background: `${k.color}18`,
+                      color: k.color,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Icon name={k.icon} size={15} />
+                  </div>
+                  <span style={{ fontSize: 11.5, color: C.t2, fontWeight: 500, flex: 1 }}>{k.label}</span>
+                  {isClickable && (
+                    <span style={{ fontSize: 10, color: k.color, fontWeight: 600 }}>
+                      {isAr ? "عرض ←" : "view →"}
+                    </span>
+                  )}
+                </div>
                 <div
                   style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 9,
-                    background: `${k.color}18`,
-                    color: k.color,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
+                    fontSize: 20,
+                    fontWeight: 700,
+                    color: k.label === "ROI" && c.roi.startsWith("+") ? COLORS.ok : C.txt,
                   }}
                 >
-                  <Icon name={k.icon} size={15} />
+                  {k.value}
                 </div>
-                <span style={{ fontSize: 11.5, color: C.t2, fontWeight: 500, flex: 1 }}>{k.label}</span>
-                {isClickable && (
-                  <span style={{ fontSize: 10, color: k.color, fontWeight: 600 }}>
-                    {isAr ? "عرض ←" : "view →"}
-                  </span>
-                )}
-              </div>
-              <div
-                style={{
-                  fontSize: 20,
-                  fontWeight: 700,
-                  color: k.label === "ROI" && c.roi.startsWith("+") ? COLORS.ok : C.txt,
-                }}
-              >
-                {k.value}
-              </div>
-            </Card>
+              </Card>
+            </div>
           );
         })}
 
         {/* Failed card — shown only when there are actual failures.
             Always clickable so the operator can fix the bad numbers. */}
         {live.failed > 0 && (
-          <Card
-            style={{
-              padding: 18,
-              cursor: "pointer",
-              border: `1px solid ${COLORS.err}40`,
-              background: `${COLORS.err}05`,
-              transition: "transform 0.12s ease, box-shadow 0.12s ease",
-            }}
+          <div
             onClick={() => setRecipientStatus("failed")}
             onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
-              (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 14px rgba(0,0,0,0.08)";
+              e.currentTarget.style.transform = "translateY(-1px)";
+              e.currentTarget.style.boxShadow = "0 4px 14px rgba(0,0,0,0.08)";
             }}
             onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
-              (e.currentTarget as HTMLElement).style.boxShadow = "";
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "";
+            }}
+            style={{
+              cursor: "pointer",
+              transition: "transform 0.12s ease, box-shadow 0.12s ease",
+              borderRadius: 12,
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-              <div
-                style={{
-                  width: 32, height: 32, borderRadius: 9,
-                  background: `${COLORS.err}18`, color: COLORS.err,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                }}
-              >
-                <Icon name="x" size={15} />
-              </div>
-              <span style={{ fontSize: 11.5, color: COLORS.err, fontWeight: 600, flex: 1 }}>
-                {isAr ? "فشل التوصيل" : "Failed"}
-              </span>
-              <span style={{ fontSize: 10, color: COLORS.err, fontWeight: 600 }}>
-                {isAr ? "عرض ←" : "view →"}
-              </span>
-            </div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.err }}>
-              {live.failed.toLocaleString()}
-              {totalForBar > 0 && (
-                <span style={{ fontSize: 12, color: C.t3, marginInlineStart: 8, fontWeight: 500 }}>
-                  ({Math.round((live.failed / totalForBar) * 100)}%)
+            <Card
+              style={{
+                padding: 18,
+                border: `1px solid ${COLORS.err}40`,
+                background: `${COLORS.err}05`,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                <div
+                  style={{
+                    width: 32, height: 32, borderRadius: 9,
+                    background: `${COLORS.err}18`, color: COLORS.err,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}
+                >
+                  <Icon name="x" size={15} />
+                </div>
+                <span style={{ fontSize: 11.5, color: COLORS.err, fontWeight: 600, flex: 1 }}>
+                  {isAr ? "فشل التوصيل" : "Failed"}
                 </span>
-              )}
-            </div>
-          </Card>
+                <span style={{ fontSize: 10, color: COLORS.err, fontWeight: 600 }}>
+                  {isAr ? "عرض ←" : "view →"}
+                </span>
+              </div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.err }}>
+                {live.failed.toLocaleString()}
+                {totalForBar > 0 && (
+                  <span style={{ fontSize: 12, color: C.t3, marginInlineStart: 8, fontWeight: 500 }}>
+                    ({Math.round((live.failed / totalForBar) * 100)}%)
+                  </span>
+                )}
+              </div>
+            </Card>
+          </div>
         )}
       </div>
 
