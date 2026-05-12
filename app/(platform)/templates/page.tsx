@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { useToast } from "@/hooks/use-toast";
@@ -86,6 +86,43 @@ export default function TemplatesPage() {
     body_examples: [] as string[],
   });
   const [uploadingHeaderMedia, setUploadingHeaderMedia] = useState(false);
+
+  // Refs for the body textareas so the inline format toolbar (B / I / S)
+  // can wrap whatever the operator currently has selected. Keeping one
+  // ref per language so each toolbar acts on its own field.
+  const bodyArRef = useRef<HTMLTextAreaElement>(null);
+  const bodyEnRef = useRef<HTMLTextAreaElement>(null);
+
+  // Wrap the current selection of `ta` with `marker` on both sides
+  // (e.g. * for bold). If nothing is selected we still insert the
+  // markers and place the caret between them, mirroring how Word /
+  // Notion / Slack toolbars feel. We avoid toggling logic on purpose —
+  // WhatsApp's parser is strict and a partial unwrap from an arbitrary
+  // selection would produce broken templates on send.
+  const wrapSelection = (
+    ta: HTMLTextAreaElement | null,
+    marker: string,
+    current: string,
+    setter: (next: string) => void
+  ) => {
+    if (!ta) return;
+    const start = ta.selectionStart ?? current.length;
+    const end = ta.selectionEnd ?? current.length;
+    const before = current.slice(0, start);
+    const selected = current.slice(start, end);
+    const after = current.slice(end);
+    const next = `${before}${marker}${selected}${marker}${after}`;
+    if (next.length > 1024) return; // honour the same length cap as onChange
+    setter(next);
+    // Restore the selection inside the wrappers so the operator can
+    // keep typing / toggle another marker without re-selecting.
+    requestAnimationFrame(() => {
+      ta.focus();
+      const s = start + marker.length;
+      const e = end + marker.length;
+      ta.setSelectionRange(s, e);
+    });
+  };
 
   // Detect {{n}} placeholders in the active body to decide how many
   // example inputs to show. Only counts unique indices.
@@ -250,6 +287,24 @@ export default function TemplatesPage() {
       tmpl.aiScore >= 80 ? COLORS.ok : tmpl.aiScore >= 60 ? COLORS.warn : COLORS.err;
 
     // Build WhatsApp preview body with highlighted variables
+    // Same WhatsApp formatting pattern as the phone preview. Applied
+    // to plain-text fragments so a *bold* word inside the saved body
+    // shows the way the customer will actually see it on their phone,
+    // not the raw asterisks.
+    const fmtPattern = /(\*[^\s*][^*]*?[^\s*]\*|\*[^\s*]\*|_[^\s_][^_]*?[^\s_]_|_[^\s_]_|~[^\s~][^~]*?[^\s~]~|~[^\s~]~|`[^`]+`)/g;
+    const renderFmt = (txt: string, kp: string) => {
+      const segs = txt.split(fmtPattern);
+      return segs.map((seg, i) => {
+        if (!seg) return null;
+        const k = `${kp}-${i}`;
+        if (seg.startsWith("*") && seg.endsWith("*") && seg.length > 1) return <strong key={k}>{seg.slice(1, -1)}</strong>;
+        if (seg.startsWith("_") && seg.endsWith("_") && seg.length > 1) return <em key={k}>{seg.slice(1, -1)}</em>;
+        if (seg.startsWith("~") && seg.endsWith("~") && seg.length > 1) return <span key={k} style={{ textDecoration: "line-through" }}>{seg.slice(1, -1)}</span>;
+        if (seg.startsWith("`") && seg.endsWith("`") && seg.length > 1) return <span key={k} style={{ fontFamily: "monospace", background: "rgba(0,0,0,0.06)", padding: "0 4px", borderRadius: 3 }}>{seg.slice(1, -1)}</span>;
+        return <span key={k}>{seg}</span>;
+      });
+    };
+
     const highlightVars = (text: string) => {
       const parts = text.split(/(\{\{[^}]+\}\})/g);
       return parts.map((p, i) =>
@@ -258,7 +313,7 @@ export default function TemplatesPage() {
             {p}
           </span>
         ) : (
-          <span key={i}>{p}</span>
+          <span key={i}>{renderFmt(p, `h${i}`)}</span>
         )
       );
     };
@@ -1399,7 +1454,20 @@ export default function TemplatesPage() {
                     {isAr ? "استخدم {{1}} {{2}} للمتغيرات" : "Use {{1}} {{2}} for variables"}
                   </span>
                 </label>
+                {/* WhatsApp formatting toolbar — wraps the current
+                    selection with the marker characters Meta accepts.
+                    Mirrored above the English body field below. */}
+                <div style={{ display: "flex", gap: 4, marginBottom: 6, alignItems: "center", flexWrap: "wrap" }}>
+                  <button type="button" title={isAr ? "عريض" : "Bold"} onClick={() => wrapSelection(bodyArRef.current, "*", newTemplate.body_ar, (v) => setNewTemplate({ ...newTemplate, body_ar: v }))} style={{ width: 30, height: 28, borderRadius: 6, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, cursor: "pointer", fontWeight: 800, fontSize: 13 }}>B</button>
+                  <button type="button" title={isAr ? "مائل" : "Italic"} onClick={() => wrapSelection(bodyArRef.current, "_", newTemplate.body_ar, (v) => setNewTemplate({ ...newTemplate, body_ar: v }))} style={{ width: 30, height: 28, borderRadius: 6, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, cursor: "pointer", fontStyle: "italic", fontSize: 13 }}>I</button>
+                  <button type="button" title={isAr ? "مشطوب" : "Strikethrough"} onClick={() => wrapSelection(bodyArRef.current, "~", newTemplate.body_ar, (v) => setNewTemplate({ ...newTemplate, body_ar: v }))} style={{ width: 30, height: 28, borderRadius: 6, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, cursor: "pointer", textDecoration: "line-through", fontSize: 13 }}>S</button>
+                  <button type="button" title={isAr ? "كود" : "Monospace"} onClick={() => wrapSelection(bodyArRef.current, "`", newTemplate.body_ar, (v) => setNewTemplate({ ...newTemplate, body_ar: v }))} style={{ width: 30, height: 28, borderRadius: 6, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, cursor: "pointer", fontFamily: "monospace", fontSize: 13 }}>{"<>"}</button>
+                  <span style={{ fontSize: 10.5, color: C.t3, marginInlineStart: 6 }}>
+                    {isAr ? "ظلّل النص ثم اضغط الزر" : "Select text then click"}
+                  </span>
+                </div>
                 <textarea
+                  ref={bodyArRef}
                   value={newTemplate.body_ar}
                   onChange={(e) => {
                     if (e.target.value.length <= 1024) setNewTemplate({ ...newTemplate, body_ar: e.target.value });
@@ -1494,7 +1562,17 @@ export default function TemplatesPage() {
                     Use {"{{1}}"} {"{{2}}"} for variables
                   </span>
                 </label>
+                <div style={{ display: "flex", gap: 4, marginBottom: 6, alignItems: "center", flexWrap: "wrap" }}>
+                  <button type="button" title="Bold" onClick={() => wrapSelection(bodyEnRef.current, "*", newTemplate.body, (v) => setNewTemplate({ ...newTemplate, body: v }))} style={{ width: 30, height: 28, borderRadius: 6, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, cursor: "pointer", fontWeight: 800, fontSize: 13 }}>B</button>
+                  <button type="button" title="Italic" onClick={() => wrapSelection(bodyEnRef.current, "_", newTemplate.body, (v) => setNewTemplate({ ...newTemplate, body: v }))} style={{ width: 30, height: 28, borderRadius: 6, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, cursor: "pointer", fontStyle: "italic", fontSize: 13 }}>I</button>
+                  <button type="button" title="Strikethrough" onClick={() => wrapSelection(bodyEnRef.current, "~", newTemplate.body, (v) => setNewTemplate({ ...newTemplate, body: v }))} style={{ width: 30, height: 28, borderRadius: 6, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, cursor: "pointer", textDecoration: "line-through", fontSize: 13 }}>S</button>
+                  <button type="button" title="Monospace" onClick={() => wrapSelection(bodyEnRef.current, "`", newTemplate.body, (v) => setNewTemplate({ ...newTemplate, body: v }))} style={{ width: 30, height: 28, borderRadius: 6, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, cursor: "pointer", fontFamily: "monospace", fontSize: 13 }}>{"<>"}</button>
+                  <span style={{ fontSize: 10.5, color: C.t3, marginInlineStart: 6 }}>
+                    {isAr ? "ظلّل النص ثم اضغط الزر" : "Select text then click"}
+                  </span>
+                </div>
                 <textarea
+                  ref={bodyEnRef}
                   value={newTemplate.body}
                   onChange={(e) => {
                     if (e.target.value.length <= 1024) setNewTemplate({ ...newTemplate, body: e.target.value });

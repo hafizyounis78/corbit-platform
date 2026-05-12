@@ -73,9 +73,41 @@ export function WhatsAppPhonePreview({
   const { isAr } = useLocale();
   const direction = rtl ?? isAr;
 
-  // Render template body with variable placeholders highlighted. Each
-  // {{n}} becomes a styled span — readable but visually distinct so the
-  // operator can spot exactly where data will land.
+  // Render template body with variable placeholders highlighted AND
+  // WhatsApp inline formatting applied. Each {{n}} becomes a styled
+  // chip; *text*/_text_/~text~/`text` become bold/italic/strike/mono
+  // exactly as WhatsApp will render them on the recipient's device.
+  // We do variables first (so a {{1}} inside *...* still renders as a
+  // chip), then format the remaining plain-text segments.
+  const renderFormatted = (text: string, keyPrefix: string) => {
+    // WhatsApp's real parser requires the marker to hug a non-space
+    // character on the inside (e.g. *bold* yes, * bold * no). We mirror
+    // that so the preview doesn't lie about what the recipient sees.
+    const pattern = /(\*[^\s*][^*]*?[^\s*]\*|\*[^\s*]\*|_[^\s_][^_]*?[^\s_]_|_[^\s_]_|~[^\s~][^~]*?[^\s~]~|~[^\s~]~|`[^`]+`)/g;
+    const segments = text.split(pattern);
+    return segments.map((seg, i) => {
+      if (!seg) return null;
+      const key = `${keyPrefix}-${i}`;
+      if (seg.startsWith("*") && seg.endsWith("*") && seg.length > 1) {
+        return <strong key={key}>{seg.slice(1, -1)}</strong>;
+      }
+      if (seg.startsWith("_") && seg.endsWith("_") && seg.length > 1) {
+        return <em key={key}>{seg.slice(1, -1)}</em>;
+      }
+      if (seg.startsWith("~") && seg.endsWith("~") && seg.length > 1) {
+        return <span key={key} style={{ textDecoration: "line-through" }}>{seg.slice(1, -1)}</span>;
+      }
+      if (seg.startsWith("`") && seg.endsWith("`") && seg.length > 1) {
+        return (
+          <span key={key} style={{ fontFamily: "monospace", background: "rgba(0,0,0,0.06)", padding: "0 4px", borderRadius: 3 }}>
+            {seg.slice(1, -1)}
+          </span>
+        );
+      }
+      return <span key={key}>{seg}</span>;
+    });
+  };
+
   const renderBody = (text: string) => {
     const parts = text.split(/(\{\{\d+\}\})/g);
     return parts.map((part, i) => {
@@ -100,7 +132,7 @@ export function WhatsAppPhonePreview({
           </span>
         );
       }
-      return <span key={i}>{part}</span>;
+      return <span key={i}>{renderFormatted(part, `s${i}`)}</span>;
     });
   };
 
