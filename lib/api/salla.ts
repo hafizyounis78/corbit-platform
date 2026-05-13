@@ -58,3 +58,26 @@ export async function disconnectSalla(): Promise<void> {
 export async function triggerSallaSync(): Promise<void> {
   await api.post("/integrations/salla/sync");
 }
+
+export interface SallaWebhookEvent {
+  id: string;
+  event: string;
+  event_id: string | null;
+  payload: unknown;
+  processed_at: string | null;
+  processing_error: string | null;
+  created_at: string;
+}
+
+/**
+ * Fetch incoming webhook events for this org. Used by the Events tab
+ * on /integrations/salla to prove deliveries are landing and let
+ * operators retry any that failed processing.
+ */
+export function useSallaWebhookEvents(pollInterval?: number) {
+  return useApi<{ data: SallaWebhookEvent[] }>(
+    "/integrations/salla/webhook-events",
+    [],
+    pollInterval,
+  );
+}

@@ -9,6 +9,7 @@ import { Card, Button, Badge } from "@/components/ui";
 import { Icon } from "@/components/icons/icon";
 import {
   useSallaStatus,
+  useSallaWebhookEvents,
   startSallaConnect,
   disconnectSalla,
   triggerSallaSync,
@@ -453,18 +454,77 @@ function ConversionsTab({ ar, C }: { ar: boolean; C: any }) {
 }
 
 function EventsTab({ ar, C }: { ar: boolean; C: any }) {
+  // Polls every 5s so a webhook fired by Salla shows up almost
+  // immediately without the operator needing to refresh — the
+  // typical use is "I just placed a test order, where is it?"
+  const { data, isLoading } = useSallaWebhookEvents(5000);
+  const events = data?.data ?? [];
+
+  if (isLoading && events.length === 0) {
+    return (
+      <Card style={{ padding: 24 }}>
+        <div style={{ textAlign: "center", color: C.t2, fontSize: 13 }}>
+          {ar ? "جارٍ التحميل…" : "Loading…"}
+        </div>
+      </Card>
+    );
+  }
+
+  if (events.length === 0) {
+    return (
+      <Card style={{ padding: 24 }}>
+        <div style={{ textAlign: "center", padding: 20 }}>
+          <div style={{ fontSize: 36, marginBottom: 10 }}>📭</div>
+          <h3 style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700, color: C.txt }}>
+            {ar ? "لا توجد أحداث بعد" : "No events yet"}
+          </h3>
+          <p style={{ margin: 0, fontSize: 12, color: C.t2, lineHeight: 1.7 }}>
+            {ar
+              ? "ستظهر أحداث Salla هنا فور وصولها (طلبات جديدة، عملاء، سلال متروكة). افتح متجرك التجريبي وأنشئ طلباً أو عميلاً للاختبار."
+              : "Salla events will appear here as they arrive. Place a test order or customer in your demo store to verify."}
+          </p>
+        </div>
+      </Card>
+    );
+  }
+
   return (
-    <Card style={{ padding: 24 }}>
-      <div style={{ textAlign: "center", padding: 20 }}>
-        <div style={{ fontSize: 36, marginBottom: 10 }}>📜</div>
-        <h3 style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700, color: C.txt }}>
-          {ar ? "سجل الأحداث قريباً" : "Events log coming soon"}
-        </h3>
-        <p style={{ margin: 0, fontSize: 12, color: C.t2, lineHeight: 1.7 }}>
-          {ar
-            ? "ستظهر هنا كلّ أحداث webhook الواردة من سلّة (طلبات، عملاء، سلال متروكة) مع إمكانيّة إعادة المعالجة."
-            : "All Salla webhook events (orders, customers, abandoned carts) will appear here with manual replay support."}
-        </p>
+    <Card style={{ padding: 0, overflow: "hidden" }}>
+      <div style={{ padding: "12px 16px", borderBottom: `1px solid ${C.bd}`, fontSize: 12, color: C.t2 }}>
+        {ar ? `إجمالي ${events.length} حدث` : `${events.length} total events`}
+      </div>
+      <div style={{ maxHeight: 600, overflowY: "auto" }}>
+        {events.map((ev) => {
+          const failed = !!ev.processing_error;
+          const processed = !!ev.processed_at;
+          const statusColor = failed ? "#DC2626" : processed ? "#16A34A" : "#D97706";
+          const statusLabel = failed
+            ? (ar ? "فشل" : "Failed")
+            : processed
+              ? (ar ? "تمّ" : "Processed")
+              : (ar ? "بانتظار المعالجة" : "Pending");
+          return (
+            <div key={ev.id} style={{ padding: "10px 16px", borderBottom: `1px solid ${C.bd}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: C.txt, marginBottom: 2 }}>
+                  {ev.event}
+                </div>
+                <div style={{ fontSize: 11, color: C.t2 }}>
+                  {new Date(ev.created_at).toLocaleString(ar ? "ar-SA" : "en-US")}
+                  {ev.event_id && <span style={{ marginInlineStart: 8, opacity: 0.7 }}>· {ev.event_id}</span>}
+                </div>
+                {failed && (
+                  <div style={{ fontSize: 11, color: "#DC2626", marginTop: 4, wordBreak: "break-word" }}>
+                    {ev.processing_error}
+                  </div>
+                )}
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 600, color: statusColor, padding: "2px 8px", borderRadius: 4, background: `${statusColor}15`, whiteSpace: "nowrap" }}>
+                {statusLabel}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </Card>
   );
