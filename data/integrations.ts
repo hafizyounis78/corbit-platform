@@ -14,6 +14,9 @@ export interface Integration {
 export function getIntegrations(lang: Locale): Integration[] {
   const ar = lang === "ar";
   return [
+    // Salla — KSA-native, the only integration we currently ship.
+    // Hub page special-cases this id to link to /integrations/salla.
+    { id: "salla", name: "Salla", cat: "ecommerce", desc: ar ? "تتبّع التحويلات وإشعارات الطلبات" : "Conversion tracking + order notifications", icon: "🛒", color: "#9B45D8", popular: true, features: ar ? ["تتبّع التحويلات", "إشعارات الطلبات", "استرداد السلال المتروكة", "مزامنة العملاء"] : ["Conversion tracking", "Order notifications", "Cart recovery", "Customer sync"] },
     { id: "shopify", name: "Shopify", cat: "ecommerce", desc: ar ? "مزامنة المنتجات والطلبات" : "Sync products & orders", icon: "\uD83D\uDED2", color: "#96BF48", popular: true, features: ar ? ["مزامنة تلقائية", "إشعارات الطلبات", "تتبع الشحن", "سلة متروكة"] : ["Auto sync", "Order notifications", "Shipping tracking", "Cart recovery"] },
     { id: "hubspot", name: "HubSpot", cat: "crm", desc: ar ? "مزامنة جهات الاتصال والصفقات" : "Sync contacts & deals", icon: "\uD83D\uDD36", color: "#FF7A59", popular: true, features: ar ? ["مزامنة ثنائية", "إنشاء صفقات", "تسجيل النشاط"] : ["Two-way sync", "Create deals", "Activity logging"] },
     { id: "zapier", name: "Zapier", cat: "automation", desc: ar ? "اربط مع 5000+ تطبيق" : "Connect 5000+ apps", icon: "\u26A1", color: "#FF4A00", popular: true, features: ar ? ["5000+ تكامل", "أتمتة بدون كود", "مشغلات واتساب"] : ["5000+ integrations", "No-code", "WhatsApp triggers"] },

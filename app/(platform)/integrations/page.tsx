@@ -185,7 +185,7 @@ export default function IntegrationsPage() {
         {filtered.map((app: any) => {
           const conn = isConnected(app.id);
           return (
-            <Card key={app.id} style={{ cursor: "pointer", border: conn ? `1.5px solid ${C.ok}30` : "1.5px solid transparent" }} onClick={() => setViewApp(app.id)}>
+            <Card key={app.id} style={{ cursor: "pointer", border: conn ? `1.5px solid ${C.ok}30` : (app.id === "salla" ? `1.5px solid ${app.color}40` : "1.5px solid transparent") }} onClick={() => { if (app.id === "salla") { window.location.href = "/integrations/salla"; } else { setViewApp(app.id); } }}>
               <div style={{ padding: 16 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
                   <div style={{ width: 42, height: 42, borderRadius: 12, background: `${app.color}15`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>{app.icon}</div>
@@ -198,12 +198,24 @@ export default function IntegrationsPage() {
                   </div>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  {/* Card grid Connect button replaced with a status
-                      badge \u2014 see detail view edit above for context. */}
-                  <Badge color={C.warn}>{ar ? "\u0642\u0631\u064a\u0628\u0627\u064b" : "Coming Soon"}</Badge>
-                  <span style={{ fontSize: 11, color: C.t3 }}>
-                    {ar ? "\u0628\u0627\u0644\u0637\u0631\u064a\u0642" : "Soon"}
-                  </span>
+                  {/* Salla is the one integration that's actually live \u2014
+                      it shows an Available badge + Connect CTA. Every
+                      other integration is still Coming Soon. */}
+                  {app.id === "salla" ? (
+                    <>
+                      <Badge color={C.ok}>{ar ? "\u0645\u062a\u0627\u062d" : "Available"}</Badge>
+                      <span style={{ fontSize: 11, color: C.pri, fontWeight: 600 }}>
+                        {ar ? "\u0627\u0631\u0628\u0637 \u0627\u0644\u0622\u0646 \u2192" : "Connect \u2192"}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Badge color={C.warn}>{ar ? "\u0642\u0631\u064a\u0628\u0627\u064b" : "Coming Soon"}</Badge>
+                      <span style={{ fontSize: 11, color: C.t3 }}>
+                        {ar ? "\u0628\u0627\u0644\u0637\u0631\u064a\u0642" : "Soon"}
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
             </Card>
