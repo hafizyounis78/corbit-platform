@@ -79,6 +79,10 @@ export default function ContactsPage() {
   const { user } = useAuth();
   const isAdmin = !!user && (user.role === 'admin' || user.role === 'owner');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // When true, the operator clicked the "select all 225 matching" banner.
+  // We stop tracking per-row ids and send the filter to the backend
+  // instead. Resets whenever the operator narrows / changes the filter.
+  const [selectAllMatching, setSelectAllMatching] = useState(false);
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
 
@@ -171,6 +175,14 @@ export default function ContactsPage() {
 
   // When tab or tags change, reset to page 1
   useEffect(() => { setPage(1); }, [activeTab, selectedTags]);
+
+  // Clear bulk selection whenever the filter narrows or the tenant
+  // navigates pages — the "all 225 matching" intent doesn't survive a
+  // filter change because the matching set changed underneath it.
+  useEffect(() => {
+    setSelectAllMatching(false);
+    setSelectedIds(new Set());
+  }, [activeTab, selectedTags, serverSearch]);
 
   // When the operator clicks a Smart Segment tile, fetch its contact ids
   // and switch the table into "segment view". Clicking the same tile again
@@ -268,6 +280,14 @@ export default function ContactsPage() {
   const someVisibleSelected = visibleIds.some((id) => selectedIds.has(id));
 
   const toggleAllVisible = () => {
+    // Click while cross-page mode is on → clear everything: the operator
+    // wants to deselect, and pretending to "uncheck the page" while the
+    // backend still holds 200 picks would be a lie.
+    if (selectAllMatching) {
+      setSelectAllMatching(false);
+      setSelectedIds(new Set());
+      return;
+    }
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (allVisibleSelected) {
@@ -287,11 +307,17 @@ export default function ContactsPage() {
     });
   };
 
+  // When selectAllMatching is active the visual state is "fully checked"
+  // even though selectedIds is empty \u2014 the actual selection lives on the
+  // backend filter, not in client state.
+  const masterChecked = selectAllMatching || allVisibleSelected;
+  const masterIndeterminate = !selectAllMatching && !allVisibleSelected && someVisibleSelected;
+
   const masterCheckbox = (
     <input
       type="checkbox"
-      checked={allVisibleSelected}
-      ref={(el) => { if (el) el.indeterminate = !allVisibleSelected && someVisibleSelected; }}
+      checked={masterChecked}
+      ref={(el) => { if (el) el.indeterminate = masterIndeterminate; }}
       onChange={toggleAllVisible}
       aria-label={isAr ? "\u062A\u062D\u062F\u064A\u062F \u0627\u0644\u0643\u0644" : "Select all"}
       style={{ width: 16, height: 16, cursor: "pointer", accentColor: C.pri }}
@@ -309,13 +335,28 @@ export default function ContactsPage() {
 
   const rows = filtered.map((c) => [
     // Checkbox cell (admin-only). Stops click propagation so toggling
-    // the box doesn't also open the contact drawer behind it.
+    // the box doesn't also open the contact drawer behind it. When
+    // selectAllMatching is active, every visible row reads checked so
+    // the table reflects the cross-page selection; unchecking a single
+    // row drops back into per-id mode with the rest of the page picked.
     ...(isAdmin ? [
       <input
         key={`sel-${c.id}`}
         type="checkbox"
-        checked={selectedIds.has(String(c.id))}
-        onChange={(e) => { e.stopPropagation(); toggleOne(String(c.id)); }}
+        checked={selectAllMatching || selectedIds.has(String(c.id))}
+        onChange={(e) => {
+          e.stopPropagation();
+          if (selectAllMatching) {
+            // Demote from cross-page to per-row: every visible id is in
+            // except the one being unchecked.
+            setSelectAllMatching(false);
+            const next = new Set(visibleIds);
+            next.delete(String(c.id));
+            setSelectedIds(next);
+          } else {
+            toggleOne(String(c.id));
+          }
+        }}
         onClick={(e) => e.stopPropagation()}
         aria-label={isAr ? "تحديد" : "Select"}
         style={{ width: 16, height: 16, cursor: "pointer", accentColor: C.pri }}
@@ -610,6 +651,76 @@ export default function ContactsPage() {
         <CardHeader
           title={`${isAr ? "\u062C\u0647\u0627\u062A \u0627\u0644\u0627\u062A\u0635\u0627\u0644" : "Contacts"} (${totalCount || filtered.length})`}
         />
+
+        {/* "Select all matching" banner \u2014 appears when the operator has
+            checked the page master, there's more than one page of results,
+            and they haven't already opted into the cross-page selection.
+            Gmail / Linear pattern: a one-click escalation so they don't
+            paginate through 19 pages just to wipe a filter slice. */}
+        {isAdmin && allVisibleSelected && totalCount > visibleIds.length && !selectAllMatching && (
+          <div style={{
+            margin: "0 20px 12px",
+            padding: "10px 14px",
+            background: `${COLORS.info}10`,
+            border: `1px solid ${COLORS.info}30`,
+            borderRadius: 10,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            flexWrap: "wrap",
+          }}>
+            <span style={{ fontSize: 12.5, color: C.t2 }}>
+              {isAr
+                ? `\u062A\u0645\u0651 \u062A\u062D\u062F\u064A\u062F ${visibleIds.length} \u062C\u0647\u0629 \u0641\u064A \u0647\u0630\u0647 \u0627\u0644\u0635\u0641\u062D\u0629.`
+                : `${visibleIds.length} contacts on this page are selected.`}
+            </span>
+            <button
+              onClick={() => setSelectAllMatching(true)}
+              style={{
+                padding: "4px 12px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer",
+                border: "none", background: COLORS.info, color: "#fff", fontFamily: FONT_FAMILY,
+              }}
+            >
+              {isAr
+                ? `\u062A\u062D\u062F\u064A\u062F \u0643\u0644 \u0627\u0644\u0640 ${totalCount} \u062C\u0647\u0629 \u0627\u0644\u0645\u0637\u0627\u0628\u0642\u0629`
+                : `Select all ${totalCount} matching contacts`}
+            </button>
+          </div>
+        )}
+
+        {/* Cross-page selection acknowledgement \u2014 shows what's currently
+            active and lets the operator step back to per-page selection. */}
+        {isAdmin && selectAllMatching && (
+          <div style={{
+            margin: "0 20px 12px",
+            padding: "10px 14px",
+            background: `${COLORS.info}15`,
+            border: `1px solid ${COLORS.info}50`,
+            borderRadius: 10,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            flexWrap: "wrap",
+          }}>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.info }}>
+              {isAr
+                ? `\u0645\u062D\u062F\u0651\u062F: \u0643\u0644 \u0627\u0644\u0640 ${totalCount} \u062C\u0647\u0629 \u0627\u0644\u0645\u0637\u0627\u0628\u0642\u0629 \u0644\u0644\u0641\u0644\u062A\u0631 \u0627\u0644\u062D\u0627\u0644\u064A`
+                : `Selected: all ${totalCount} matching contacts`}
+            </span>
+            <button
+              onClick={() => { setSelectAllMatching(false); setSelectedIds(new Set()); }}
+              style={{
+                padding: "4px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                border: `1px solid ${C.brd}`, background: "transparent", color: C.t2, fontFamily: FONT_FAMILY,
+              }}
+            >
+              {isAr ? "\u0625\u0644\u063A\u0627\u0621 \u0627\u0644\u062A\u062D\u062F\u064A\u062F" : "Clear selection"}
+            </button>
+          </div>
+        )}
+
         {initialLoading ? (
           <div style={{ padding: 48, textAlign: "center", color: C.t2 }}>
             <Icon name="timer" size={24} />
@@ -684,52 +795,54 @@ export default function ContactsPage() {
         )}
       </Card>
 
-      {/* Floating bulk-action bar — only renders when the operator has
-          selected at least one contact. Sticks to the bottom-center on
-          desktop and stretches edge-to-edge on mobile so the action stays
-          reachable without scrolling back to the list. */}
-      {isAdmin && selectedIds.size > 0 && (
-        <div style={{
-          position: "fixed",
-          bottom: 20,
-          left: "50%",
-          transform: "translateX(-50%)",
-          background: C.card,
-          border: `1px solid ${C.brd}`,
-          borderRadius: 12,
-          padding: "12px 16px",
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
-          zIndex: 1000,
-          fontFamily: FONT_FAMILY,
-        }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: C.txt }}>
-            {isAr ? `محدّد: ${selectedIds.size}` : `Selected: ${selectedIds.size}`}
-          </span>
-          <button
-            onClick={() => setSelectedIds(new Set())}
-            style={{
-              padding: "6px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer",
-              border: `1px solid ${C.brd}`, background: "transparent", color: C.t2, fontFamily: FONT_FAMILY,
-            }}
-          >
-            {isAr ? "إلغاء" : "Clear"}
-          </button>
-          <button
-            onClick={() => setBulkConfirmOpen(true)}
-            style={{
-              padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer",
-              border: "none", background: COLORS.err, color: "#fff", fontFamily: FONT_FAMILY,
-              display: "flex", alignItems: "center", gap: 6,
-            }}
-          >
-            <Icon name="trash" size={14} />
-            {isAr ? `حذف ${selectedIds.size} جهة` : `Delete ${selectedIds.size}`}
-          </button>
-        </div>
-      )}
+      {/* Floating bulk-action bar — renders for either picked-ids mode
+          or the cross-page "all matching" mode. The count source flips:
+          selectAllMatching → totalCount; otherwise → selectedIds.size. */}
+      {isAdmin && (selectAllMatching || selectedIds.size > 0) && (() => {
+        const actionCount = selectAllMatching ? totalCount : selectedIds.size;
+        return (
+          <div style={{
+            position: "fixed",
+            bottom: 20,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: C.card,
+            border: `1px solid ${C.brd}`,
+            borderRadius: 12,
+            padding: "12px 16px",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
+            zIndex: 1000,
+            fontFamily: FONT_FAMILY,
+          }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: C.txt }}>
+              {isAr ? `محدّد: ${actionCount}` : `Selected: ${actionCount}`}
+            </span>
+            <button
+              onClick={() => { setSelectedIds(new Set()); setSelectAllMatching(false); }}
+              style={{
+                padding: "6px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                border: `1px solid ${C.brd}`, background: "transparent", color: C.t2, fontFamily: FONT_FAMILY,
+              }}
+            >
+              {isAr ? "إلغاء" : "Clear"}
+            </button>
+            <button
+              onClick={() => setBulkConfirmOpen(true)}
+              style={{
+                padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer",
+                border: "none", background: COLORS.err, color: "#fff", fontFamily: FONT_FAMILY,
+                display: "flex", alignItems: "center", gap: 6,
+              }}
+            >
+              <Icon name="trash" size={14} />
+              {isAr ? `حذف ${actionCount} جهة` : `Delete ${actionCount}`}
+            </button>
+          </div>
+        );
+      })()}
 
       {/* Org-wide AI Customer Insights — actionable cards with churn
           risk, loyalty opportunities, and hot leads counts. Each links
@@ -1558,20 +1671,33 @@ export default function ContactsPage() {
         open={bulkConfirmOpen}
         onClose={() => !bulkDeleting && setBulkConfirmOpen(false)}
         title={isAr ? "تأكيد الحذف الجماعي" : "Confirm Bulk Delete"}
-        submitLabel={bulkDeleting
-          ? (isAr ? "جاري الحذف..." : "Deleting...")
-          : (isAr ? `نعم، احذف ${selectedIds.size} جهة` : `Yes, delete ${selectedIds.size}`)}
+        submitLabel={(() => {
+          const cnt = selectAllMatching ? totalCount : selectedIds.size;
+          if (bulkDeleting) return isAr ? "جاري الحذف..." : "Deleting...";
+          return isAr ? `نعم، احذف ${cnt} جهة` : `Yes, delete ${cnt}`;
+        })()}
         submitDisabled={bulkDeleting}
         submitLoading={bulkDeleting}
         onSubmit={async () => {
-          if (selectedIds.size === 0) return;
+          if (!selectAllMatching && selectedIds.size === 0) return;
           setBulkDeleting(true);
           try {
-            const ids = Array.from(selectedIds);
-            const res = await api.post('/contacts/bulk-delete', { ids });
+            // Two API shapes: picked ids vs filter-driven all-matching.
+            // The backend chooses the deletion strategy from the body
+            // — we just hand it the operator's intent.
+            const body: any = selectAllMatching
+              ? {
+                  all: true,
+                  status: activeTab === 'all' ? undefined : activeTab,
+                  search: serverSearch || undefined,
+                  tags: selectedTags.length > 0 ? selectedTags.join(',') : undefined,
+                }
+              : { ids: Array.from(selectedIds) };
+            const res = await api.post('/contacts/bulk-delete', body);
             const deleted = res.data?.data?.deleted ?? 0;
             showToast(isAr ? `تم حذف ${deleted} جهة` : `Deleted ${deleted} contacts`);
             setSelectedIds(new Set());
+            setSelectAllMatching(false);
             setBulkConfirmOpen(false);
             mutate();
           } catch (err: any) {
@@ -1588,7 +1714,10 @@ export default function ContactsPage() {
             </div>
             <div>
               <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6, color: C.txt }}>
-                {isAr ? `سيتمّ حذف ${selectedIds.size} جهة اتصال` : `${selectedIds.size} contacts will be deleted`}
+                {(() => {
+                  const cnt = selectAllMatching ? totalCount : selectedIds.size;
+                  return isAr ? `سيتمّ حذف ${cnt} جهة اتصال` : `${cnt} contacts will be deleted`;
+                })()}
               </div>
               <div style={{ fontSize: 12.5, color: C.t2, lineHeight: 1.7 }}>
                 {isAr
