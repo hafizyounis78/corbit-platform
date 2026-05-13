@@ -17,6 +17,7 @@ import { useSettings } from "@/lib/api/hooks";
 // When Partner credentials arrive, swap this back to WhatsAppConnectPartner
 // (the wizard component + service layer are still in the tree, untouched).
 import { WhatsAppConnect } from "@/components/settings/whatsapp-connect";
+import { WhatsAppBusinessProfile } from "@/components/settings/whatsapp-business-profile";
 import { ApiAndWebhooksPanel } from "@/components/settings/api-webhooks-panel";
 import { SmsSettingsPanel } from "@/components/settings/sms-settings-panel";
 import { CsatSettingsPanel } from "@/components/settings/csat-settings-panel";
@@ -1399,7 +1400,10 @@ export default function SettingsPage() {
 
       {/* ═══════════ WHATSAPP TAB ═══════════ */}
       {tab === "whatsapp" && (
-        <WhatsAppConnect showHeader={false} />
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <WhatsAppConnect showHeader={false} />
+          <WhatsAppBusinessProfile />
+        </div>
       )}
 
       {/* ═══════════ SMS TAB ═══════════ */}
