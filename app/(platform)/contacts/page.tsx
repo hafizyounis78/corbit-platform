@@ -71,6 +71,12 @@ export default function ContactsPage() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importLoading, setImportLoading] = useState(false);
+  // Import-time marketing consent attestation. When the operator ticks
+  // the checkbox, the backend stamps whatsapp_marketing_opt_in=true on
+  // every newly-created (or restored) row so the import can immediately
+  // feed a marketing campaign. Unticked → rows land without consent and
+  // would need a separate bulk-grant pass.
+  const [importMarketingConsent, setImportMarketingConsent] = useState(false);
   const [importPreview, setImportPreview] = useState<{ headers: string[]; rows: string[][] } | null>(null);
   // Admin-only bulk-delete state. selectedIds is a Set keyed by contact
   // UUID; we keep it scoped to the page (not pulled into URL or shared
@@ -85,6 +91,15 @@ export default function ContactsPage() {
   const [selectAllMatching, setSelectAllMatching] = useState(false);
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  // Bulk marketing-consent grant — separate confirm flow because granting
+  // consent is legally distinct from deleting. The source dropdown is what
+  // the operator attests as the basis for the claimed consent; it lands
+  // in the audit log so a future PDPL / Meta inquiry can answer "where
+  // did this consent come from" without a code dig.
+  const [grantConsentOpen, setGrantConsentOpen] = useState(false);
+  const [grantConsentSource, setGrantConsentSource] = useState<'pre_existing_consent'|'order_history'|'web_signup'|'in_person'|'other'>('pre_existing_consent');
+  const [grantConsentAttested, setGrantConsentAttested] = useState(false);
+  const [grantConsentLoading, setGrantConsentLoading] = useState(false);
 
   const [importReport, setImportReport] = useState<{
     imported: number;
@@ -830,6 +845,22 @@ export default function ContactsPage() {
               {isAr ? "إلغاء" : "Clear"}
             </button>
             <button
+              onClick={() => {
+                setGrantConsentAttested(false);
+                setGrantConsentSource('pre_existing_consent');
+                setGrantConsentOpen(true);
+              }}
+              style={{
+                padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer",
+                border: `1px solid ${COLORS.ok}`, background: `${COLORS.ok}12`, color: COLORS.ok, fontFamily: FONT_FAMILY,
+                display: "flex", alignItems: "center", gap: 6,
+              }}
+              title={isAr ? "منح موافقة استلام رسائل تسويقية" : "Grant marketing consent"}
+            >
+              <Icon name="check" size={14} />
+              {isAr ? `منح موافقة تسويقية` : `Grant marketing consent`}
+            </button>
+            <button
               onClick={() => setBulkConfirmOpen(true)}
               style={{
                 padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer",
@@ -1427,7 +1458,7 @@ export default function ContactsPage() {
       {/* ── Import Contacts Modal ── */}
       <Modal
         open={showImportModal}
-        onClose={() => { setShowImportModal(false); setImportFile(null); setImportPreview(null); }}
+        onClose={() => { setShowImportModal(false); setImportFile(null); setImportPreview(null); setImportMarketingConsent(false); }}
         title={isAr ? "استيراد جهات الاتصال" : "Import Contacts"}
         wide={!!importPreview}
         submitLabel={!importFile ? (isAr ? "اختر ملف أولاً" : "Select file first") : importLoading ? (isAr ? "جاري الاستيراد..." : "Importing...") : (isAr ? `استيراد ${importPreview?.rows.length || 0} جهة اتصال` : `Import ${importPreview?.rows.length || 0} contacts`)}
@@ -1443,6 +1474,9 @@ export default function ContactsPage() {
           setImportLoading(true);
           const formData = new FormData();
           formData.append('file', importFile);
+          if (importMarketingConsent) {
+            formData.append('marketing_consent_attested', '1');
+          }
           try {
             const res = await api.post('/contacts/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
             const d = res.data?.data || {};
@@ -1461,6 +1495,7 @@ export default function ContactsPage() {
             setShowImportModal(false);
             setImportFile(null);
             setImportPreview(null);
+            setImportMarketingConsent(false);
             mutate();
           } catch (err: any) {
             showToast(err.response?.data?.message || (isAr ? "فشل الاستيراد" : "Import failed"));
@@ -1663,6 +1698,43 @@ export default function ContactsPage() {
               </div>
             </div>
           )}
+
+          {/* Step 4: Marketing consent attestation. Without this checkbox
+              the imported rows land as "no consent" — Meta-compliance
+              gate then blocks every marketing template send to them.
+              Phrased deliberately as an opt-in legal claim so operators
+              who don't actually hold consent leave it off. */}
+          {importFile && (
+            <label
+              style={{
+                display: "flex", alignItems: "flex-start", gap: 10,
+                padding: 14, borderRadius: 12,
+                background: importMarketingConsent ? `${COLORS.ok}10` : C.inp,
+                border: `1px solid ${importMarketingConsent ? COLORS.ok : C.brd}`,
+                cursor: "pointer",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={importMarketingConsent}
+                onChange={(e) => setImportMarketingConsent(e.target.checked)}
+                disabled={importLoading}
+                style={{ marginTop: 3, cursor: "pointer", flexShrink: 0 }}
+              />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.txt, marginBottom: 4 }}>
+                  {isAr
+                    ? "أُقرّ بامتلاكي موافقة هؤلاء العملاء على استلام رسائل تسويقية"
+                    : "I confirm I have marketing consent from these contacts"}
+                </div>
+                <div style={{ fontSize: 11.5, color: C.t2, lineHeight: 1.6 }}>
+                  {isAr
+                    ? "إذا لم تفعّل هذا الخيار، ستُستورد الجهات بدون موافقة تسويقية، ولن تتمكّن من إرسال قوالب التسويق إليها على واتساب (سياسة Meta). يمكنك منح الموافقة لاحقاً من صفحة جهات الاتصال."
+                    : "If unchecked, contacts will be imported without marketing consent and you won't be able to send WhatsApp marketing templates to them (Meta policy). You can grant consent later from the contacts page."}
+                </div>
+              </div>
+            </label>
+          )}
         </div>
       </Modal>
 
@@ -1726,6 +1798,117 @@ export default function ContactsPage() {
               </div>
             </div>
           </div>
+        </div>
+      </Modal>
+
+      {/* ── Bulk Grant Marketing Consent Modal ──
+          Splits responsibilities deliberately from bulk-delete: granting
+          consent is a legal statement, not a destructive UI action, so
+          we render it as a separate modal with an attestation checkbox
+          + source dropdown. The submit hits the same dual-mode endpoint
+          (ids[] or all-matching filters) the contacts page already uses
+          for bulk-delete. */}
+      <Modal
+        open={grantConsentOpen}
+        onClose={() => !grantConsentLoading && setGrantConsentOpen(false)}
+        title={isAr ? "منح موافقة استلام رسائل تسويقية" : "Grant Marketing Consent"}
+        submitLabel={(() => {
+          const cnt = selectAllMatching ? totalCount : selectedIds.size;
+          if (grantConsentLoading) return isAr ? "جاري المنح..." : "Granting...";
+          return isAr ? `تأكيد المنح لـ ${cnt} جهة` : `Confirm for ${cnt}`;
+        })()}
+        submitDisabled={grantConsentLoading || !grantConsentAttested}
+        submitLoading={grantConsentLoading}
+        onSubmit={async () => {
+          if (!grantConsentAttested) {
+            showToast(isAr ? "يجب الإقرار بامتلاك الموافقة" : "Attestation required");
+            return;
+          }
+          if (!selectAllMatching && selectedIds.size === 0) return;
+          setGrantConsentLoading(true);
+          try {
+            const body: any = {
+              source: grantConsentSource,
+              attestation: true,
+              ...(selectAllMatching
+                ? {
+                    all: true,
+                    status: activeTab === 'all' ? undefined : activeTab,
+                    search: serverSearch || undefined,
+                    tags: selectedTags.length > 0 ? selectedTags.join(',') : undefined,
+                  }
+                : { ids: Array.from(selectedIds) }),
+            };
+            const res = await api.post('/contacts/grant-marketing-consent', body);
+            const updated = res.data?.data?.updated ?? 0;
+            showToast(isAr ? `تمّ منح الموافقة لـ ${updated} جهة` : `Granted consent for ${updated} contacts`);
+            setSelectedIds(new Set());
+            setSelectAllMatching(false);
+            setGrantConsentOpen(false);
+            mutate();
+          } catch (err: any) {
+            showToast(err?.response?.data?.message || (isAr ? "فشل المنح" : "Grant failed"));
+          } finally {
+            setGrantConsentLoading(false);
+          }
+        }}
+      >
+        <div style={{ padding: "8px 4px", display: "flex", flexDirection: "column", gap: 16 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 14, padding: 16, borderRadius: 12, background: `${COLORS.warn}10`, border: `1px solid ${COLORS.warn}30` }}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: `${COLORS.warn}18`, color: COLORS.warn, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Icon name="shield" size={20} />
+            </div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6, color: C.txt }}>
+                {(() => {
+                  const cnt = selectAllMatching ? totalCount : selectedIds.size;
+                  return isAr ? `سيتمّ تسجيل موافقة تسويقية لـ ${cnt} جهة` : `${cnt} contacts will be marked as opted in`;
+                })()}
+              </div>
+              <div style={{ fontSize: 12.5, color: C.t2, lineHeight: 1.7 }}>
+                {isAr
+                  ? "بهذا الإجراء تصبح هذه الجهات مؤهلة لاستلام قوالب التسويق على واتساب. سياسة Meta تتطلّب أن تمتلك موافقة فعلية من العميل قبل هذا التسجيل (تسجيل، طلب شراء، نموذج اشتراك، إلخ)."
+                  : "These contacts will become eligible to receive WhatsApp marketing templates. Meta requires that you already hold real consent (signup, order, subscription form, etc.) before recording it here."}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: C.t2, marginBottom: 6, display: "block" }}>
+              {isAr ? "مصدر الموافقة (يُسجَّل في سجلّ التدقيق)" : "Consent source (recorded in audit log)"}
+            </label>
+            <select
+              value={grantConsentSource}
+              onChange={(e) => setGrantConsentSource(e.target.value as any)}
+              disabled={grantConsentLoading}
+              style={{
+                width: "100%", padding: "10px 12px", borderRadius: 8,
+                border: `1px solid ${C.brd}`, background: C.inp, color: C.txt,
+                fontFamily: FONT_FAMILY, fontSize: 13,
+              }}
+            >
+              <option value="pre_existing_consent">{isAr ? "قائمة عملاء سابقين (موافقة سابقة)" : "Pre-existing customer list"}</option>
+              <option value="order_history">{isAr ? "طلبات شراء سابقة" : "Order history"}</option>
+              <option value="web_signup">{isAr ? "تسجيل في موقع / نموذج اشتراك" : "Web signup / subscription form"}</option>
+              <option value="in_person">{isAr ? "موافقة شفهية / حضورية" : "In-person consent"}</option>
+              <option value="other">{isAr ? "أخرى" : "Other"}</option>
+            </select>
+          </div>
+
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: 12, borderRadius: 10, background: C.inp, border: `1px solid ${C.brd}`, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={grantConsentAttested}
+              onChange={(e) => setGrantConsentAttested(e.target.checked)}
+              disabled={grantConsentLoading}
+              style={{ marginTop: 3, cursor: "pointer", flexShrink: 0 }}
+            />
+            <span style={{ fontSize: 12.5, color: C.txt, lineHeight: 1.6 }}>
+              {isAr
+                ? "أُقرّ بأنّ لديّ موافقة موثّقة من هؤلاء العملاء على تلقّي رسائل تسويقية، وأتحمّل المسؤوليّة القانونيّة الكاملة لهذا الإجراء أمام Meta والجهات التنظيميّة."
+                : "I confirm I hold documented consent from these contacts to receive marketing messages, and I accept full legal responsibility before Meta and regulatory authorities."}
+            </span>
+          </label>
         </div>
       </Modal>
 

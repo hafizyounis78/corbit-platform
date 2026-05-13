@@ -123,6 +123,14 @@ export default function CampaignsPage() {
   } | null>(null);
   const [estimateLoading, setEstimateLoading] = useState(false);
 
+  // Marketing-consent pre-send check. When the operator picks a marketing
+  // template + a segment, we hit /contacts/missing-marketing-consent to
+  // count how many recipients would be refused by the send-time gate.
+  // The banner is muted (null) for utility/authentication templates so
+  // we don't nag for sends Meta accepts anyway.
+  const [consentCheck, setConsentCheck] = useState<{ missing: number; total: number } | null>(null);
+  const [grantingConsent, setGrantingConsent] = useState(false);
+
   // Extract data and pagination meta
   const apiCampaigns = apiResponse?.data || apiResponse;
   const paginationMeta = apiResponse?.meta || apiResponse?.pagination || null;
@@ -198,6 +206,59 @@ export default function CampaignsPage() {
     const list = templatesApiResponse?.data || templatesApiResponse;
     return Array.isArray(list) ? list : [];
   }, [templatesApiResponse]);
+
+  // Pre-send marketing-consent check. The send-time gate refuses
+  // marketing templates for contacts without recorded consent — by
+  // fetching the count before the operator clicks "create", we can
+  // either offer a one-click grant or steer them to a utility template
+  // instead. Skipped for non-marketing categories (the gate doesn't
+  // fire) and for unset segment/template (nothing to count yet).
+  useEffect(() => {
+    if (!showCreateModal || !newCampaign.segment || !newCampaign.template) {
+      setConsentCheck(null);
+      return;
+    }
+    const tpl = templates.find((t: any) => (t.id || t.name) === newCampaign.template);
+    const cat = String((tpl?.category ?? tpl?.cat ?? '')).toLowerCase();
+    if (cat !== 'marketing') {
+      setConsentCheck(null);
+      return;
+    }
+    let cancelled = false;
+    api.post('/contacts/missing-marketing-consent', { segment_id: newCampaign.segment })
+      .then((res) => {
+        if (cancelled) return;
+        const d = res.data?.data ?? res.data;
+        setConsentCheck(d && typeof d.missing === 'number' ? d : null);
+      })
+      .catch(() => { if (!cancelled) setConsentCheck(null); });
+    return () => { cancelled = true; };
+  }, [showCreateModal, newCampaign.segment, newCampaign.template, templates]);
+
+  // One-click grant from the campaign modal — same backend endpoint the
+  // contacts bulk-action uses, scoped to the just-picked segment. We
+  // attest 'pre_existing_consent' as the source because that's the
+  // most defensible default for an operator about to launch; finer
+  // attestation requires the operator to drop into the contacts page.
+  const handleGrantConsentForSegment = async () => {
+    if (!newCampaign.segment) return;
+    setGrantingConsent(true);
+    try {
+      const res = await api.post('/contacts/grant-marketing-consent', {
+        all: true,
+        segment_id: newCampaign.segment,
+        source: 'pre_existing_consent',
+        attestation: true,
+      });
+      const updated = res.data?.data?.updated ?? 0;
+      showToast(isAr ? `تمّ منح الموافقة لـ ${updated} جهة` : `Granted consent for ${updated} contacts`);
+      setConsentCheck({ missing: 0, total: consentCheck?.total ?? updated });
+    } catch (err: any) {
+      showToast(err?.response?.data?.message || (isAr ? "فشل المنح" : "Grant failed"));
+    } finally {
+      setGrantingConsent(false);
+    }
+  };
 
   const { data: segmentsApiResponse } = useSegmentsApi();
   const segments = useMemo(() => {
@@ -729,6 +790,59 @@ export default function CampaignsPage() {
               )}
             </div>
           </div>
+
+          {/* ── Marketing Consent Pre-flight Warning ──
+              Fires only for marketing-category templates with a chosen
+              segment. The send-time gate in SendCampaignMessage refuses
+              recipients without consent, so previewing the count here
+              and offering a one-click grant prevents a "all 197 failed"
+              campaign launch. Hidden when missing=0 or for utility /
+              authentication templates (the gate doesn't run there). */}
+          {consentCheck && consentCheck.missing > 0 && (
+            <div style={{
+              padding: 14, borderRadius: 12,
+              background: `${COLORS.warn}10`,
+              border: `1px solid ${COLORS.warn}40`,
+              display: "flex", alignItems: "flex-start", gap: 12,
+            }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                background: `${COLORS.warn}20`, color: COLORS.warn,
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <Icon name="shield" size={18} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.txt, marginBottom: 4 }}>
+                  {isAr
+                    ? `${consentCheck.missing} من ${consentCheck.total} جهة لا تملك موافقة تسويقية`
+                    : `${consentCheck.missing} of ${consentCheck.total} recipients lack marketing consent`}
+                </div>
+                <div style={{ fontSize: 11.5, color: C.t2, lineHeight: 1.6, marginBottom: 10 }}>
+                  {isAr
+                    ? "ستفشل الرسائل لهذه الجهات تلقائياً (سياسة Meta). امنح الموافقة الآن إذا كنت تملكها من مصدر مشروع، أو استخدم قالباً من نوع Utility."
+                    : "These messages will fail automatically (Meta policy). Grant consent now if you legitimately hold it, or switch to a Utility-category template."}
+                </div>
+                <button
+                  type="button"
+                  disabled={grantingConsent}
+                  onClick={handleGrantConsentForSegment}
+                  style={{
+                    padding: "8px 14px", borderRadius: 8,
+                    background: COLORS.warn, color: "#fff",
+                    border: "none", fontSize: 12, fontWeight: 700,
+                    cursor: grantingConsent ? "wait" : "pointer",
+                    fontFamily: FONT_FAMILY,
+                    opacity: grantingConsent ? 0.65 : 1,
+                  }}
+                >
+                  {grantingConsent
+                    ? (isAr ? "جاري المنح..." : "Granting...")
+                    : (isAr ? `منح موافقة لـ ${consentCheck.missing} جهة` : `Grant consent for ${consentCheck.missing}`)}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* ── Channel Mode ── */}
           <div>
