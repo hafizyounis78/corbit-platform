@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { useTheme } from "@/lib/theme/theme-provider";
 
 interface DataTableProps {
-  headers: string[];
+  headers: (string | ReactNode)[];
   rows: ReactNode[][];
 }
 

@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth/auth-context";
 import { useIsMobile } from "@/hooks/use-media-query";
 import { Card, CardHeader, Button, Badge, TabBar, Avatar, SearchInput, DataTable, Modal } from "@/components/ui";
 import { Icon } from "@/components/icons/icon";
@@ -71,6 +72,16 @@ export default function ContactsPage() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importLoading, setImportLoading] = useState(false);
   const [importPreview, setImportPreview] = useState<{ headers: string[]; rows: string[][] } | null>(null);
+  // Admin-only bulk-delete state. selectedIds is a Set keyed by contact
+  // UUID; we keep it scoped to the page (not pulled into URL or shared
+  // state) so a refresh resets the selection — there's no scenario where
+  // an interrupted bulk-delete should resume itself.
+  const { user } = useAuth();
+  const isAdmin = !!user && (user.role === 'admin' || user.role === 'owner');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
   const [importReport, setImportReport] = useState<{
     imported: number;
     total_rows: number;
@@ -247,7 +258,47 @@ export default function ContactsPage() {
     setSelectedTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
   };
 
+  // Visible-page IDs drive the master checkbox state. "All selected"
+  // means every row on the current page is in selectedIds; ignoring
+  // hidden pages mirrors how Gmail / Linear treat list selection so
+  // operators don't accidentally bulk-delete rows they can't see.
+  const visibleIds = filtered.map((c) => String(c.id));
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
+  const someVisibleSelected = visibleIds.some((id) => selectedIds.has(id));
+
+  const toggleAllVisible = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) {
+        visibleIds.forEach((id) => next.delete(id));
+      } else {
+        visibleIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const toggleOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const masterCheckbox = (
+    <input
+      type="checkbox"
+      checked={allVisibleSelected}
+      ref={(el) => { if (el) el.indeterminate = !allVisibleSelected && someVisibleSelected; }}
+      onChange={toggleAllVisible}
+      aria-label={isAr ? "\u062A\u062D\u062F\u064A\u062F \u0627\u0644\u0643\u0644" : "Select all"}
+      style={{ width: 16, height: 16, cursor: "pointer", accentColor: C.pri }}
+    />
+  );
+
   const headers = [
+    ...(isAdmin ? [masterCheckbox] : []),
     isAr ? "\u0627\u0644\u0627\u0633\u0645" : "Name",
     isAr ? "\u0627\u0644\u0647\u0627\u062A\u0641" : "Phone",
     isAr ? "\u0627\u0644\u062A\u0635\u0646\u064A\u0641\u0627\u062A" : "Tags",
@@ -258,6 +309,19 @@ export default function ContactsPage() {
   ];
 
   const rows = filtered.map((c) => [
+    // Checkbox cell (admin-only). Stops click propagation so toggling
+    // the box doesn't also open the contact drawer behind it.
+    ...(isAdmin ? [
+      <input
+        key={`sel-${c.id}`}
+        type="checkbox"
+        checked={selectedIds.has(String(c.id))}
+        onChange={(e) => { e.stopPropagation(); toggleOne(String(c.id)); }}
+        onClick={(e) => e.stopPropagation()}
+        aria-label={isAr ? "تحديد" : "Select"}
+        style={{ width: 16, height: 16, cursor: "pointer", accentColor: C.pri }}
+      />,
+    ] : []),
     // Name with Avatar — adds an opt-out badge for blocked contacts so
     // operators can't accidentally include them in a campaign segment.
     // The CampaignService already excludes them at send time, but the
@@ -629,6 +693,53 @@ export default function ContactsPage() {
           </div>
         )}
       </Card>
+
+      {/* Floating bulk-action bar — only renders when the operator has
+          selected at least one contact. Sticks to the bottom-center on
+          desktop and stretches edge-to-edge on mobile so the action stays
+          reachable without scrolling back to the list. */}
+      {isAdmin && selectedIds.size > 0 && (
+        <div style={{
+          position: "fixed",
+          bottom: 20,
+          left: "50%",
+          transform: "translateX(-50%)",
+          background: C.card,
+          border: `1px solid ${C.brd}`,
+          borderRadius: 12,
+          padding: "12px 16px",
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
+          zIndex: 1000,
+          fontFamily: FONT_FAMILY,
+        }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: C.txt }}>
+            {isAr ? `محدّد: ${selectedIds.size}` : `Selected: ${selectedIds.size}`}
+          </span>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            style={{
+              padding: "6px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer",
+              border: `1px solid ${C.brd}`, background: "transparent", color: C.t2, fontFamily: FONT_FAMILY,
+            }}
+          >
+            {isAr ? "إلغاء" : "Clear"}
+          </button>
+          <button
+            onClick={() => setBulkConfirmOpen(true)}
+            style={{
+              padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer",
+              border: "none", background: COLORS.err, color: "#fff", fontFamily: FONT_FAMILY,
+              display: "flex", alignItems: "center", gap: 6,
+            }}
+          >
+            <Icon name="trash" size={14} />
+            {isAr ? `حذف ${selectedIds.size} جهة` : `Delete ${selectedIds.size}`}
+          </button>
+        </div>
+      )}
 
       {/* Org-wide AI Customer Insights — actionable cards with churn
           risk, loyalty opportunities, and hot leads counts. Each links
@@ -1448,6 +1559,53 @@ export default function ContactsPage() {
               </div>
             </div>
           )}
+        </div>
+      </Modal>
+
+      {/* ── Bulk Delete Confirmation Modal ── */}
+      <Modal
+        open={bulkConfirmOpen}
+        onClose={() => !bulkDeleting && setBulkConfirmOpen(false)}
+        title={isAr ? "تأكيد الحذف الجماعي" : "Confirm Bulk Delete"}
+        submitLabel={bulkDeleting
+          ? (isAr ? "جاري الحذف..." : "Deleting...")
+          : (isAr ? `نعم، احذف ${selectedIds.size} جهة` : `Yes, delete ${selectedIds.size}`)}
+        submitDisabled={bulkDeleting}
+        submitLoading={bulkDeleting}
+        onSubmit={async () => {
+          if (selectedIds.size === 0) return;
+          setBulkDeleting(true);
+          try {
+            const ids = Array.from(selectedIds);
+            const res = await api.post('/contacts/bulk-delete', { ids });
+            const deleted = res.data?.data?.deleted ?? 0;
+            showToast(isAr ? `تم حذف ${deleted} جهة` : `Deleted ${deleted} contacts`);
+            setSelectedIds(new Set());
+            setBulkConfirmOpen(false);
+            mutate();
+          } catch (err: any) {
+            showToast(err?.response?.data?.message || (isAr ? "فشل الحذف" : "Delete failed"));
+          } finally {
+            setBulkDeleting(false);
+          }
+        }}
+      >
+        <div style={{ padding: "8px 4px" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 14, padding: 16, borderRadius: 12, background: `${COLORS.err}10`, border: `1px solid ${COLORS.err}30` }}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: `${COLORS.err}18`, color: COLORS.err, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Icon name="trash" size={20} />
+            </div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6, color: C.txt }}>
+                {isAr ? `سيتمّ حذف ${selectedIds.size} جهة اتصال` : `${selectedIds.size} contacts will be deleted`}
+              </div>
+              <div style={{ fontSize: 12.5, color: C.t2, lineHeight: 1.7 }}>
+                {isAr
+                  ? "المحادثات والرسائل السابقة لهذه الجهات تبقى في الأرشيف. لإعادة الجهات لاحقاً يلزم رفعها من ملف جديد."
+                  : "Past conversations and messages stay in the archive. To restore the contacts, re-import them from a new file."}
+              </div>
+            </div>
+          </div>
         </div>
       </Modal>
 
