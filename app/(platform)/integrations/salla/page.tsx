@@ -433,9 +433,13 @@ function OverviewTab({ integration, ar, C }: { integration: any; ar: boolean; C:
 }
 
 function ConversionsTab({ ar, C }: { ar: boolean; C: any }) {
+  // useApi auto-unwraps res.data.data into the result; for paginated
+  // endpoints that means `data` is the orders array itself, not the
+  // full Laravel paginator object. Trying `data?.data` was returning
+  // undefined and rendering the empty state on top of 9 real orders.
   const { data, isLoading } = useSallaOrders(15000);
-  const orders = data?.data ?? [];
-  const total = data?.total ?? orders.length;
+  const orders = Array.isArray(data) ? data : [];
+  const total = orders.length;
 
   // Revenue summary across the page of orders we have. Sum on the
   // server side would be more accurate for huge stores, but for the
@@ -546,7 +550,8 @@ function EventsTab({ ar, C }: { ar: boolean; C: any }) {
   // immediately without the operator needing to refresh — the
   // typical use is "I just placed a test order, where is it?"
   const { data, isLoading } = useSallaWebhookEvents(5000);
-  const events = data?.data ?? [];
+  // Same useApi unwrap quirk as ConversionsTab — see comment there.
+  const events = Array.isArray(data) ? data : [];
 
   if (isLoading && events.length === 0) {
     return (
