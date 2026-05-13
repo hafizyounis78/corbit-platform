@@ -10,6 +10,7 @@ import { Icon } from "@/components/icons/icon";
 import {
   useSallaStatus,
   useSallaWebhookEvents,
+  useSallaOrders,
   startSallaConnect,
   disconnectSalla,
   triggerSallaSync,
@@ -432,23 +433,110 @@ function OverviewTab({ integration, ar, C }: { integration: any; ar: boolean; C:
 }
 
 function ConversionsTab({ ar, C }: { ar: boolean; C: any }) {
-  // Phase 6: placeholder. Phase 7+ will wire live conversion data
-  // from the /integrations/salla/conversions endpoint once the backend
-  // ships that endpoint. For now we show an empty state with the
-  // backfill-aware messaging so tenants understand what to expect.
+  const { data, isLoading } = useSallaOrders(15000);
+  const orders = data?.data ?? [];
+  const total = data?.total ?? orders.length;
+
+  // Revenue summary across the page of orders we have. Sum on the
+  // server side would be more accurate for huge stores, but for the
+  // typical Saudi tenant (hundreds-thousands of orders/month) this
+  // is good enough to surface the headline number.
+  const totalRevenue = orders.reduce((sum, o) => sum + (Number(o.total_amount_sar) || 0), 0);
+  const attributedCount = orders.filter((o) => o.attributed_campaign_id).length;
+  const avgOrderValue = orders.length > 0 ? totalRevenue / orders.length : 0;
+
+  if (isLoading && orders.length === 0) {
+    return (
+      <Card style={{ padding: 24 }}>
+        <div style={{ textAlign: "center", color: C.t2, fontSize: 13 }}>
+          {ar ? "جارٍ التحميل…" : "Loading…"}
+        </div>
+      </Card>
+    );
+  }
+
+  if (orders.length === 0) {
+    return (
+      <Card style={{ padding: 24 }}>
+        <div style={{ textAlign: "center", padding: 20 }}>
+          <div style={{ fontSize: 36, marginBottom: 10 }}>📊</div>
+          <h3 style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700, color: C.txt }}>
+            {ar ? "لا توجد طلبات بعد" : "No orders yet"}
+          </h3>
+          <p style={{ margin: 0, fontSize: 12, color: C.t2, lineHeight: 1.7 }}>
+            {ar
+              ? "اضغط زرّ \"مزامنة\" أعلى الصفحة لجلب الطلبات الحاليّة من Salla. يتمّ السحب التلقائي كلّ ساعة كذلك."
+              : "Press the \"Sync\" button above to pull current orders from Salla. Automatic sync also runs hourly."}
+          </p>
+        </div>
+      </Card>
+    );
+  }
+
+  const fmtMoney = (n: number) => `${n.toFixed(2)} ${ar ? "ر.س" : "SAR"}`;
+  const statusLabel = (s: string) => {
+    if (s === "draft") return ar ? "مسودة" : "Draft";
+    if (s === "completed") return ar ? "مكتمل" : "Completed";
+    if (s === "cancelled") return ar ? "ملغي" : "Cancelled";
+    if (s === "shipped") return ar ? "مشحون" : "Shipped";
+    if (s === "delivered") return ar ? "تم التسليم" : "Delivered";
+    return s;
+  };
+
   return (
-    <Card style={{ padding: 24 }}>
-      <div style={{ textAlign: "center", padding: 20 }}>
-        <div style={{ fontSize: 36, marginBottom: 10 }}>📊</div>
-        <h3 style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700, color: C.txt }}>
-          {ar ? "تقارير التحويلات قريباً" : "Conversion reports coming soon"}
-        </h3>
-        <p style={{ margin: 0, fontSize: 12, color: C.t2, lineHeight: 1.7 }}>
-          {ar
-            ? "تتبّع التحويلات يبدأ من تاريخ الربط. الطلبات السابقة تُجلَب للتحليلات لكنّها غير منسوبة لحملات سابقة."
-            : "Conversion tracking starts from the connection date. Historical orders are imported for analytics but not attributed to past campaigns."}
-        </p>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Summary cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
+        <SummaryCard ar={ar} C={C} label={ar ? "إجمالي الطلبات" : "Total orders"} value={total.toLocaleString()} />
+        <SummaryCard ar={ar} C={C} label={ar ? "إجمالي الإيرادات" : "Total revenue"} value={fmtMoney(totalRevenue)} />
+        <SummaryCard ar={ar} C={C} label={ar ? "متوسّط قيمة الطلب" : "Avg order value"} value={fmtMoney(avgOrderValue)} />
+        <SummaryCard ar={ar} C={C} label={ar ? "منسوب لحملات Corbit" : "Attributed to campaigns"} value={`${attributedCount} / ${orders.length}`} />
       </div>
+
+      {/* Orders table */}
+      <Card style={{ padding: 0, overflow: "hidden" }}>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead style={{ background: C.bg2 || "#f5f5f5" }}>
+              <tr>
+                <th style={{ padding: "10px 12px", textAlign: "start", fontWeight: 600, color: C.t2, fontSize: 11 }}>{ar ? "رقم الطلب" : "Order ID"}</th>
+                <th style={{ padding: "10px 12px", textAlign: "start", fontWeight: 600, color: C.t2, fontSize: 11 }}>{ar ? "العميل" : "Customer"}</th>
+                <th style={{ padding: "10px 12px", textAlign: "start", fontWeight: 600, color: C.t2, fontSize: 11 }}>{ar ? "الجوّال" : "Phone"}</th>
+                <th style={{ padding: "10px 12px", textAlign: "start", fontWeight: 600, color: C.t2, fontSize: 11 }}>{ar ? "المبلغ" : "Amount"}</th>
+                <th style={{ padding: "10px 12px", textAlign: "start", fontWeight: 600, color: C.t2, fontSize: 11 }}>{ar ? "الحالة" : "Status"}</th>
+                <th style={{ padding: "10px 12px", textAlign: "start", fontWeight: 600, color: C.t2, fontSize: 11 }}>{ar ? "التاريخ" : "Date"}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orders.map((o) => (
+                <tr key={o.id} style={{ borderTop: `1px solid ${C.bd}` }}>
+                  <td style={{ padding: "10px 12px", color: C.txt, fontFamily: "monospace", fontSize: 12 }}>{o.salla_order_id}</td>
+                  <td style={{ padding: "10px 12px", color: C.txt }}>{o.customer_name || "—"}</td>
+                  <td style={{ padding: "10px 12px", color: C.t2, fontFamily: "monospace", fontSize: 12 }}>{o.customer_phone || "—"}</td>
+                  <td style={{ padding: "10px 12px", color: C.txt, fontWeight: 600 }}>{fmtMoney(Number(o.total_amount_sar) || 0)}</td>
+                  <td style={{ padding: "10px 12px" }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 4, background: `${C.pri}15`, color: C.pri }}>
+                      {statusLabel(o.status)}
+                    </span>
+                  </td>
+                  <td style={{ padding: "10px 12px", color: C.t2, fontSize: 12 }}>
+                    {new Date(o.placed_at).toLocaleDateString(ar ? "ar-SA" : "en-US")}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function SummaryCard({ ar: _ar, C, label, value }: { ar: boolean; C: any; label: string; value: string }) {
+  return (
+    <Card style={{ padding: 14 }}>
+      <div style={{ fontSize: 11, color: C.t2, marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: C.txt }}>{value}</div>
     </Card>
   );
 }

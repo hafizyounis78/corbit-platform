@@ -59,6 +59,36 @@ export async function triggerSallaSync(): Promise<void> {
   await api.post("/integrations/salla/sync");
 }
 
+export interface SallaOrder {
+  id: string;
+  salla_order_id: string;
+  customer_name: string | null;
+  customer_phone: string | null;
+  customer_email: string | null;
+  total_amount_sar: number;
+  currency: string;
+  status: string;
+  payment_status: string;
+  items_count: number;
+  tracking_number: string | null;
+  shipping_company: string | null;
+  placed_at: string;
+  attributed_campaign_id: string | null;
+}
+
+/**
+ * Paginated orders synced from Salla (via API sync, not webhooks).
+ * The Conversions tab uses this to surface what's been pulled in
+ * with a small revenue summary at the top.
+ */
+export function useSallaOrders(pollInterval?: number) {
+  return useApi<{ data: SallaOrder[]; total: number }>(
+    "/integrations/salla/orders",
+    [],
+    pollInterval,
+  );
+}
+
 export interface SallaWebhookEvent {
   id: string;
   event: string;
