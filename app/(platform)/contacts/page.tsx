@@ -1569,7 +1569,7 @@ export default function ContactsPage() {
               {/* Errors detail */}
               {r.errors && r.errors.length > 0 && (
                 <details style={{
-                  background: C.bg2,
+                  background: C.bg,
                   border: `1px solid ${C.brd}`,
                   borderRadius: 10,
                   padding: 12,
