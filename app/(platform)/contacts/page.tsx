@@ -84,6 +84,7 @@ export default function ContactsPage() {
 
   const [importReport, setImportReport] = useState<{
     imported: number;
+    restored: number;
     total_rows: number;
     duplicates_existing: number;
     duplicates_in_file: number;
@@ -1345,6 +1346,7 @@ export default function ContactsPage() {
             const d = res.data?.data || {};
             setImportReport({
               imported: d.imported || 0,
+              restored: d.restored || 0,
               total_rows: d.total_rows || 0,
               duplicates_existing: d.duplicates_existing || 0,
               duplicates_in_file: d.duplicates_in_file || 0,
@@ -1619,12 +1621,19 @@ export default function ContactsPage() {
       >
         {importReport && (() => {
           const r = importReport;
+          const successTotal = r.imported + r.restored;
           const rows: Array<{ label: string; value: number; color: string; icon: string }> = [
             {
               label: isAr ? "تمت إضافتها بنجاح" : "Added successfully",
               value: r.imported,
               color: COLORS.ok,
               icon: "check",
+            },
+            {
+              label: isAr ? "تمّ استعادتها (كانت محذوفة)" : "Restored from deleted",
+              value: r.restored,
+              color: COLORS.info,
+              icon: "refresh",
             },
             {
               label: isAr ? "موجودة مسبقاً في حسابك" : "Already in your account",
@@ -1669,12 +1678,12 @@ export default function ContactsPage() {
                 textAlign: "center",
               }}>
                 <div style={{ fontSize: 28, fontWeight: 800, color: COLORS.ok, marginBottom: 4 }}>
-                  {r.imported} / {r.total_rows}
+                  {successTotal} / {r.total_rows}
                 </div>
                 <div style={{ fontSize: 13, color: C.t2 }}>
                   {isAr
-                    ? `تمت إضافة ${r.imported} جهة من أصل ${r.total_rows} صفّ في الملف`
-                    : `${r.imported} contacts added out of ${r.total_rows} rows in the file`}
+                    ? `تمت معالجة ${successTotal} جهة من أصل ${r.total_rows} صفّ في الملف`
+                    : `${successTotal} contacts processed out of ${r.total_rows} rows in the file`}
                 </div>
               </div>
 
