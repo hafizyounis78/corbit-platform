@@ -71,6 +71,17 @@ export default function ContactsPage() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importLoading, setImportLoading] = useState(false);
   const [importPreview, setImportPreview] = useState<{ headers: string[]; rows: string[][] } | null>(null);
+  const [importReport, setImportReport] = useState<{
+    imported: number;
+    total_rows: number;
+    duplicates_existing: number;
+    duplicates_in_file: number;
+    empty_phone: number;
+    error_rows: number;
+    rejected_quota: number;
+    quota_message?: string;
+    errors?: string[];
+  } | null>(null);
 
   // Parse CSV/TSV file for preview
   const parseFileForPreview = (file: File) => {
@@ -1221,10 +1232,17 @@ export default function ContactsPage() {
           try {
             const res = await api.post('/contacts/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
             const d = res.data?.data || {};
-            showToast(isAr
-              ? `تم استيراد ${d.imported || 0} جهة اتصال${d.skipped ? ` (تم تخطي ${d.skipped})` : ''}`
-              : `${d.imported || 0} imported${d.skipped ? `, ${d.skipped} skipped` : ''}`
-            );
+            setImportReport({
+              imported: d.imported || 0,
+              total_rows: d.total_rows || 0,
+              duplicates_existing: d.duplicates_existing || 0,
+              duplicates_in_file: d.duplicates_in_file || 0,
+              empty_phone: d.empty_phone || 0,
+              error_rows: d.error_rows || 0,
+              rejected_quota: d.rejected_quota || 0,
+              quota_message: d.quota_message,
+              errors: d.errors,
+            });
             setShowImportModal(false);
             setImportFile(null);
             setImportPreview(null);
@@ -1431,6 +1449,153 @@ export default function ContactsPage() {
             </div>
           )}
         </div>
+      </Modal>
+
+      {/* ── Import Report Modal ── */}
+      <Modal
+        open={!!importReport}
+        onClose={() => setImportReport(null)}
+        title={isAr ? "تقرير الاستيراد" : "Import Report"}
+        submitLabel={isAr ? "تم" : "Done"}
+        onSubmit={() => setImportReport(null)}
+      >
+        {importReport && (() => {
+          const r = importReport;
+          const rows: Array<{ label: string; value: number; color: string; icon: string }> = [
+            {
+              label: isAr ? "تمت إضافتها بنجاح" : "Added successfully",
+              value: r.imported,
+              color: COLORS.ok,
+              icon: "check",
+            },
+            {
+              label: isAr ? "موجودة مسبقاً في حسابك" : "Already in your account",
+              value: r.duplicates_existing,
+              color: "#F59E0B",
+              icon: "users",
+            },
+            {
+              label: isAr ? "مكرّرة داخل الملف" : "Duplicated within the file",
+              value: r.duplicates_in_file,
+              color: "#F59E0B",
+              icon: "copy",
+            },
+            {
+              label: isAr ? "أرقام فارغة" : "Empty phone numbers",
+              value: r.empty_phone,
+              color: C.t3,
+              icon: "x",
+            },
+            {
+              label: isAr ? "تجاوزت حدّ الباقة" : "Exceeded plan limit",
+              value: r.rejected_quota,
+              color: "#EF4444",
+              icon: "wallet",
+            },
+            {
+              label: isAr ? "أخطاء في الصفّ" : "Row errors",
+              value: r.error_rows,
+              color: "#EF4444",
+              icon: "trash",
+            },
+          ];
+          const visibleRows = rows.filter(row => row.value > 0);
+          return (
+            <div style={{ padding: "8px 4px", display: "flex", flexDirection: "column", gap: 16 }}>
+              {/* Summary header */}
+              <div style={{
+                background: `${COLORS.ok}10`,
+                border: `1px solid ${COLORS.ok}30`,
+                borderRadius: 12,
+                padding: 16,
+                textAlign: "center",
+              }}>
+                <div style={{ fontSize: 28, fontWeight: 800, color: COLORS.ok, marginBottom: 4 }}>
+                  {r.imported} / {r.total_rows}
+                </div>
+                <div style={{ fontSize: 13, color: C.t2 }}>
+                  {isAr
+                    ? `تمت إضافة ${r.imported} جهة من أصل ${r.total_rows} صفّ في الملف`
+                    : `${r.imported} contacts added out of ${r.total_rows} rows in the file`}
+                </div>
+              </div>
+
+              {/* Breakdown */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {visibleRows.map((row, i) => (
+                  <div key={i} style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "12px 14px",
+                    background: `${row.color}08`,
+                    border: `1px solid ${row.color}20`,
+                    borderRadius: 10,
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{
+                        width: 32, height: 32, borderRadius: 8,
+                        background: `${row.color}18`, color: row.color,
+                        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                      }}>
+                        <Icon name={row.icon as any} size={16} />
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: C.txt }}>
+                        {row.label}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: row.color }}>
+                      {row.value}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Quota upsell */}
+              {r.quota_message && (
+                <div style={{
+                  background: "#EF444410",
+                  border: "1px solid #EF444430",
+                  borderRadius: 10,
+                  padding: 12,
+                  fontSize: 12.5,
+                  color: C.txt,
+                  lineHeight: 1.6,
+                }}>
+                  {r.quota_message}
+                </div>
+              )}
+
+              {/* Errors detail */}
+              {r.errors && r.errors.length > 0 && (
+                <details style={{
+                  background: C.bg2,
+                  border: `1px solid ${C.brd}`,
+                  borderRadius: 10,
+                  padding: 12,
+                }}>
+                  <summary style={{ cursor: "pointer", fontSize: 12.5, fontWeight: 600, color: C.txt }}>
+                    {isAr ? `تفاصيل الأخطاء (${r.errors.length})` : `Error details (${r.errors.length})`}
+                  </summary>
+                  <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6, maxHeight: 200, overflowY: "auto" }}>
+                    {r.errors.map((err, i) => (
+                      <div key={i} style={{ fontSize: 11.5, color: C.t2, fontFamily: "monospace", direction: "ltr" }}>
+                        {err}
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+
+              {/* Help footer */}
+              <div style={{ fontSize: 11.5, color: C.t3, lineHeight: 1.7, padding: "8px 4px" }}>
+                {isAr
+                  ? "ملاحظة: الجهات الموجودة مسبقاً لم يتمّ المساس بها — بياناتها (الاسم، الوسوم، نقاط التفاعل) تبقى كما هي."
+                  : "Note: Existing contacts were not modified — their data (name, tags, engagement) stays intact."}
+              </div>
+            </div>
+          );
+        })()}
       </Modal>
     </div>
   );
