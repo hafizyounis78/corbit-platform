@@ -303,8 +303,6 @@ export default function ContactsPage() {
     isAr ? "\u0627\u0644\u0627\u0633\u0645" : "Name",
     isAr ? "\u0627\u0644\u0647\u0627\u062A\u0641" : "Phone",
     isAr ? "\u0627\u0644\u062A\u0635\u0646\u064A\u0641\u0627\u062A" : "Tags",
-    isAr ? "\u0627\u0644\u0646\u0642\u0627\u0637" : "Score",
-    "LTV",
     isAr ? "\u0622\u062E\u0631 \u0646\u0634\u0627\u0637" : "Last Active",
     "",
   ];
@@ -358,15 +356,6 @@ export default function ContactsPage() {
         <Badge key={tag} color={TAG_COLORS[tag] || C.t2}>{tag}</Badge>
       ))}
     </div>,
-    // Score
-    <div key={`score-${c.id}`} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-      <div style={{ width: 44, height: 5, borderRadius: 3, background: C.brd, overflow: "hidden" }}>
-        <div style={{ height: "100%", borderRadius: 3, width: `${c.score}%`, background: c.score >= 80 ? COLORS.ok : c.score >= 50 ? COLORS.warn : COLORS.err }} />
-      </div>
-      <span style={{ fontSize: 12, fontWeight: 600 }}>{c.score}</span>
-    </div>,
-    // LTV
-    <span key={`ltv-${c.id}`} style={{ fontSize: 12.5, fontWeight: 600 }}>${c.ltv.toLocaleString()}</span>,
     // Last Active
     <span key={`la-${c.id}`} style={{ fontSize: 12, color: C.t2 }}>{c.lastActive}</span>,
     // Action
