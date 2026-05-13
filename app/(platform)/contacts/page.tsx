@@ -173,6 +173,7 @@ export default function ContactsPage() {
       city: c.city || "",
       email: c.email || "",
       name: c.name || "",
+      deletedAt: c.deletedAt || c.deleted_at || null,
     }));
   }, [apiContacts]);
 
@@ -237,7 +238,7 @@ export default function ContactsPage() {
   const [deletingSegment, setDeletingSegment] = useState(false);
 
   // Stats from API, fall back to mock
-  const { data: apiStats } = useContactStats();
+  const { data: apiStats, mutate: mutateStats } = useContactStats();
   const stats = useMemo(() => {
     return [
       { label: isAr ? "\u0625\u062C\u0645\u0627\u0644\u064A \u062C\u0647\u0627\u062A \u0627\u0644\u0627\u062A\u0635\u0627\u0644" : "Total Contacts", value: apiStats?.total ?? "0", icon: "users", color: COLORS.pri },
@@ -266,6 +267,12 @@ export default function ContactsPage() {
     // for a tenant to honour Meta's opt-out requirement at a glance \u2014
     // and to spot accidental bulk-opt-outs from a bad import.
     { key: "blocked", label: isAr ? "\u0645\u0644\u063A\u064A \u0627\u0644\u0627\u0634\u062A\u0631\u0627\u0643" : "Opted Out" },
+    // Soft-deleted contacts. Default 'all' tab keeps excluding them so
+    // an operator's day-to-day view stays clean, but the Trash tab makes
+    // a previously-deleted contact searchable + restorable. Inbox-side
+    // eager loads already use withTrashed() to keep historical messages
+    // visible; this tab closes the inconsistency on the contacts page.
+    { key: "deleted", label: isAr ? "\u0645\u062D\u0630\u0648\u0641" : "Deleted" },
   ];
 
   // contacts is already filtered locally; if a Smart Segment is active,
@@ -387,10 +394,11 @@ export default function ContactsPage() {
     // workflow operators were used to.
     <div
       key={`name-${c.id}`}
-      onClick={() => setDrawerContactId(String(c.id))}
+      onClick={() => { if (!c.deletedAt) setDrawerContactId(String(c.id)); }}
       style={{
         display: "flex", alignItems: "center", gap: 10,
-        cursor: "pointer",
+        cursor: c.deletedAt ? "default" : "pointer",
+        opacity: c.deletedAt ? 0.6 : 1,
       }}
     >
       <Avatar name={c.name} size={34} />
@@ -399,6 +407,9 @@ export default function ContactsPage() {
           {c.name}
           {(c.st === 'blocked' || c.opted_out_at) && (
             <Badge color={COLORS.err}>{isAr ? "ملغي" : "Opted out"}</Badge>
+          )}
+          {c.deletedAt && (
+            <Badge color={COLORS.err}>{isAr ? "محذوف" : "Deleted"}</Badge>
           )}
         </div>
         <div style={{ fontSize: 11, color: C.t3 }}>{c.email}</div>
@@ -414,15 +425,37 @@ export default function ContactsPage() {
     </div>,
     // Last Active
     <span key={`la-${c.id}`} style={{ fontSize: 12, color: C.t2 }}>{c.lastActive}</span>,
-    // Action
-    <button
-      key={`act-${c.id}`}
-      onClick={() => { setEditContact({ id: c.id, name: c.name, phone: c.ph, email: c.email, city: c.city, tags: c.tags.join(", ") }); setShowEditModal(true); }}
-      title={isAr ? "تعديل" : "Edit"}
-      style={{ background: "transparent", border: "none", cursor: "pointer", color: C.t2, padding: 4 }}
-    >
-      <Icon name="pencil" size={14} />
-    </button>,
+    // Action — restore for deleted rows, edit for everyone else. Two
+    // separate actions never share the same row, so a single column
+    // stays sufficient and the restore intent is unambiguous.
+    c.deletedAt ? (
+      <button
+        key={`act-${c.id}`}
+        onClick={async () => {
+          try {
+            await api.post(`/contacts/${c.id}/restore`);
+            showToast(isAr ? "تمّت الاستعادة" : "Contact restored", "success");
+            mutate();
+            mutateStats?.();
+          } catch (e: any) {
+            showToast(e?.response?.data?.message || (isAr ? "تعذّر الاستعادة" : "Restore failed"), "error");
+          }
+        }}
+        title={isAr ? "استعادة" : "Restore"}
+        style={{ background: "transparent", border: `1px solid ${C.brd}`, borderRadius: 6, cursor: "pointer", color: C.txt, padding: "4px 10px", fontSize: 12, fontWeight: 600 }}
+      >
+        {isAr ? "استعادة" : "Restore"}
+      </button>
+    ) : (
+      <button
+        key={`act-${c.id}`}
+        onClick={() => { setEditContact({ id: c.id, name: c.name, phone: c.ph, email: c.email, city: c.city, tags: c.tags.join(", ") }); setShowEditModal(true); }}
+        title={isAr ? "تعديل" : "Edit"}
+        style={{ background: "transparent", border: "none", cursor: "pointer", color: C.t2, padding: 4 }}
+      >
+        <Icon name="pencil" size={14} />
+      </button>
+    ),
   ]);
 
   // ── Loading State ──

@@ -21,6 +21,10 @@ export interface Contact {
   opt_in_source?: 'manual' | 'import' | 'inbound_message' | 'web_form' | 'api' | string | null;
   opted_out_at?: string | null;
   opt_out_source?: 'whatsapp_keyword' | 'manual' | 'import' | string | null;
+  // Soft-delete timestamp surfaced so the contacts table can flag a
+  // restored-from-trash row with a "محذوف" badge + restore action. The
+  // backend returns 'deletedAt' (camelCase) from ContactResource.
+  deletedAt?: string | null;
 }
 
 export function getContacts(lang: Locale): Contact[] {
