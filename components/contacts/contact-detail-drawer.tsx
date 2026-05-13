@@ -99,6 +99,16 @@ export function ContactDetailDrawer({ contactId, onClose, onMutated }: Props) {
       .then((res) => {
         if (cancelled) return;
         const data = res.data?.data ?? res.data;
+        // Eloquent returns tags as full pivot rows ({id, contact_id,
+        // tag, ...}); the drawer renders them directly in <Badge>{t}</Badge>.
+        // Coerce to strings here so React doesn't explode with error #31
+        // when a contact has any tags at all. Matches the same shape
+        // the contacts list page normalizes to.
+        if (data && Array.isArray(data.tags)) {
+          data.tags = data.tags.map((t: any) =>
+            typeof t === 'string' ? t : (t?.tag ?? t?.name ?? '')
+          ).filter(Boolean);
+        }
         setContact(data);
       })
       .catch(() => {
@@ -277,9 +287,16 @@ export function ContactDetailDrawer({ contactId, onClose, onMutated }: Props) {
               {/* Tags */}
               {contact.tags && contact.tags.length > 0 && (
                 <div style={{ display: "flex", gap: 4, marginTop: 12, flexWrap: "wrap" }}>
-                  {contact.tags.map((t, i) => (
-                    <Badge key={i} color={t === "VIP" ? COLORS.warn : COLORS.pri}>{t}</Badge>
-                  ))}
+                  {contact.tags.map((t: any, i) => {
+                    // Defensive: tag may still arrive as a pivot row object
+                    // from older cached responses. Render its string form so
+                    // React doesn't throw error #31 on legacy payloads.
+                    const label = typeof t === 'string' ? t : (t?.tag ?? t?.name ?? '');
+                    if (!label) return null;
+                    return (
+                      <Badge key={i} color={label === "VIP" ? COLORS.warn : COLORS.pri}>{label}</Badge>
+                    );
+                  })}
                 </div>
               )}
             </div>
