@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { useToast } from "@/hooks/use-toast";
@@ -57,7 +57,6 @@ export function WhatsAppBusinessProfile() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [profile, setProfile] = useState<Profile>({
     about: "",
     description: "",
@@ -68,7 +67,6 @@ export function WhatsAppBusinessProfile() {
   });
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   // Fetch the current profile on mount. A failure here usually means
   // the WhatsApp number isn't connected yet (kill switch fires inside
@@ -99,30 +97,6 @@ export function WhatsAppBusinessProfile() {
     })();
     return () => { cancelled = true; };
   }, [isAr]);
-
-  const onPhotoChosen = async (file: File) => {
-    // Local preview first so the operator sees the circle crop before
-    // committing — this is the moment a logo with edge-content is
-    // visibly wrong, and the upload can be canceled by picking again.
-    const reader = new FileReader();
-    reader.onload = (e) => setPhotoPreview((e.target?.result as string) ?? null);
-    reader.readAsDataURL(file);
-
-    setUploading(true);
-    try {
-      const fd = new FormData();
-      fd.append('photo', file);
-      await api.post('/settings/whatsapp/profile/photo', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      showToast(isAr ? "تمّ تحديث الصورة" : "Photo updated");
-    } catch (err: any) {
-      showToast(err?.response?.data?.message || (isAr ? "فشل رفع الصورة" : "Photo upload failed"));
-      setPhotoPreview(null);
-    } finally {
-      setUploading(false);
-    }
-  };
 
   const save = async () => {
     setSaving(true);
@@ -188,10 +162,12 @@ export function WhatsAppBusinessProfile() {
         </div>
       </div>
 
-      {/* Photo section */}
+      {/* Photo section — direct upload to 360dialog returned an opaque
+          400 across three different request formats (raw body, multipart
+          direct, 2-step media+handle). Until the right shape is
+          documented, route the operator to 360dialog Hub for picture
+          updates and keep the rest of the editor working from here. */}
       <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
-        {/* Circle preview matches WhatsApp's render so the operator sees
-            the actual crop before committing. */}
         <div style={{
           width: 110, height: 110, borderRadius: "50%",
           background: photoPreview ? `url(${photoPreview}) center/cover` : `${C.brd}`,
@@ -202,27 +178,44 @@ export function WhatsAppBusinessProfile() {
           {!photoPreview && (isAr ? "لا توجد صورة" : "No photo")}
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 200 }}>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/jpeg,image/png"
-            style={{ display: "none" }}
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) onPhotoChosen(f);
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 200, flex: 1 }}>
+          <div style={{
+            padding: "10px 14px",
+            background: `${COLORS.info}10`,
+            border: `1px solid ${COLORS.info}30`,
+            borderRadius: 10,
+            fontSize: 12.5,
+            color: C.txt,
+            lineHeight: 1.7,
+          }}>
+            {isAr
+              ? "تحديث الصورة حالياً من 360dialog Hub مباشرة (الواجهة هنا قيد التطوير)."
+              : "Photo updates currently go through 360dialog Hub directly (the in-app uploader is being worked on)."}
+          </div>
+          <a
+            href="https://hub.360dialog.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              padding: "8px 14px",
+              borderRadius: 10,
+              fontSize: 12.5,
+              fontWeight: 700,
+              cursor: "pointer",
+              border: "none",
+              background: COLORS.info,
+              color: "#fff",
+              fontFamily: FONT_FAMILY,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              textDecoration: "none",
+              width: "fit-content",
             }}
-          />
-          <Button
-            primary
-            disabled={uploading}
-            onClick={() => fileRef.current?.click()}
           >
-            <Icon name="pkg" size={14} />
-            {uploading
-              ? (isAr ? "جاري الرفع..." : "Uploading...")
-              : (isAr ? "تغيير الصورة" : "Change Photo")}
-          </Button>
+            <Icon name="link" size={14} />
+            {isAr ? "فتح 360dialog Hub" : "Open 360dialog Hub"}
+          </a>
           <div style={{ fontSize: 11, color: C.t3, lineHeight: 1.6 }}>
             {isAr
               ? "JPG/PNG • مربّعة 1:1 • أقصى 5 ميجا • الشعار في النصف"
