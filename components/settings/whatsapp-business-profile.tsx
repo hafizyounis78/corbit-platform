@@ -65,7 +65,6 @@ export function WhatsAppBusinessProfile() {
     vertical: "",
     websites: [],
   });
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch the current profile on mount. A failure here usually means
@@ -87,7 +86,6 @@ export function WhatsAppBusinessProfile() {
           vertical: d.vertical ?? "",
           websites: Array.isArray(d.websites) ? d.websites : [],
         });
-        if (d.photo_url) setPhotoPreview(d.photo_url);
       } catch (err: any) {
         if (cancelled) return;
         setError(err?.response?.data?.message || (isAr ? "تعذّر تحميل البروفايل" : "Failed to load profile"));
@@ -162,27 +160,12 @@ export function WhatsAppBusinessProfile() {
         </div>
       </div>
 
-      {/* Read-only photo display. Per management decision the operator
-          should see the current WABA picture but not edit it from here
-          (picture changes are handled centrally outside the tenant UI).
-          The GET path still hydrates photo_url, so anything set via Hub
-          shows up correctly in the circle. */}
-      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-        <div style={{
-          width: 110, height: 110, borderRadius: "50%",
-          background: photoPreview ? `url(${photoPreview}) center/cover` : `${C.brd}`,
-          border: `3px solid ${C.brd}`,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          color: C.t3, fontSize: 11, overflow: "hidden", flexShrink: 0,
-        }}>
-          {!photoPreview && (isAr ? "لا توجد صورة" : "No photo")}
-        </div>
-        <div style={{ fontSize: 12, color: C.t2, lineHeight: 1.7 }}>
-          {isAr
-            ? "صورة بروفايل واتساب الأعمال كما يراها عملاؤك (تُعرض دائرةً)."
-            : "Your WhatsApp Business profile photo as customers see it (rendered as a circle)."}
-        </div>
-      </div>
+      {/* Photo section removed: this WABA tier on 360dialog Cloud V2 does
+          not expose the profile picture via API — /configs/profile/photo
+          returns 404 and the business/profile response does not include
+          profile_picture_url either. The image is visible to end users
+          on WhatsApp, just not retrievable on our side. Showing an empty
+          circle would be misleading. */}
 
       <div style={{ height: 1, background: C.brd }} />
 
