@@ -66,6 +66,8 @@ export default function ContactsPage() {
   const [newContact, setNewContact] = useState({ name: "", phone: "", email: "", city: "", tags: "", optInConsent: false });
   const [showSegmentModal, setShowSegmentModal] = useState(false);
   const [newSegment, setNewSegment] = useState({ name: "", status: "all", tags: [] as string[], scoreMin: 0, scoreMax: 100, cityFilter: "", orderMin: 0 });
+  const [previewCount, setPreviewCount] = useState<number | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editContact, setEditContact] = useState<any>(null);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -191,6 +193,33 @@ export default function ContactsPage() {
 
   // When tab or tags change, reset to page 1
   useEffect(() => { setPage(1); }, [activeTab, selectedTags]);
+
+  // Live preview count for the Create-Segment modal — debounce so we don't
+  // hit /segments/preview on every keystroke or tag toggle.
+  useEffect(() => {
+    if (!showSegmentModal) { setPreviewCount(null); setPreviewLoading(false); return; }
+    setPreviewLoading(true);
+    const handle = setTimeout(async () => {
+      const filters: Record<string, any> = {
+        scoreMin: typeof newSegment.scoreMin === "number" ? newSegment.scoreMin : 0,
+        scoreMax: typeof newSegment.scoreMax === "number" ? newSegment.scoreMax : 100,
+      };
+      if (newSegment.status && newSegment.status !== "all") filters.status = newSegment.status;
+      if (newSegment.tags && newSegment.tags.length > 0) filters.tags = newSegment.tags;
+      if (newSegment.cityFilter && newSegment.cityFilter !== "all") filters.city = newSegment.cityFilter;
+      if (typeof newSegment.orderMin === "number" && newSegment.orderMin > 0) filters.orderMin = newSegment.orderMin;
+      try {
+        const res = await api.post("/segments/preview", { filters });
+        const c = res?.data?.data?.count ?? res?.data?.count;
+        setPreviewCount(typeof c === "number" ? c : 0);
+      } catch {
+        setPreviewCount(null);
+      } finally {
+        setPreviewLoading(false);
+      }
+    }, 350);
+    return () => clearTimeout(handle);
+  }, [showSegmentModal, newSegment.status, newSegment.tags, newSegment.scoreMin, newSegment.scoreMax, newSegment.cityFilter, newSegment.orderMin]);
 
   // Clear bulk selection whenever the filter narrows or the tenant
   // navigates pages — the "all 225 matching" intent doesn't survive a
@@ -1420,18 +1449,12 @@ export default function ContactsPage() {
               {isAr ? "معاينة الشريحة" : "Segment Preview"}
             </div>
             <Card style={{ padding: 20 }}>
-              {/* Matching count */}
+              {/* Matching count — pulled live from /segments/preview */}
               <div style={{ textAlign: "center", marginBottom: 16 }}>
-                <div style={{ fontSize: 36, fontWeight: 700, color: C.pri }}>
-                  {(() => {
-                    let count = contacts.length;
-                    if (newSegment.status !== "all") count = contacts.filter((c) => c.st === newSegment.status).length;
-                    if (newSegment.tags.length > 0) count = Math.max(1, Math.floor(count * 0.4));
-                    if (newSegment.cityFilter) count = Math.max(1, Math.floor(count * 0.3));
-                    if (newSegment.orderMin > 0) count = Math.max(1, Math.floor(count * 0.6));
-                    if (newSegment.scoreMin > 0 || newSegment.scoreMax < 100) count = Math.max(1, Math.floor(count * 0.5));
-                    return count.toLocaleString();
-                  })()}
+                <div style={{ fontSize: 36, fontWeight: 700, color: C.pri, opacity: previewLoading ? 0.5 : 1 }}>
+                  {previewCount === null
+                    ? (previewLoading ? "…" : "—")
+                    : previewCount.toLocaleString()}
                 </div>
                 <div style={{ fontSize: 12, color: C.t2 }}>{isAr ? "جهة اتصال مطابقة" : "matching contacts"}</div>
               </div>
