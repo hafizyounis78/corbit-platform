@@ -301,9 +301,15 @@ export default function CampaignsPage() {
     const active = apiStats?.active ?? campaigns.filter((c) => c.st === "active").length;
     const done = campaigns.filter((c) => c.st === "completed").length;
     const sched = campaigns.filter((c) => c.st === "scheduled").length;
-    const withRoi = campaigns.filter((c) => c.roi && c.roi !== "-" && c.roi !== "+0%");
+    // Prefer the backend's totalRoi when it returns a meaningful value
+    // ("—" means no revenue source is connected; surface that verbatim
+    // instead of synthesising "0%" from rows that don't measure anything).
+    const apiTotalRoi = (apiStats as any)?.totalRoi as string | undefined;
+    const withRoi = campaigns.filter((c) => c.roi && c.roi !== "-" && c.roi !== "—" && c.roi !== "+0%");
     const totalRoi =
-      withRoi.length > 0
+      apiTotalRoi === "—"
+        ? "—"
+        : withRoi.length > 0
         ? (() => {
             const sum = withRoi.reduce((s, c) => {
               const v = parseFloat(String(c.roi).replace(/[+%]/g, ""));
@@ -312,7 +318,7 @@ export default function CampaignsPage() {
             const avg = Math.round(sum / withRoi.length);
             return (avg >= 0 ? "+" : "") + avg + "%";
           })()
-        : "0%";
+        : (apiTotalRoi ?? "0%");
     const avgOpen =
       campaigns.length > 0
         ? (campaigns.reduce((s, c) => s + (Number(c.readRate) || 0), 0) / campaigns.length).toFixed(1) + "%"
