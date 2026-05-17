@@ -185,11 +185,19 @@ export function WhatsAppConnect({ showHeader = true }: { showHeader?: boolean })
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
                 <Badge color="#10b981">{isAr ? "متصل" : "Connected"}</Badge>
-                {status.quality_rating && status.quality_rating !== 'unknown' && (
-                  <Badge color={QUALITY_COLOR[status.quality_rating] ?? C.t2}>
-                    {isAr ? "الجودة: " : "Quality: "}{status.quality_rating.toUpperCase()}
-                  </Badge>
-                )}
+                {(() => {
+                  // Normalize quality_rating casing — the DB enum is uppercase
+                  // ('GREEN'/'YELLOW'/'RED'/'UNKNOWN') but the webhook handler
+                  // has historically written lowercase. Accept either so the
+                  // badge always renders when the value is meaningful.
+                  const q = status.quality_rating?.toLowerCase();
+                  if (!q || q === 'unknown') return null;
+                  return (
+                    <Badge color={QUALITY_COLOR[q] ?? C.t2}>
+                      {isAr ? "الجودة: " : "Quality: "}{q.toUpperCase()}
+                    </Badge>
+                  );
+                })()}
                 {status.messaging_tier && TIER_LABEL[status.messaging_tier] && (
                   <Badge color="#6366f1">
                     {isAr ? "الحدّ: " : "Tier: "}
