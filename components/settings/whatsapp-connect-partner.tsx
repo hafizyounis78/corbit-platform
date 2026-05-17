@@ -33,6 +33,10 @@ type Status = {
   last_connected_at?: string | null;
   status?: string;
   quality_rating?: string;
+  messaging_tier?: string;
+  daily_send_cap?: number;
+  used_today?: number;
+  metrics_updated_at?: string | null;
 };
 
 const QUALITY_COLOR: Record<string, string> = {
@@ -40,6 +44,15 @@ const QUALITY_COLOR: Record<string, string> = {
   yellow: '#F59E0B',
   red:    '#EF4444',
   unknown:'#9CA3AF',
+};
+
+// Map our normalized tier (tier_0..tier_4) to a human label.
+const TIER_LABEL: Record<string, { en: string; ar: string }> = {
+  tier_0: { en: '250/day',          ar: '250/يوم' },
+  tier_1: { en: '1,000/day',        ar: '1,000/يوم' },
+  tier_2: { en: '10,000/day',       ar: '10,000/يوم' },
+  tier_3: { en: '100,000/day',      ar: '100,000/يوم' },
+  tier_4: { en: 'Unlimited',        ar: 'غير محدود' },
 };
 
 export function WhatsAppConnectPartner({ showHeader = true }: { showHeader?: boolean }) {
@@ -93,6 +106,12 @@ export function WhatsAppConnectPartner({ showHeader = true }: { showHeader?: boo
                     {isAr ? 'الجودة: ' : 'Quality: '}{status.quality_rating.toUpperCase()}
                   </Badge>
                 )}
+                {status.messaging_tier && TIER_LABEL[status.messaging_tier] && (
+                  <Badge color="#6366F1">
+                    {isAr ? 'الحدّ: ' : 'Tier: '}
+                    {isAr ? TIER_LABEL[status.messaging_tier].ar : TIER_LABEL[status.messaging_tier].en}
+                  </Badge>
+                )}
               </div>
               <div style={{ fontSize: 15, fontWeight: 700, color: C.txt, marginBottom: 4 }}>
                 {status.display_name || status.phone_number}
@@ -111,6 +130,41 @@ export function WhatsAppConnectPartner({ showHeader = true }: { showHeader?: boo
               {isAr ? 'فصل الربط' : 'Disconnect'}
             </Button>
           </div>
+
+          {/* 24h messaging window usage. Hidden when the tier is unlimited
+              (cap === -1) — there's nothing useful to show. used_today
+              counts unique outbound recipients in the last 24h, matching
+              Meta's quota model. */}
+          {typeof status.daily_send_cap === 'number' && status.daily_send_cap > 0 && (
+            (() => {
+              const cap = status.daily_send_cap;
+              const used = status.used_today ?? 0;
+              const pct = Math.min(100, Math.round((used / cap) * 100));
+              const warn = pct >= 80;
+              const barColor = warn ? '#EF4444' : '#10B981';
+              return (
+                <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${C.bd}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+                    <span style={{ fontSize: 12, color: C.t2, fontWeight: 600 }}>
+                      {isAr ? 'المُرسَل خلال 24 ساعة' : 'Sent in last 24h'}
+                    </span>
+                    <span style={{ fontSize: 12.5, color: C.txt, fontFamily: 'monospace', direction: 'ltr' }}>
+                      {used.toLocaleString()} / {cap.toLocaleString()}
+                    </span>
+                  </div>
+                  <div style={{ height: 8, background: C.bd, borderRadius: 4, overflow: 'hidden' }}>
+                    <div style={{ width: `${pct}%`, height: '100%', background: barColor, transition: 'width 300ms' }} />
+                  </div>
+                  {status.metrics_updated_at && (
+                    <div style={{ fontSize: 10.5, color: C.t3, marginTop: 6 }}>
+                      {isAr ? 'آخر تحديث للجودة: ' : 'Quality updated: '}
+                      {new Date(status.metrics_updated_at).toLocaleString(isAr ? 'ar' : 'en')}
+                    </div>
+                  )}
+                </div>
+              );
+            })()
+          )}
         </Card>
       ) : (
         <WhatsAppProvisioningWizard onClose={() => mutate()} />
