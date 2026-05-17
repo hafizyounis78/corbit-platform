@@ -143,7 +143,7 @@ export function WhatsAppConnectPartner({ showHeader = true }: { showHeader?: boo
               const warn = pct >= 80;
               const barColor = warn ? '#EF4444' : '#10B981';
               return (
-                <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${C.bd}` }}>
+                <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${C.brd}` }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
                     <span style={{ fontSize: 12, color: C.t2, fontWeight: 600 }}>
                       {isAr ? 'المُرسَل خلال 24 ساعة' : 'Sent in last 24h'}
@@ -152,7 +152,7 @@ export function WhatsAppConnectPartner({ showHeader = true }: { showHeader?: boo
                       {used.toLocaleString()} / {cap.toLocaleString()}
                     </span>
                   </div>
-                  <div style={{ height: 8, background: C.bd, borderRadius: 4, overflow: 'hidden' }}>
+                  <div style={{ height: 8, background: C.brd, borderRadius: 4, overflow: 'hidden' }}>
                     <div style={{ width: `${pct}%`, height: '100%', background: barColor, transition: 'width 300ms' }} />
                   </div>
                   {status.metrics_updated_at && (
