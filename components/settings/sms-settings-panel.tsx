@@ -197,7 +197,7 @@ export function SmsSettingsPanel() {
               display: "inline-flex", alignItems: "center", gap: 4,
             }}
           >
-            {busyAction === "refresh" ? "..." : "🔄"} {isAr ? "تحديث" : "Refresh"}
+            {busyAction === "refresh" ? "..." : <Icon name="refresh" size={12} />} <span>{isAr ? "تحديث" : "Refresh"}</span>
           </button>
         )}
 
@@ -218,7 +218,10 @@ export function SmsSettingsPanel() {
             fontSize: 12, color: C.warn, fontWeight: 600,
             display: "inline-block",
           }}>
-            ⚠️ {isAr ? `الرصيد تحت الحدّ المنخفض (${config?.low_balance_threshold} رسالة)` : `Balance below threshold (${config?.low_balance_threshold} messages)`}
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+              <Icon name="alert" size={13} />
+              <span>{isAr ? `الرصيد تحت الحدّ المنخفض (${config?.low_balance_threshold} رسالة)` : `Balance below threshold (${config?.low_balance_threshold} messages)`}</span>
+            </span>
           </div>
         )}
 
@@ -233,7 +236,7 @@ export function SmsSettingsPanel() {
       {/* ── Provider config card ── */}
       <Card style={{ padding: 22 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-          <span style={{ fontSize: 20 }}>🔑</span>
+          <span style={{ color: C.pri, display: "inline-flex" }}><Icon name="key" size={20} /></span>
           <h3 style={{ margin: 0, fontSize: 14.5, fontWeight: 700 }}>
             {isAr ? "بيانات مزوّد SMS" : "SMS Provider Settings"}
           </h3>
@@ -303,7 +306,7 @@ export function SmsSettingsPanel() {
                 border: `1px solid ${config.last_test_ok ? C.ok : C.err}25`,
                 fontSize: 11.5, color: config.last_test_ok ? C.ok : C.err,
               }}>
-                {config.last_test_ok ? "✓" : "⚠️"} {isAr ? "آخر اختبار: " : "Last test: "}
+                {config.last_test_ok ? "✓" : <Icon name="alert" size={11} />} {isAr ? "آخر اختبار: " : "Last test: "}
                 {new Date(config.last_test_at).toLocaleString(isAr ? "ar-SA" : "en-US")}
                 {!config.last_test_ok && config.last_test_message && (
                   <div style={{ marginTop: 4 }}>{config.last_test_message}</div>
@@ -314,14 +317,22 @@ export function SmsSettingsPanel() {
             {/* Action buttons */}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <Button outline onClick={() => { setEditMode(true); setTokenInput(""); }}>
-                ✏️ {isAr ? "تعديل التوكن" : "Edit Token"}
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                  <Icon name="pencil" size={13} />
+                  <span>{isAr ? "تعديل التوكن" : "Edit Token"}</span>
+                </span>
               </Button>
               <Button
                 outline
                 onClick={disconnect}
                 style={{ color: C.err, borderColor: C.err }}
               >
-                {busyAction === "disconnect" ? "..." : (isAr ? "🔌 فصل الحساب" : "🔌 Disconnect")}
+                {busyAction === "disconnect" ? "..." : (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                    <Icon name="plug" size={13} />
+                    <span>{isAr ? "فصل الحساب" : "Disconnect"}</span>
+                  </span>
+                )}
               </Button>
             </div>
           </div>
@@ -352,7 +363,12 @@ export function SmsSettingsPanel() {
                   disabled={busyAction === "test"}
                   style={{ background: C.info, borderColor: C.info }}
                 >
-                  {busyAction === "test" ? "..." : (isAr ? "🔍 فحص" : "🔍 Test")}
+                  {busyAction === "test" ? "..." : (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                      <Icon name="search" size={13} />
+                      <span>{isAr ? "فحص" : "Test"}</span>
+                    </span>
+                  )}
                 </Button>
               </div>
               <div style={{ fontSize: 10.5, color: C.t3, marginTop: 4 }}>
@@ -426,7 +442,12 @@ export function SmsSettingsPanel() {
               >
                 {busyAction === "save"
                   ? (isAr ? "...جاري الحفظ" : "Saving...")
-                  : (isAr ? "💾 حفظ وتحقّق من الاتصال" : "💾 Save + Verify")}
+                  : (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                      <Icon name="check" size={14} />
+                      <span>{isAr ? "حفظ وتحقّق من الاتصال" : "Save + Verify"}</span>
+                    </span>
+                  )}
               </Button>
               {editMode && (
                 <Button outline onClick={() => { setEditMode(false); setTokenInput(""); }}>
@@ -441,7 +462,10 @@ export function SmsSettingsPanel() {
       {/* ── Help / how to get a token ── */}
       <Card style={{ padding: 16, background: `${C.info}08`, border: `1px solid ${C.info}25` }}>
         <div style={{ fontSize: 12.5, color: C.t2, lineHeight: 1.7 }}>
-          <strong style={{ color: C.info }}>💡 {isAr ? "تحتاج توكن جديد؟" : "Need a token?"}</strong>{" "}
+          <strong style={{ color: C.info, display: "inline-flex", alignItems: "center", gap: 4, marginInlineEnd: 4 }}>
+            <Icon name="sparkles" size={13} />
+            <span>{isAr ? "تحتاج توكن جديد؟" : "Need a token?"}</span>
+          </strong>{" "}
           {isAr
             ? "ادخل بوّابة mobile.net.sa، أنشئ API Token، وفعّل كلّ الصلاحيّات (send, send-bulk, get-balance, get-message-status, get-sender-name)."
             : "Log into the mobile.net.sa portal, create an API Token, and enable all abilities (send, send-bulk, get-balance, get-message-status, get-sender-name)."}

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { Card } from "@/components/ui";
+import { Icon } from "@/components/icons/icon";
 import api from "@/lib/api/client";
 
 type Metric = {
@@ -21,12 +22,12 @@ type ChecklistResponse = {
 };
 
 const ICONS: Record<string, string> = {
-  quality: "🎯",
-  block_rate: "🚫",
-  rejected_templates: "📝",
-  opt_out_rate: "↩️",
-  open_rate: "👀",
-  reply_rate: "💬",
+  quality: "target",
+  block_rate: "ban",
+  rejected_templates: "text",
+  opt_out_rate: "reply",
+  open_rate: "eye",
+  reply_rate: "msg",
 };
 
 /**
@@ -67,7 +68,8 @@ export function QualityChecklistWidget() {
         ? "warn"
         : "ok";
 
-  const overallEmoji = overall === "ok" ? "✅" : overall === "warn" ? "⚠️" : "🚨";
+  const overallIcon = overall === "ok" ? "check" : overall === "warn" ? "alert" : "siren";
+  const overallColor = overall === "ok" ? "#10b981" : overall === "warn" ? "#f59e0b" : "#ef4444";
   const overallText = overall === "ok"
     ? (isAr ? "حسابك بصحّة ممتازة" : "Account healthy")
     : overall === "warn"
@@ -81,8 +83,9 @@ export function QualityChecklistWidget() {
           <div style={{ fontSize: 11, color: C.t2, marginBottom: 4 }}>
             {isAr ? "مؤشّرات صحّة الحساب اليوميّة" : "Daily Account Health"}
           </div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: C.txt }}>
-            {overallEmoji} {overallText}
+          <div style={{ fontSize: 16, fontWeight: 700, color: C.txt, display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ color: overallColor, display: "inline-flex" }}><Icon name={overallIcon} size={16} /></span>
+            <span>{overallText}</span>
           </div>
         </div>
         {data && (
@@ -106,10 +109,10 @@ export function QualityChecklistWidget() {
         }}>
           {data.metrics.map((m) => {
             const tone = m.status === "ok"
-              ? { bg: "#10b98112", border: "#10b98140", fg: "#059669", dot: "#10b981", emoji: "✅" }
+              ? { bg: "#10b98112", border: "#10b98140", fg: "#059669", dot: "#10b981", icon: "check" }
               : m.status === "warn"
-                ? { bg: "#f59e0b12", border: "#f59e0b40", fg: "#92400e", dot: "#f59e0b", emoji: "⚠️" }
-                : { bg: "#ef444412", border: "#ef444440", fg: "#b91c1c", dot: "#ef4444", emoji: "🚨" };
+                ? { bg: "#f59e0b12", border: "#f59e0b40", fg: "#92400e", dot: "#f59e0b", icon: "alert" }
+                : { bg: "#ef444412", border: "#ef444440", fg: "#b91c1c", dot: "#ef4444", icon: "siren" };
 
             return (
               <div
@@ -123,11 +126,11 @@ export function QualityChecklistWidget() {
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                  <span style={{ fontSize: 14 }}>{ICONS[m.key] ?? "•"}</span>
+                  <span style={{ color: tone.fg, display: "inline-flex" }}><Icon name={ICONS[m.key] ?? "circle"} size={14} /></span>
                   <span style={{ fontSize: 11, fontWeight: 600, color: C.t2, flex: 1, lineHeight: 1.3 }}>
                     {m.label}
                   </span>
-                  <span style={{ fontSize: 11 }}>{tone.emoji}</span>
+                  <span style={{ color: tone.fg, display: "inline-flex" }}><Icon name={tone.icon} size={12} /></span>
                 </div>
                 <div style={{ fontSize: 18, fontWeight: 800, color: tone.fg, lineHeight: 1.1 }}>
                   {m.value}

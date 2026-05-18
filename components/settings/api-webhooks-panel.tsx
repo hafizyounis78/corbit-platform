@@ -339,7 +339,10 @@ export function ApiAndWebhooksPanel({
                     onClick={() => testHook(w)}
                     style={{ padding: "5px 10px", borderRadius: 6, border: `1px solid ${C.info}`, background: "transparent", color: C.info, fontFamily: FONT_FAMILY, fontSize: 11, cursor: busy ? "wait" : "pointer", fontWeight: 600 }}
                   >
-                    🧪 {ar ? "اختبار" : "Test"}
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      <Icon name="target" size={11} />
+                      <span>{ar ? "اختبار" : "Test"}</span>
+                    </span>
                   </button>
                   <button
                     type="button"
@@ -377,10 +380,11 @@ export function ApiAndWebhooksPanel({
               style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontFamily: FONT_FAMILY, fontSize: 13 }}
             />
           </div>
-          <div style={{ padding: "10px 12px", borderRadius: 10, background: `${C.warn}10`, border: `1px solid ${C.warn}25`, fontSize: 11.5, color: C.t2, lineHeight: 1.6 }}>
-            ⚠️ {ar
+          <div style={{ padding: "10px 12px", borderRadius: 10, background: `${C.warn}10`, border: `1px solid ${C.warn}25`, fontSize: 11.5, color: C.t2, lineHeight: 1.6, display: "flex", alignItems: "flex-start", gap: 6 }}>
+            <span style={{ color: C.warn, display: "inline-flex", marginTop: 1, flexShrink: 0 }}><Icon name="alert" size={13} /></span>
+            <span>{ar
               ? "ستُعرض القيمة الكاملة مرّة واحدة فقط بعد الإنشاء. احفظها في مكان آمن — لا يمكن استرجاعها لاحقاً."
-              : "The full key value is shown once on creation. Store it somewhere safe — it can't be retrieved later."}
+              : "The full key value is shown once on creation. Store it somewhere safe — it can't be retrieved later."}</span>
           </div>
         </div>
       </Modal>
@@ -395,10 +399,11 @@ export function ApiAndWebhooksPanel({
       >
         {newKeyResult && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div style={{ padding: "10px 12px", borderRadius: 10, background: `${C.err}10`, border: `1px solid ${C.err}30`, fontSize: 11.5, color: C.err, fontWeight: 600 }}>
-              ⚠️ {ar
+            <div style={{ padding: "10px 12px", borderRadius: 10, background: `${C.err}10`, border: `1px solid ${C.err}30`, fontSize: 11.5, color: C.err, fontWeight: 600, display: "flex", alignItems: "flex-start", gap: 6 }}>
+              <Icon name="alert" size={13} />
+              <span>{ar
                 ? "هذه آخر مرّة ترى فيها القيمة الكاملة. انسخها الآن!"
-                : "This is the last time the full value is visible. Copy it now!"}
+                : "This is the last time the full value is visible. Copy it now!"}</span>
             </div>
             <div>
               <label style={{ display: "block", fontSize: 12, color: C.t2, marginBottom: 4 }}>
@@ -491,10 +496,11 @@ export function ApiAndWebhooksPanel({
       >
         {newHookResult && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div style={{ padding: "10px 12px", borderRadius: 10, background: `${C.warn}10`, border: `1px solid ${C.warn}30`, fontSize: 11.5, color: C.t2, lineHeight: 1.6 }}>
-              💡 {ar
+            <div style={{ padding: "10px 12px", borderRadius: 10, background: `${C.warn}10`, border: `1px solid ${C.warn}30`, fontSize: 11.5, color: C.t2, lineHeight: 1.6, display: "flex", alignItems: "flex-start", gap: 6 }}>
+              <span style={{ color: C.pri, display: "inline-flex", marginTop: 1, flexShrink: 0 }}><Icon name="sparkles" size={13} /></span>
+              <span>{ar
                 ? "احفظ السرّ التالي — تستخدمه للتحقّق من توقيع HMAC في الطلبات الواردة."
-                : "Save this secret — use it to verify the HMAC signature on incoming requests."}
+                : "Save this secret — use it to verify the HMAC signature on incoming requests."}</span>
             </div>
             <div>
               <label style={{ display: "block", fontSize: 12, color: C.t2, marginBottom: 4 }}>
