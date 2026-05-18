@@ -3,6 +3,7 @@
 import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { Card } from "@/components/ui";
+import { Icon } from "@/components/icons/icon";
 import { useBillingOverview, useSmsConfig } from "@/lib/api/hooks";
 import Link from "next/link";
 
@@ -52,8 +53,9 @@ export function SmsUsageWidget() {
           <div style={{ fontSize: 11, color: C.t2, marginBottom: 4 }}>
             {isAr ? "قناة SMS" : "SMS Channel"}
           </div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: C.txt }}>
-            💬 {sender || (isAr ? "حساب mobile.net.sa" : "mobile.net.sa account")}
+          <div style={{ fontSize: 18, fontWeight: 700, color: C.txt, display: "flex", alignItems: "center", gap: 6 }}>
+            <Icon name="phone" size={18} />
+            <span>{sender || (isAr ? "حساب mobile.net.sa" : "mobile.net.sa account")}</span>
           </div>
         </div>
         <Link href="/settings" style={{ textDecoration: "none", fontSize: 12, color: C.pri }}>
@@ -91,10 +93,12 @@ export function SmsUsageWidget() {
           marginTop: 14, padding: "10px 14px", borderRadius: 10,
           background: "#ef444412", border: "1px solid #ef444440",
           fontSize: 12, color: "#ef4444",
+          display: "flex", alignItems: "flex-start", gap: 6,
         }}>
-          ⚠️ {isAr
+          <Icon name="alert" size={13} />
+          <span>{isAr
             ? `الرصيد قارب على الانتهاء (${balance} متبقّية، الحدّ ${lowBalance}). أعد الشحن من بوابة mobile.net.sa.`
-            : `Balance is running low (${balance} remaining, threshold ${lowBalance}). Top up via your mobile.net.sa portal.`}
+            : `Balance is running low (${balance} remaining, threshold ${lowBalance}). Top up via your mobile.net.sa portal.`}</span>
         </div>
       )}
     </Card>

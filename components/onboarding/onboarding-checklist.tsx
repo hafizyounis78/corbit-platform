@@ -109,7 +109,7 @@ export function OnboardingChecklist() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14, gap: 12 }}>
         <div style={{ flex: 1 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-            <span style={{ fontSize: 20 }}>🚀</span>
+            <span style={{ color: C.pri, display: "inline-flex" }}><Icon name="rocket" size={20} /></span>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: C.txt }}>
               {isAr ? "ابدأ من هنا" : "Get Started"}
             </h3>

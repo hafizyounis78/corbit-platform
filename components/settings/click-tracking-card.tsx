@@ -5,6 +5,7 @@ import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { useToast } from "@/hooks/use-toast";
 import { Card, Toggle } from "@/components/ui";
+import { Icon } from "@/components/icons/icon";
 import api from "@/lib/api/client";
 import { FONT_FAMILY } from "@/lib/constants/font";
 
@@ -75,8 +76,9 @@ export function ClickTrackingCard() {
           <div style={{ fontSize: 11, color: C.t2, marginBottom: 4 }}>
             {isAr ? "تتبّع النقرات في الحملات" : "Campaign Click Tracking"}
           </div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: C.txt, marginBottom: 6 }}>
-            🔗 {isAr ? "تتبّع النقرات (Click Tracking)" : "Click Tracking"}
+          <div style={{ fontSize: 16, fontWeight: 700, color: C.txt, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+            <Icon name="link" size={16} />
+            <span>{isAr ? "تتبّع النقرات (Click Tracking)" : "Click Tracking"}</span>
           </div>
           <div style={{ fontSize: 12.5, color: C.t2, lineHeight: 1.75 }}>
             {isAr

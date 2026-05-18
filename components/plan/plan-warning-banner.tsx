@@ -135,7 +135,7 @@ export function PlanWarningBanner() {
   const color = isRed ? '#ef4444' : '#f59e0b';
   const bg    = isRed ? '#fee2e2' : '#fef3c7';
   const txt   = isRed ? '#991b1b' : '#92400e';
-  const icon  = banner.variant === 'expired' ? '🚫' : isRed ? '🚨' : '⚠️';
+  const iconName = banner.variant === 'expired' ? 'ban' : isRed ? 'siren' : 'alert';
 
   return (
     <div
@@ -151,7 +151,7 @@ export function PlanWarningBanner() {
         flexWrap: "wrap",
       }}
     >
-      <span style={{ fontSize: 16 }}>{icon}</span>
+      <span style={{ color, display: "inline-flex" }}><Icon name={iconName} size={16} /></span>
       <span style={{ flex: 1, minWidth: 200 }}>
         {isAr ? banner.messageAr : banner.messageEn}
       </span>

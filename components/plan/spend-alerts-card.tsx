@@ -5,15 +5,16 @@ import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { useToast } from "@/hooks/use-toast";
 import { Card, Button } from "@/components/ui";
+import { Icon } from "@/components/icons/icon";
 import { useAlertThresholds } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
 
 type Channel = "whatsapp" | "sms" | "ai";
 
-const CHANNEL_META: Record<Channel, { emoji: string; labelAr: string; labelEn: string; hintAr: string; hintEn: string }> = {
-  whatsapp: { emoji: "📱", labelAr: "واتساب", labelEn: "WhatsApp", hintAr: "كل رسائل واتساب مجتمعة (تسويق + خدمة + تحقق + دعم)", hintEn: "All WhatsApp messages combined (marketing + utility + auth + service)" },
-  sms:      { emoji: "💬", labelAr: "SMS",     labelEn: "SMS",      hintAr: "رسائل SMS فقط — مستقلة عن واتساب",                  hintEn: "SMS only — independent of WhatsApp" },
-  ai:       { emoji: "🤖", labelAr: "الذكاء",  labelEn: "AI",       hintAr: "ردود الذكاء الاصطناعي التلقائيّة",                   hintEn: "AI auto-replies" },
+const CHANNEL_META: Record<Channel, { icon: string; labelAr: string; labelEn: string; hintAr: string; hintEn: string }> = {
+  whatsapp: { icon: "msg",   labelAr: "واتساب", labelEn: "WhatsApp", hintAr: "كل رسائل واتساب مجتمعة (تسويق + خدمة + تحقق + دعم)", hintEn: "All WhatsApp messages combined (marketing + utility + auth + service)" },
+  sms:      { icon: "phone", labelAr: "SMS",     labelEn: "SMS",      hintAr: "رسائل SMS فقط — مستقلة عن واتساب",                  hintEn: "SMS only — independent of WhatsApp" },
+  ai:       { icon: "bot",   labelAr: "الذكاء",  labelEn: "AI",       hintAr: "ردود الذكاء الاصطناعي التلقائيّة",                   hintEn: "AI auto-replies" },
 };
 
 /**
@@ -70,8 +71,9 @@ export function SpendAlertsCard() {
         <div style={{ fontSize: 11, color: C.t2, marginBottom: 4 }}>
           {isAr ? "تنبيهات الإنفاق الشهري" : "Monthly spend alerts"}
         </div>
-        <div style={{ fontSize: 16, fontWeight: 700, color: C.txt }}>
-          🔔 {isAr ? "حدّ تنبيه لكل قناة" : "Per-channel thresholds"}
+        <div style={{ fontSize: 16, fontWeight: 700, color: C.txt, display: "flex", alignItems: "center", gap: 6 }}>
+          <Icon name="bell" size={16} />
+          <span>{isAr ? "حدّ تنبيه لكل قناة" : "Per-channel thresholds"}</span>
         </div>
         <div style={{ fontSize: 12, color: C.t2, marginTop: 6, lineHeight: 1.6 }}>
           {isAr
@@ -85,7 +87,7 @@ export function SpendAlertsCard() {
           const meta = CHANNEL_META[ch];
           return (
             <div key={ch} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 10, border: `1px solid ${C.brd}` }}>
-              <div style={{ fontSize: 22, width: 32, textAlign: "center" }}>{meta.emoji}</div>
+              <div style={{ width: 32, textAlign: "center", color: C.pri, display: "flex", justifyContent: "center" }}><Icon name={meta.icon} size={22} /></div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: C.txt }}>{isAr ? meta.labelAr : meta.labelEn}</div>
                 <div style={{ fontSize: 11, color: C.t3 }}>{isAr ? meta.hintAr : meta.hintEn}</div>

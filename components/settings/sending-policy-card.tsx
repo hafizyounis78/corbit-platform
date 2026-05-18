@@ -5,6 +5,7 @@ import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { useToast } from "@/hooks/use-toast";
 import { Card, Button, Toggle } from "@/components/ui";
+import { Icon } from "@/components/icons/icon";
 import api from "@/lib/api/client";
 import { FONT_FAMILY } from "@/lib/constants/font";
 
@@ -77,8 +78,9 @@ export function SendingPolicyCard() {
         <div style={{ fontSize: 11, color: C.t2, marginBottom: 4 }}>
           {isAr ? "سياسة الإرسال للحملات" : "Campaign Sending Policy"}
         </div>
-        <div style={{ fontSize: 16, fontWeight: 700, color: C.txt }}>
-          🛡️ {isAr ? "الإعدادات الافتراضيّة للمؤسّسة" : "Organization defaults"}
+        <div style={{ fontSize: 16, fontWeight: 700, color: C.txt, display: "flex", alignItems: "center", gap: 6 }}>
+          <Icon name="shield" size={16} />
+          <span>{isAr ? "الإعدادات الافتراضيّة للمؤسّسة" : "Organization defaults"}</span>
         </div>
         <div style={{ fontSize: 12, color: C.t2, marginTop: 6, lineHeight: 1.7 }}>
           {isAr
@@ -95,8 +97,9 @@ export function SendingPolicyCard() {
         <>
           {/* Frequency cap (Rule 4) */}
           <div style={{ padding: 14, borderRadius: 10, border: `1px solid ${C.brd}`, marginBottom: 12 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.txt, marginBottom: 4 }}>
-              📊 {isAr ? "حدّ الرسائل لكلّ عميل" : "Per-contact frequency cap"}
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.txt, marginBottom: 4, display: "flex", alignItems: "center", gap: 5 }}>
+              <Icon name="chart" size={13} />
+              <span>{isAr ? "حدّ الرسائل لكلّ عميل" : "Per-contact frequency cap"}</span>
             </div>
             <div style={{ fontSize: 11, color: C.t2, marginBottom: 12, lineHeight: 1.6 }}>
               {isAr
@@ -138,8 +141,9 @@ export function SendingPolicyCard() {
 
           {/* Send window (Rule 5) */}
           <div style={{ padding: 14, borderRadius: 10, border: `1px solid ${C.brd}` }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.txt, marginBottom: 4 }}>
-              🕒 {isAr ? "نافذة الإرسال" : "Send window"}
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.txt, marginBottom: 4, display: "flex", alignItems: "center", gap: 5 }}>
+              <Icon name="timer" size={13} />
+              <span>{isAr ? "نافذة الإرسال" : "Send window"}</span>
             </div>
             <div style={{ fontSize: 11, color: C.t2, marginBottom: 12, lineHeight: 1.6 }}>
               {isAr

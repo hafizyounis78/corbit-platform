@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Modal, Button } from "@/components/ui";
+import { Icon } from "@/components/icons/icon";
 import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { useToast } from "@/hooks/use-toast";
@@ -162,7 +163,7 @@ export function NewConversationModal({
     <Modal
       open={open}
       onClose={busy ? () => {} : onClose}
-      title={isAr ? "💬 محادثة جديدة" : "💬 New Conversation"}
+      title={isAr ? "محادثة جديدة" : "New Conversation"}
       submitLabel={busy ? (isAr ? "جارٍ الإرسال..." : "Sending...") : (isAr ? "بدء المحادثة" : "Start Conversation")}
       submitDisabled={busy || !canStart || step !== 3}
       onSubmit={handleStart}
@@ -292,10 +293,11 @@ export function NewConversationModal({
               {isAr ? "2. اختر قالباً معتمداً" : "2. Pick an approved template"}
             </div>
             {templates.length === 0 ? (
-              <div style={{ padding: 20, textAlign: "center", fontSize: 12.5, color: C.t2, lineHeight: 1.7 }}>
-                📭 {isAr
+              <div style={{ padding: 20, textAlign: "center", fontSize: 12.5, color: C.t2, lineHeight: 1.7, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                <Icon name="inbox" size={20} />
+                <span>{isAr
                   ? "لا توجد قوالب معتمدة بعد. أنشئ قالباً وانتظر موافقة Meta أوّلاً."
-                  : "No approved templates yet. Create one and wait for Meta to approve."}
+                  : "No approved templates yet. Create one and wait for Meta to approve."}</span>
               </div>
             ) : (
               <div style={{ maxHeight: 280, overflowY: "auto", display: "grid", gap: 6 }}>
@@ -386,8 +388,9 @@ export function NewConversationModal({
                 fontSize: 12, color: C.t2, lineHeight: 1.7, marginBottom: 10,
                 whiteSpace: "pre-wrap",
               }}>
-                <div style={{ fontSize: 10.5, fontWeight: 700, color: C.ok, marginBottom: 4 }}>
-                  📱 {isAr ? "معاينة" : "Preview"}
+                <div style={{ fontSize: 10.5, fontWeight: 700, color: C.ok, marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
+                  <Icon name="eye" size={11} />
+                  <span>{isAr ? "معاينة" : "Preview"}</span>
                 </div>
                 {variables.reduce((acc, v, i) => acc.replaceAll(`{{${i + 1}}}`, v.trim() || `{{${i + 1}}}`), pickedTemplate.body)}
               </div>

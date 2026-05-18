@@ -5,6 +5,7 @@ import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { useToast } from "@/hooks/use-toast";
 import { Card, Button, Toggle } from "@/components/ui";
+import { Icon } from "@/components/icons/icon";
 import { useCsatSettings } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
 
@@ -146,7 +147,12 @@ export function CsatSettingsPanel() {
           >
             {scaffolding
               ? (isAr ? "جارٍ الإنشاء..." : "Creating...")
-              : (isAr ? "✨ إنشاء قالب جاهز" : "✨ Create default template")}
+              : (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                  <Icon name="sparkles" size={13} />
+                  <span>{isAr ? "إنشاء قالب جاهز" : "Create default template"}</span>
+                </span>
+              )}
           </Button>
         </div>
         <select
@@ -173,16 +179,18 @@ export function CsatSettingsPanel() {
           ))}
         </select>
         {enabledWithoutTemplate && (
-          <div style={{ fontSize: 11, color: "#f59e0b", marginTop: 6 }}>
-            ⚠️ {isAr
+          <div style={{ fontSize: 11, color: "#f59e0b", marginTop: 6, display: "flex", alignItems: "flex-start", gap: 5 }}>
+            <Icon name="alert" size={12} />
+            <span>{isAr
               ? "الميزة مفعّلة بدون قالب — لن يُرسَل أيّ استبيان حتى تختار قالباً."
-              : "Feature is on but no template selected — no surveys will be sent."}
+              : "Feature is on but no template selected — no surveys will be sent."}</span>
           </div>
         )}
-        <div style={{ fontSize: 11, color: C.t3, marginTop: 6, lineHeight: 1.6 }}>
-          {isAr
-            ? "💡 يجب أن يحتوي القالب على Quick-Reply buttons بأرقام 1-5 (أو يحوي نصّ يبدأ بـ 1-5). المُحلّل يلتقط أول رقم 1-5 في ردّ العميل."
-            : "💡 The template should have Quick-Reply buttons labelled 1–5 (or text starting with 1–5). The parser picks up the first 1–5 digit in the customer's reply."}
+        <div style={{ fontSize: 11, color: C.t3, marginTop: 6, lineHeight: 1.6, display: "flex", alignItems: "flex-start", gap: 5 }}>
+          <span style={{ color: C.pri, display: "inline-flex", marginTop: 1, flexShrink: 0 }}><Icon name="sparkles" size={12} /></span>
+          <span>{isAr
+            ? "يجب أن يحتوي القالب على Quick-Reply buttons بأرقام 1-5 (أو يحوي نصّ يبدأ بـ 1-5). المُحلّل يلتقط أول رقم 1-5 في ردّ العميل."
+            : "The template should have Quick-Reply buttons labelled 1–5 (or text starting with 1–5). The parser picks up the first 1–5 digit in the customer's reply."}</span>
         </div>
       </div>
 

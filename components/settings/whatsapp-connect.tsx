@@ -5,6 +5,7 @@ import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { useToast } from "@/hooks/use-toast";
 import { Card, Button, Badge, Modal } from "@/components/ui";
+import { Icon } from "@/components/icons/icon";
 import { useWhatsAppStatus } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
 
@@ -161,7 +162,7 @@ export function WhatsAppConnect({ showHeader = true }: { showHeader?: boolean })
       {!status.connected && status.key_error === 'api_key_decrypt_failed' && (
         <Card style={{ padding: 16, marginBottom: 14, borderRight: `4px solid #ef4444`, background: `#ef444410` }}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-            <div style={{ fontSize: 22, lineHeight: 1 }}>🔐</div>
+            <div style={{ color: "#ef4444", display: "flex" }}><Icon name="lock" size={22} /></div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: C.txt, marginBottom: 4 }}>
                 {isAr ? "مفتاح التشفير لا يطابق الربط القديم" : "Encryption key mismatch"}
@@ -271,7 +272,10 @@ export function WhatsAppConnect({ showHeader = true }: { showHeader?: boolean })
 
       <Card style={{ padding: 20, marginBottom: 18 }}>
         <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 700 }}>
-          {isAr ? "📋 خطوات الربط (مرّة واحدة)" : "📋 Connection Steps (one-time)"}
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <Icon name="list" size={15} />
+            <span>{isAr ? "خطوات الربط (مرّة واحدة)" : "Connection Steps (one-time)"}</span>
+          </span>
         </h3>
 
         <Step n={1}

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Modal, Button, Badge } from "@/components/ui";
+import { Icon } from "@/components/icons/icon";
 import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { FONT_FAMILY } from "@/lib/constants/font";
@@ -68,10 +69,11 @@ export function CredentialsModal({ open, data, onClose, title }: Props) {
       onSubmit={onClose}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <div style={{ padding: "10px 12px", borderRadius: 8, background: `${C.warn || "#F5A623"}15`, border: `1px solid ${C.warn || "#F5A623"}40`, fontSize: 12.5, color: C.txt }}>
-          {ar
-            ? "⚠️ انسخ هذه البيانات الآن — لن تظهر كلمة المرور مرة أخرى."
-            : "⚠️ Copy these credentials now — the password will not be shown again."}
+        <div style={{ padding: "10px 12px", borderRadius: 8, background: `${C.warn || "#F5A623"}15`, border: `1px solid ${C.warn || "#F5A623"}40`, fontSize: 12.5, color: C.txt, display: "flex", alignItems: "flex-start", gap: 6 }}>
+          <span style={{ color: C.warn || "#F5A623", display: "inline-flex", marginTop: 1, flexShrink: 0 }}><Icon name="alert" size={14} /></span>
+          <span>{ar
+            ? "انسخ هذه البيانات الآن — لن تظهر كلمة المرور مرة أخرى."
+            : "Copy these credentials now — the password will not be shown again."}</span>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

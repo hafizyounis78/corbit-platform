@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { Button } from "@/components/ui";
+import { Icon } from "@/components/icons/icon";
 import api from "@/lib/api/client";
 
 type EstimateResponse = {
@@ -68,8 +69,9 @@ export function CostEstimate({
   return (
     <div style={{ marginTop: 12, padding: "10px 14px", borderRadius: 10, border: `1px dashed ${C.brd}`, background: `${C.pri}06` }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-        <div style={{ fontSize: 12, color: C.t2 }}>
-          💰 {isAr ? "تقدير الكلفة قبل الإرسال" : "Pre-flight cost estimate"}
+        <div style={{ fontSize: 12, color: C.t2, display: "flex", alignItems: "center", gap: 5 }}>
+          <Icon name="wallet" size={13} />
+          <span>{isAr ? "تقدير الكلفة قبل الإرسال" : "Pre-flight cost estimate"}</span>
         </div>
         <Button outline disabled={loading} onClick={fetchEstimate}>
           {loading
@@ -109,7 +111,7 @@ export function CostEstimate({
       )}
 
       {error && (
-        <div style={{ marginTop: 8, fontSize: 11, color: "#ef4444" }}>⚠️ {error}</div>
+        <div style={{ marginTop: 8, fontSize: 11, color: "#ef4444", display: "flex", alignItems: "center", gap: 5 }}><Icon name="alert" size={12} /><span>{error}</span></div>
       )}
     </div>
   );

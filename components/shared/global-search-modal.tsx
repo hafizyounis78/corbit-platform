@@ -239,15 +239,15 @@ export function GlobalSearchModal({
                         onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = C.inp; }}
                         onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
                       >
-                        <span style={{ fontSize: 14 }}>🕘</span>
-                        {r}
+                        <Icon name="timer" size={13} />
+                        <span>{r}</span>
                       </button>
                     ))}
                   </div>
                 </>
               ) : (
                 <div style={{ textAlign: "center", padding: "30px 16px", color: C.t3, fontSize: 13, lineHeight: 1.7 }}>
-                  <div style={{ fontSize: 32, marginBottom: 10 }}>🔍</div>
+                  <div style={{ marginBottom: 10, display: "flex", justifyContent: "center", color: C.t2 }}><Icon name="search" size={32} /></div>
                   <div style={{ fontWeight: 600, color: C.t2, marginBottom: 4 }}>
                     {isAr ? "ابحث في كل شي" : "Search everywhere"}
                   </div>
@@ -270,7 +270,7 @@ export function GlobalSearchModal({
           {/* Results */}
           {query.trim() && results && totalResults === 0 && !loading && (
             <div style={{ padding: "30px 18px", textAlign: "center", color: C.t3, fontSize: 13 }}>
-              <div style={{ fontSize: 28, marginBottom: 10 }}>🤷</div>
+              <div style={{ marginBottom: 10, display: "flex", justifyContent: "center", color: C.t3 }}><Icon name="search" size={28} /></div>
               <div>
                 {isAr
                   ? `لا توجد نتائج لـ "${query}"`
@@ -283,7 +283,7 @@ export function GlobalSearchModal({
             <div>
               {/* Conversations */}
               {results.conversations.length > 0 && (
-                <Section title={isAr ? "💬 محادثات" : "💬 Conversations"} count={results.conversations.length} C={C}>
+                <Section title={isAr ? "محادثات" : "Conversations"} icon="msg" count={results.conversations.length} C={C}>
                   {results.conversations.map((c) => (
                     <ResultRow
                       key={`conv-${c.id}`}
@@ -301,7 +301,7 @@ export function GlobalSearchModal({
 
               {/* Contacts */}
               {results.contacts.length > 0 && (
-                <Section title={isAr ? "👤 جهات اتصال" : "👤 Contacts"} count={results.contacts.length} C={C}>
+                <Section title={isAr ? "جهات اتصال" : "Contacts"} icon="users" count={results.contacts.length} C={C}>
                   {results.contacts.map((c) => (
                     <ResultRow
                       key={`contact-${c.id}`}
@@ -319,7 +319,7 @@ export function GlobalSearchModal({
 
               {/* Campaigns */}
               {results.campaigns.length > 0 && (
-                <Section title={isAr ? "📢 حملات" : "📢 Campaigns"} count={results.campaigns.length} C={C}>
+                <Section title={isAr ? "حملات" : "Campaigns"} icon="megaphone" count={results.campaigns.length} C={C}>
                   {results.campaigns.map((c) => (
                     <ResultRow
                       key={`camp-${c.id}`}
@@ -337,7 +337,7 @@ export function GlobalSearchModal({
 
               {/* Templates */}
               {results.templates.length > 0 && (
-                <Section title={isAr ? "📝 قوالب" : "📝 Templates"} count={results.templates.length} C={C}>
+                <Section title={isAr ? "قوالب" : "Templates"} icon="file" count={results.templates.length} C={C}>
                   {results.templates.map((t) => (
                     <ResultRow
                       key={`tmpl-${t.id}`}
@@ -377,9 +377,10 @@ export function GlobalSearchModal({
 }
 
 function Section({
-  title, count, C, children,
+  title, icon, count, C, children,
 }: {
   title: string;
+  icon?: string;
   count: number;
   C: any;
   children: React.ReactNode;
@@ -397,6 +398,7 @@ function Section({
         alignItems: "center",
         gap: 6,
       }}>
+        {icon && <Icon name={icon} size={11} />}
         <span>{title}</span>
         <span style={{ color: C.t3, fontWeight: 500 }}>· {count}</span>
       </div>

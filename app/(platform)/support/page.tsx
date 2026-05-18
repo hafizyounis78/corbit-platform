@@ -55,12 +55,12 @@ export default function HelpCenterPage() {
   }, [tab]);
 
   const tabs = [
-    { key: "guides",    label: isAr ? "📖 الأدلّة" : "📖 Guides" },
-    { key: "faq",       label: isAr ? "❓ الأسئلة الشائعة" : "❓ FAQ" },
-    { key: "tickets",   label: isAr ? "🎫 التذاكر" : "🎫 Tickets" },
-    { key: "live-chat", label: isAr ? "💬 محادثة الدعم" : "💬 Live Chat" },
-    { key: "contact",   label: isAr ? "📞 تواصل معنا" : "📞 Contact" },
-    ...(isAdmin ? [{ key: "playbook", label: isAr ? "📚 دليل المبيعات" : "📚 Sales Playbook" }] : []),
+    { key: "guides",    label: isAr ? "الأدلّة" : "Guides", icon: "book" },
+    { key: "faq",       label: isAr ? "الأسئلة الشائعة" : "FAQ", icon: "info" },
+    { key: "tickets",   label: isAr ? "التذاكر" : "Tickets", icon: "ticket" },
+    { key: "live-chat", label: isAr ? "محادثة الدعم" : "Live Chat", icon: "msg" },
+    { key: "contact",   label: isAr ? "تواصل معنا" : "Contact", icon: "phone" },
+    ...(isAdmin ? [{ key: "playbook", label: isAr ? "دليل المبيعات" : "Sales Playbook", icon: "book" }] : []),
   ];
 
   return (
@@ -136,7 +136,7 @@ function TicketsTab({ router }: { router: ReturnType<typeof useRouter> }) {
 
         {!isLoading && tickets.length === 0 && (
           <div style={{ padding: "60px 20px", textAlign: "center" }}>
-            <div style={{ fontSize: 36, marginBottom: 10 }}>🎫</div>
+            <div style={{ marginBottom: 10, display: "flex", justifyContent: "center", color: C.t2 }}><Icon name="ticket" size={36} /></div>
             <div style={{ fontSize: 14, color: C.t2, marginBottom: 14 }}>
               {isAr ? "لا توجد تذاكر بعد." : "No tickets yet."}
             </div>

@@ -104,8 +104,9 @@ export function QuickRepliesPanel() {
     <Card style={{ padding: 20, marginBottom: 16, fontFamily: FONT_FAMILY }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
         <div>
-          <h3 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700, color: C.txt }}>
-            ⚡ {isAr ? "الردود السريعة" : "Quick Replies"}
+          <h3 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700, color: C.txt, display: "flex", alignItems: "center", gap: 6 }}>
+            <Icon name="zap" size={15} />
+            <span>{isAr ? "الردود السريعة" : "Quick Replies"}</span>
           </h3>
           <p style={{ margin: 0, fontSize: 12, color: C.t2, lineHeight: 1.6 }}>
             {isAr
@@ -201,10 +202,11 @@ export function QuickRepliesPanel() {
           {isAr ? "جارٍ التحميل..." : "Loading..."}
         </div>
       ) : replies.length === 0 ? (
-        <div style={{ textAlign: "center", padding: 30, color: C.t2, fontSize: 13, lineHeight: 1.7 }}>
-          📭 {isAr
+        <div style={{ textAlign: "center", padding: 30, color: C.t2, fontSize: 13, lineHeight: 1.7, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+          <Icon name="inbox" size={20} />
+          <span>{isAr
             ? "لا توجد ردود محفوظة بعد. اضغط 'إضافة ردّ' لتبدأ بناء مكتبة الفريق."
-            : "No saved replies yet. Click 'Add reply' to start building the team library."}
+            : "No saved replies yet. Click 'Add reply' to start building the team library."}</span>
         </div>
       ) : (
         <div style={{ display: "grid", gap: 8 }}>

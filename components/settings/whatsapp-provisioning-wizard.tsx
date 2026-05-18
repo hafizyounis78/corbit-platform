@@ -615,10 +615,14 @@ function ReviewStep({
         <div style={{
           padding: 12, borderRadius: 10, marginBottom: 16,
           background: '#FEF3C7', color: '#92400E', fontSize: 12.5,
+          display: "flex", alignItems: "flex-start", gap: 6,
         }}>
-          {isAr ? '⚠️ لم تكتمل: ' : '⚠️ Incomplete: '}
-          {!requiredDocsUploaded && (isAr ? 'الأوراق المطلوبة. ' : 'Required documents. ')}
-          {!allConsentsSigned && (isAr ? 'الموافقات القانونيّة.' : 'Legal consents.')}
+          <Icon name="alert" size={13} />
+          <span>
+            {isAr ? 'لم تكتمل: ' : 'Incomplete: '}
+            {!requiredDocsUploaded && (isAr ? 'الأوراق المطلوبة. ' : 'Required documents. ')}
+            {!allConsentsSigned && (isAr ? 'الموافقات القانونيّة.' : 'Legal consents.')}
+          </span>
         </div>
       )}
       <ReviewBlock title={isAr ? 'الشركة' : 'Business'} C={C}>
@@ -669,7 +673,7 @@ function ProvisioningStatusCard({ draft }: { draft: Draft }) {
 
   return (
     <Card style={{ padding: 28, textAlign: 'center' }}>
-      <div style={{ fontSize: 36, marginBottom: 12 }}>📋</div>
+      <div style={{ marginBottom: 12, display: "flex", justifyContent: "center", color: cur.color }}><Icon name="list" size={36} /></div>
       <h3 style={{ fontSize: 16, fontWeight: 700, color: cur.color, marginBottom: 8 }}>
         {isAr ? cur.ar : cur.en}
       </h3>
