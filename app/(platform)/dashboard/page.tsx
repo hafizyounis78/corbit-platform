@@ -225,7 +225,9 @@ export default function DashboardPage() {
                 : qr === "YELLOW" ? "#f59e0b"
                 : qr === "RED"    ? "#ef4444"
                 : C.t3;
-              const qrEmoji = qr === "GREEN" ? "🟢" : qr === "YELLOW" ? "🟡" : qr === "RED" ? "🔴" : "⚪";
+              // Coloured dot stands in for the quality rating; the
+              // colour already carries the meaning and avoids OS-tinted
+              // emoji glyphs.
               const qrLabel = qr === "GREEN"  ? (isAr ? "ممتاز" : "Healthy")
                 : qr === "YELLOW" ? (isAr ? "تحذير" : "Warning")
                 : qr === "RED"    ? (isAr ? "مقيّد" : "Throttled")
@@ -268,8 +270,9 @@ export default function DashboardPage() {
                     }}>
                       <div title={isAr ? "تقييم Meta لجودة الرسائل" : "Meta quality rating"}>
                         <div style={{ color: C.t3, marginBottom: 2 }}>{isAr ? "الجودة" : "Quality"}</div>
-                        <div style={{ fontWeight: 700, color: qrColor }}>
-                          {qrEmoji} {qrLabel}
+                        <div style={{ fontWeight: 700, color: qrColor, display: "flex", alignItems: "center", gap: 5 }}>
+                          <span style={{ width: 8, height: 8, borderRadius: 4, background: qrColor, display: "inline-block" }} />
+                          <span>{qrLabel}</span>
                         </div>
                       </div>
                       <div title={isAr ? "حدّ الإرسال اليومي من Meta" : "Meta daily send cap"}>

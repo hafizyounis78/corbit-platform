@@ -1688,7 +1688,7 @@ export default function ContactsPage() {
                 </div>
               ) : (
                 <div>
-                  <div style={{ fontSize: 24, marginBottom: 6 }}>📁</div>
+                  <div style={{ marginBottom: 6, display: "flex", justifyContent: "center", color: C.t2 }}><Icon name="upload" size={24} /></div>
                   <div style={{ fontSize: 12, color: C.t2 }}>
                     {isAr ? "اضغط لاختيار ملف CSV" : "Click to select CSV file"}
                   </div>

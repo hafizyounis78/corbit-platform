@@ -224,7 +224,7 @@ export default function BillingPage() {
             fontSize: 12.5,
             lineHeight: 1.6,
           }}>
-            <span style={{ fontSize: 16 }}>🧠</span>
+            <span style={{ color: "#7C3AED", display: "inline-flex", marginTop: 1 }}><Icon name="brain" size={16} /></span>
             <div style={{ flex: 1 }}>
               <strong style={{ color: "#7C3AED" }}>
                 {ar ? "تحليلات AI مجانيّة" : "AI analytics are free"}
@@ -269,10 +269,11 @@ export default function BillingPage() {
 
                 if (total <= 0) {
                   return (
-                    <div style={{ padding: "20px 4px", textAlign: "center", color: C.t2, fontSize: 12.5, lineHeight: 1.7 }}>
-                      📊 {ar
+                    <div style={{ padding: "20px 4px", textAlign: "center", color: C.t2, fontSize: 12.5, lineHeight: 1.7, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                      <Icon name="chart" size={20} />
+                      <span>{ar
                         ? "لا توجد تكاليف هذا الشهر بعد. ستظهر النسب فور بدء الإرسال."
-                        : "No costs this month yet. Breakdown will populate once sending starts."}
+                        : "No costs this month yet. Breakdown will populate once sending starts."}</span>
                     </div>
                   );
                 }
@@ -331,10 +332,11 @@ export default function BillingPage() {
         };
         return (
           <div>
-            <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 10, background: `${C.ok}10`, border: `1px solid ${C.ok}25`, fontSize: 12, color: C.t2, lineHeight: 1.6 }}>
-              💎 {ar
+            <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 10, background: `${C.ok}10`, border: `1px solid ${C.ok}25`, fontSize: 12, color: C.t2, lineHeight: 1.6, display: "flex", alignItems: "flex-start", gap: 8 }}>
+              <span style={{ color: C.ok, display: "inline-flex", marginTop: 2, flexShrink: 0 }}><Icon name="gem" size={14} /></span>
+              <span>{ar
                 ? "الترقية تتمّ عبر فريق المبيعات بتحويل بنكي معتمد. اضغط على \"اختر هذه الخطة\" وسنفتح واتساب فوراً."
-                : "Upgrades go through sales via approved bank transfer. Click \"Choose this plan\" to start the WhatsApp request."}
+                : "Upgrades go through sales via approved bank transfer. Click \"Choose this plan\" to start the WhatsApp request."}</span>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 16 }}>
               {sortedPlans.length === 0 && (
@@ -432,11 +434,11 @@ export default function BillingPage() {
               channels in the same filtered list. */}
           <div style={{ padding: "14px 16px 0", display: "flex", gap: 8, flexWrap: "wrap" }}>
             {([
-              { key: "all",      labelAr: "الكل",        labelEn: "All",       emoji: "📋" },
-              { key: "whatsapp", labelAr: "واتساب",      labelEn: "WhatsApp",  emoji: "📱" },
-              { key: "sms",      labelAr: "SMS",         labelEn: "SMS",       emoji: "💬" },
-              { key: "ai",       labelAr: "الذكاء",      labelEn: "AI",        emoji: "🤖" },
-              { key: "topup",    labelAr: "شحن الرصيد",  labelEn: "Top-ups",   emoji: "💰" },
+              { key: "all",      labelAr: "الكل",        labelEn: "All",       icon: "list" },
+              { key: "whatsapp", labelAr: "واتساب",      labelEn: "WhatsApp",  icon: "msg" },
+              { key: "sms",      labelAr: "SMS",         labelEn: "SMS",       icon: "phone" },
+              { key: "ai",       labelAr: "الذكاء",      labelEn: "AI",        icon: "bot" },
+              { key: "topup",    labelAr: "شحن الرصيد",  labelEn: "Top-ups",   icon: "wallet" },
             ] as const).map((opt) => {
               const selected = txnCategory === opt.key;
               return (
@@ -453,7 +455,7 @@ export default function BillingPage() {
                     display: "flex", alignItems: "center", gap: 6,
                   }}
                 >
-                  <span>{opt.emoji}</span>
+                  <Icon name={opt.icon} size={13} />
                   <span>{ar ? opt.labelAr : opt.labelEn}</span>
                 </button>
               );
@@ -477,16 +479,22 @@ export default function BillingPage() {
               <tbody>
                 {paginatedTransactions.map((tx: any, i: number) => {
                   const cat = (tx.category as string) || 'other';
-                  const catLabel = cat === 'whatsapp' ? (ar ? '📱 واتساب' : '📱 WhatsApp')
-                    : cat === 'sms' ? '💬 SMS'
-                    : cat === 'ai' ? (ar ? '🤖 ذكاء' : '🤖 AI')
-                    : cat === 'topup' ? (ar ? '💰 شحن' : '💰 Top-up')
+                  const catIcon = cat === 'whatsapp' ? 'msg' : cat === 'sms' ? 'phone' : cat === 'ai' ? 'bot' : cat === 'topup' ? 'wallet' : null;
+                  const catText = cat === 'whatsapp' ? (ar ? 'واتساب' : 'WhatsApp')
+                    : cat === 'sms' ? 'SMS'
+                    : cat === 'ai' ? (ar ? 'ذكاء' : 'AI')
+                    : cat === 'topup' ? (ar ? 'شحن' : 'Top-up')
                     : '—';
                   const txTypeLabel = tx.type === 'credit' ? t("payment") : tx.type === 'refund' ? t("refund") : t("charge");
                   return (
                     <tr key={i} style={{ borderBottom: `1px solid ${dk ? C.brd : "#F5F2ED"}` }}>
                       <td style={{ padding: "12px 16px" }}><Badge color={tx.type === "credit" ? C.ok : tx.type === "refund" ? C.info : C.err}>{txTypeLabel}</Badge></td>
-                      <td style={{ padding: "12px 16px", fontSize: 12, color: C.t2 }}>{catLabel}</td>
+                      <td style={{ padding: "12px 16px", fontSize: 12, color: C.t2 }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                          {catIcon && <Icon name={catIcon} size={12} />}
+                          <span>{catText}</span>
+                        </span>
+                      </td>
                       <td style={{ padding: "12px 16px" }}>{ar ? tx.descAr || tx.desc : tx.desc}</td>
                       <td style={{ padding: "12px 16px", fontWeight: 600, color: tx.type === "credit" ? C.ok : C.err }}>{tx.type === "credit" ? "+" : "-"}{Math.abs(Number(tx.amount || 0)).toLocaleString()} {t("sar")}</td>
                       <td style={{ padding: "12px 16px", color: C.t2 }}>{tx.date}</td>
@@ -510,7 +518,7 @@ export default function BillingPage() {
         onSubmit={() => { if (confirmUpgrade) handleRequestUpgrade(confirmUpgrade); }}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 14, textAlign: "center" }}>
-          <div style={{ fontSize: 40 }}>💬</div>
+          <div style={{ display: "flex", justifyContent: "center", color: C.pri }}><Icon name="msg" size={40} /></div>
           <div style={{ fontSize: 16, fontWeight: 700 }}>
             {ar ? `الترقية إلى خطة ${confirmUpgrade?.name || ""}` : `Upgrade to ${confirmUpgrade?.name || ""} plan`}
           </div>
@@ -599,8 +607,9 @@ export default function BillingPage() {
                 cursor: "pointer", textAlign: "start", display: "flex", alignItems: "center", gap: 8,
               }}
             >
-              <span>{showCalc ? "▾" : "▸"}</span>
-              {ar ? "🧮 حاسبة الرصيد — قدّر المبلغ من عدد الرسائل" : "🧮 Calculator — estimate from message volume"}
+              <Icon name={showCalc ? "chevronDown" : "chevronRight"} size={12} />
+              <Icon name="chart" size={14} />
+              <span>{ar ? "حاسبة الرصيد — قدّر المبلغ من عدد الرسائل" : "Calculator — estimate from message volume"}</span>
             </button>
             {showCalc && (() => {
               const mk = parseInt(calcMk, 10) || 0;

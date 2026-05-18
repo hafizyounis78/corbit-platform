@@ -4,6 +4,7 @@ import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { useAiInsights } from "@/lib/api/hooks";
 import { FONT_FAMILY } from "@/lib/constants/font";
+import { Icon } from "@/components/icons/icon";
 
 interface InsightsPayload {
   fastest_growing: string | null;
@@ -53,7 +54,7 @@ export function CustomerInsightsBar() {
   // leads worth chasing now.
   const cards = [
     {
-      icon: "🚨",
+      icon: "siren",
       title: isAr ? "خطر فقدان عملاء" : "Churn Risk",
       value: insights.churn_risk_count,
       caption: isAr ? "عملاء غير نشطين 30+ يوم" : "Inactive 30+ days",
@@ -61,7 +62,7 @@ export function CustomerInsightsBar() {
       color: C.err,
     },
     {
-      icon: "💎",
+      icon: "gem",
       title: isAr ? "فرصة برنامج ولاء" : "Loyalty Opportunity",
       value: insights.opportunity_count,
       caption: isAr ? "مشترون متكررون يستحقّون مكافأة" : "Repeat buyers worth rewarding",
@@ -69,7 +70,7 @@ export function CustomerInsightsBar() {
       color: C.ok,
     },
     {
-      icon: "🔥",
+      icon: "fire",
       title: isAr ? "عملاء حارّون" : "Hot Leads",
       value: insights.hot_leads_count,
       caption: isAr ? "متفاعلون مع آخر حملاتك" : "Engaged with recent campaigns",
@@ -89,7 +90,7 @@ export function CustomerInsightsBar() {
         fontWeight: 700,
         color: C.txt,
       }}>
-        <span style={{ fontSize: 16 }}>💡</span>
+        <span style={{ color: C.pri, display: "inline-flex" }}><Icon name="sparkles" size={16} /></span>
         {isAr ? "رؤى ذكيّة عن عملائك" : "AI Customer Insights"}
       </div>
 
@@ -127,7 +128,7 @@ export function CustomerInsightsBar() {
               marginBottom: 6,
             }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 18 }}>{card.icon}</span>
+                <span style={{ color: card.color, display: "inline-flex" }}><Icon name={card.icon} size={16} /></span>
                 <span style={{ fontSize: 12.5, fontWeight: 600, color: C.txt }}>
                   {card.title}
                 </span>

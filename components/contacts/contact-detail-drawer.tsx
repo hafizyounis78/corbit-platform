@@ -251,13 +251,15 @@ export function ContactDetailDrawer({ contactId, onClose, onMutated }: Props) {
                     {contact.ph}
                   </div>
                   {contact.email && (
-                    <div style={{ fontSize: 11.5, color: C.t3 }}>
-                      ✉ {contact.email}
+                    <div style={{ fontSize: 11.5, color: C.t3, display: "flex", alignItems: "center", gap: 4 }}>
+                      <Icon name="mail" size={11} />
+                      <span>{contact.email}</span>
                     </div>
                   )}
                   {contact.city && (
-                    <div style={{ fontSize: 11.5, color: C.t3, marginTop: 2 }}>
-                      📍 {contact.city}
+                    <div style={{ fontSize: 11.5, color: C.t3, marginTop: 2, display: "flex", alignItems: "center", gap: 4 }}>
+                      <Icon name="globe" size={11} />
+                      <span>{contact.city}</span>
                     </div>
                   )}
                 </div>
@@ -364,8 +366,8 @@ export function ContactDetailDrawer({ contactId, onClose, onMutated }: Props) {
                   fontSize: 12, fontWeight: 700, color: AI_COLOR,
                   marginBottom: 10,
                 }}>
-                  <span>🧠</span>
-                  {isAr ? "رؤى ذكيّة" : "AI Insights"}
+                  <Icon name="brain" size={14} />
+                  <span>{isAr ? "رؤى ذكيّة" : "AI Insights"}</span>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {contact.aiNotes.map((note, i) => (
@@ -393,8 +395,8 @@ export function ContactDetailDrawer({ contactId, onClose, onMutated }: Props) {
                   fontSize: 12, fontWeight: 700, color: C.txt, marginBottom: 10,
                   display: "flex", alignItems: "center", gap: 6,
                 }}>
-                  <span>📅</span>
-                  {isAr ? "سجل النشاط" : "Activity Timeline"}
+                  <Icon name="calendar" size={14} />
+                  <span>{isAr ? "سجل النشاط" : "Activity Timeline"}</span>
                 </div>
                 <div style={{ position: "relative", paddingInlineStart: 22 }}>
                   {/* Vertical guide line */}

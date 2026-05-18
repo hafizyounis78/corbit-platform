@@ -4,6 +4,7 @@ import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { useAiSegments } from "@/lib/api/hooks";
 import { FONT_FAMILY } from "@/lib/constants/font";
+import { Icon } from "@/components/icons/icon";
 
 interface SegmentTile {
   key: string;
@@ -80,7 +81,7 @@ export function SmartSegmentsBar({ onSegmentClick, activeSegment }: Props) {
           fontWeight: 700,
           color: C.txt,
         }}>
-          <span style={{ fontSize: 16 }}>🧠</span>
+          <span style={{ color: C.pri, display: "inline-flex" }}><Icon name="brain" size={16} /></span>
           {isAr ? "شرائح ذكيّة" : "Smart Segments"}
           <span style={{ fontSize: 11, fontWeight: 400, color: C.t3 }}>
             {isAr ? "(يتمّ تحديثها يومياً)" : "(refreshed daily)"}
@@ -136,7 +137,7 @@ export function SmartSegmentsBar({ onSegmentClick, activeSegment }: Props) {
                 justifyContent: "space-between",
                 marginBottom: 4,
               }}>
-                <span style={{ fontSize: 22 }}>{seg.icon}</span>
+                <span style={{ color: seg.color, display: "inline-flex" }}><Icon name={seg.icon} size={22} /></span>
                 <span style={{
                   fontSize: 18,
                   fontWeight: 800,

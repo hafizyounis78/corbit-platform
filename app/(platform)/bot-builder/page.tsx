@@ -1133,8 +1133,10 @@ export default function BotBuilderPage() {
                                 borderRadius: 6,
                                 background: `${C.t3}15`,
                                 color: C.t2,
+                                display: "inline-flex", alignItems: "center", gap: 3,
                               }}>
-                                👁 {visited.toLocaleString()}
+                                <Icon name="eye" size={10} />
+                                <span>{visited.toLocaleString()}</span>
                               </span>
                               {escalated > 0 && (
                                 <span style={{
@@ -1142,8 +1144,10 @@ export default function BotBuilderPage() {
                                   borderRadius: 6,
                                   background: "#EF444415",
                                   color: "#B91C1C",
+                                  display: "inline-flex", alignItems: "center", gap: 3,
                                 }}>
-                                  ↗ {escalated.toLocaleString()}
+                                  <Icon name="trendingUp" size={10} />
+                                  <span>{escalated.toLocaleString()}</span>
                                 </span>
                               )}
                             </span>
@@ -2361,7 +2365,7 @@ export default function BotBuilderPage() {
         const cards: AiInsightCard[] = [];
         if (top && top.conversations > 0) {
           cards.push({
-            icon: "🏆",
+            icon: "award",
             title: isAr ? "البوت الأنشط" : "Most Active Bot",
             value: top.conversations,
             caption: isAr
@@ -2373,7 +2377,7 @@ export default function BotBuilderPage() {
         }
         if (drafts.length > 0) {
           cards.push({
-            icon: "📝",
+            icon: "text",
             title: isAr ? "مسودّات لم تُنشَر" : "Unpublished Drafts",
             value: drafts.length,
             caption: isAr
@@ -2385,7 +2389,7 @@ export default function BotBuilderPage() {
         }
         if (published.length === 0 && filteredBots.length > 0) {
           cards.push({
-            icon: "💡",
+            icon: "sparkles",
             title: isAr ? "اقتراح" : "Suggestion",
             caption: isAr
               ? "لا يوجد بوت نشط حالياً — الذكاء الاصطناعي يجاوب بدلاً منهم. فعّل بوت لتقليل التكلفة."
@@ -2395,7 +2399,7 @@ export default function BotBuilderPage() {
           });
         } else {
           cards.push({
-            icon: "🚀",
+            icon: "rocket",
             title: isAr ? "بوتات نشطة" : "Active Bots",
             value: published.length,
             caption: isAr
@@ -2927,7 +2931,7 @@ function BotMediaUploader({
     onChange(null);
   };
 
-  const typeIcon = media?.type === "image" ? "🖼️" : media?.type === "video" ? "🎬" : "📎";
+  const typeIcon = media?.type === "image" ? "image" : media?.type === "video" ? "video" : "clip";
   const typeLabel = media?.type === "image"
     ? (isAr ? "صورة" : "Image")
     : media?.type === "video"
@@ -2971,7 +2975,12 @@ function BotMediaUploader({
         >
           {uploading
             ? (isAr ? "جاري الرفع..." : "Uploading...")
-            : (isAr ? "📎 رفع صورة / فيديو / PDF" : "📎 Upload image / video / PDF")}
+            : (
+              <>
+                <Icon name="clip" size={14} />
+                <span>{isAr ? "رفع صورة / فيديو / PDF" : "Upload image / video / PDF"}</span>
+              </>
+            )}
         </button>
       )}
 
@@ -2988,7 +2997,7 @@ function BotMediaUploader({
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 22 }}>{typeIcon}</span>
+            <Icon name={typeIcon} size={22} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 12.5, fontWeight: 600, color: C.txt, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {media.filename || (isAr ? "ملف مرفق" : "Attached file")}
@@ -3049,7 +3058,12 @@ function BotMediaUploader({
           >
             {uploading
               ? (isAr ? "جاري الرفع..." : "Uploading...")
-              : (isAr ? "🔄 استبدال" : "🔄 Replace")}
+              : (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  <Icon name="refresh" size={12} />
+                  <span>{isAr ? "استبدال" : "Replace"}</span>
+                </span>
+              )}
           </button>
         </div>
       )}

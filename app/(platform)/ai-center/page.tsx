@@ -58,10 +58,10 @@ export default function AICenterPage() {
   }, [apiTone]);
 
   const TONE_OPTIONS = useMemo(() => [
-    { key: "friendly", emoji: "😊", name: ar ? "وديّة" : "Friendly", desc: ar ? "قريبة من العميل، ودودة" : "Warm and approachable" },
-    { key: "formal",   emoji: "🎩", name: ar ? "رسميّة" : "Formal",   desc: ar ? "محترمة، مهنيّة" : "Professional and respectful" },
-    { key: "casual",   emoji: "👋", name: ar ? "عفويّة" : "Casual",   desc: ar ? "غير رسميّة، عفويّة" : "Relaxed and informal" },
-    { key: "sales",    emoji: "🎯", name: ar ? "مبيعات" : "Sales",    desc: ar ? "مقنعة، محفّزة" : "Persuasive and engaging" },
+    { key: "friendly", icon: "smile",  name: ar ? "وديّة" : "Friendly", desc: ar ? "قريبة من العميل، ودودة" : "Warm and approachable" },
+    { key: "formal",   icon: "award",  name: ar ? "رسميّة" : "Formal",   desc: ar ? "محترمة، مهنيّة" : "Professional and respectful" },
+    { key: "casual",   icon: "hand",   name: ar ? "عفويّة" : "Casual",   desc: ar ? "غير رسميّة، عفويّة" : "Relaxed and informal" },
+    { key: "sales",    icon: "target", name: ar ? "مبيعات" : "Sales",    desc: ar ? "مقنعة، محفّزة" : "Persuasive and engaging" },
   ], [ar]);
 
   async function saveTone(toneKey: string, instructions: string) {
@@ -423,7 +423,7 @@ export default function AICenterPage() {
                       saveTone(tone.key, customInstructions);
                     }}
                   >
-                    <div style={{ fontSize: 26, marginBottom: 6 }}>{tone.emoji}</div>
+                    <div style={{ marginBottom: 6, display: "flex", justifyContent: "center" }}><Icon name={tone.icon} size={26} /></div>
                     <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 3, color: C.txt }}>{tone.name}</div>
                     <div style={{ fontSize: 11.5, color: C.t2 }}>{tone.desc}</div>
                     {isActive && <div style={{ marginTop: 8 }}><Badge color={aiC2}>{ar ? "مفعّل" : "Active"}</Badge></div>}
