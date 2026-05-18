@@ -60,9 +60,9 @@ const ADD_NODE_TYPES: AddNodeOption[] = [
   { type: "transfer", label: "Transfer", labelAr: "\u062A\u062D\u0648\u064A\u0644" },
   { type: "end", label: "End", labelAr: "\u0646\u0647\u0627\u064A\u0629" },
   { type: "ai", label: "AI", labelAr: "\u0630\u0643\u0627\u0621 \u0627\u0635\u0637\u0646\u0627\u0639\u064A" },
-  { type: "condition", label: "Condition", labelAr: "\u0634\u0631\u0637", comingSoon: true },
-  { type: "input", label: "Input", labelAr: "\u0625\u062F\u062E\u0627\u0644", comingSoon: true },
-  { type: "api", label: "API", labelAr: "API", comingSoon: true },
+  { type: "condition", label: "Condition", labelAr: "\u0634\u0631\u0637" },
+  { type: "input", label: "Input", labelAr: "\u0625\u062F\u062E\u0627\u0644" },
+  { type: "api", label: "API", labelAr: "API" },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -1357,29 +1357,56 @@ export default function BotBuilderPage() {
 
                 {/* Condition: expression */}
                 {selectedNode.type === "condition" && (
-                  <div>
-                    <div style={{ fontSize: 11, color: C.t2, marginBottom: 4, fontWeight: 600 }}>
-                      {isAr ? "\u0627\u0644\u0634\u0631\u0637" : "Condition Expression"}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 11, color: C.t2, marginBottom: 4, fontWeight: 600 }}>
+                        {isAr ? "\u0627\u0644\u0634\u0631\u0637" : "Condition Expression"}
+                      </div>
+                      <textarea
+                        value={String(selectedNode.config.expression ?? "")}
+                        onChange={(e) => updateNodeConfig(selectedNode.id, { expression: e.target.value })}
+                        rows={2}
+                        placeholder={isAr ? "{{score}} >= 80" : "{{score}} >= 80"}
+                        style={{
+                          width: "100%",
+                          padding: "8px 10px",
+                          borderRadius: 8,
+                          border: `1px solid ${C.brd}`,
+                          background: C.inp,
+                          color: C.txt,
+                          fontSize: 12.5,
+                          fontFamily: "monospace",
+                          outline: "none",
+                          resize: "vertical",
+                          boxSizing: "border-box",
+                          direction: "ltr",
+                        }}
+                      />
                     </div>
-                    <textarea
-                      value={String(selectedNode.config.expression ?? "")}
-                      onChange={(e) => updateNodeConfig(selectedNode.id, { expression: e.target.value })}
-                      rows={2}
-                      placeholder={isAr ? "\u0627\u0643\u062A\u0628 \u0627\u0644\u0634\u0631\u0637..." : "e.g. user.plan === 'premium'"}
-                      style={{
-                        width: "100%",
-                        padding: "8px 10px",
-                        borderRadius: 8,
-                        border: `1px solid ${C.brd}`,
-                        background: C.inp,
-                        color: C.txt,
-                        fontSize: 12.5,
-                        fontFamily: "monospace",
-                        outline: "none",
-                        resize: "vertical",
-                        boxSizing: "border-box",
-                      }}
-                    />
+                    <div style={{
+                      fontSize: 10.5,
+                      color: C.t3,
+                      padding: 10,
+                      borderRadius: 8,
+                      background: C.inp,
+                      border: `1px dashed ${C.brd}`,
+                      lineHeight: 1.7,
+                    }}>
+                      <div style={{ fontWeight: 600, marginBottom: 4, color: C.t2 }}>
+                        {isAr ? "\u0635\u064A\u063A \u0645\u062F\u0639\u0648\u0645\u0629:" : "Supported operators:"}
+                      </div>
+                      <div style={{ fontFamily: "monospace", direction: "ltr", textAlign: "left" }}>
+                        {"{{var}} == \"value\""}<br />
+                        {"{{var}} != \"value\""}<br />
+                        {"{{count}} >= 5  /  >  /  <=  /  <"}<br />
+                        {"{{text}} contains \"keyword\""}
+                      </div>
+                      <div style={{ marginTop: 6 }}>
+                        {isAr
+                          ? "\u0627\u0644\u0639\u0642\u062F\u0629 \u0627\u0644\u0623\u0648\u0644\u0649 \u0627\u0644\u0645\u062A\u0651\u0635\u0644\u0629 = \u0645\u0633\u0627\u0631 \"\u0646\u0639\u0645\"\u060C \u0627\u0644\u062B\u0627\u0646\u064A\u0629 = \u0645\u0633\u0627\u0631 \"\u0644\u0627\"."
+                          : "First connection = true branch, second = false branch."}
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -1549,27 +1576,47 @@ export default function BotBuilderPage() {
 
                 {/* Input: variable name */}
                 {selectedNode.type === "input" && (
-                  <div>
-                    <div style={{ fontSize: 11, color: C.t2, marginBottom: 4, fontWeight: 600 }}>
-                      {isAr ? "\u0627\u0644\u0645\u062a\u063a\u064a\u0631" : "Variable Name"}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 11, color: C.t2, marginBottom: 4, fontWeight: 600 }}>
+                        {isAr ? "\u0627\u0633\u0645 \u0627\u0644\u0645\u062a\u063a\u064a\u0651\u0631" : "Variable Name"}
+                      </div>
+                      <input
+                        value={String(selectedNode.config.variable ?? "")}
+                        onChange={(e) => updateNodeConfig(selectedNode.id, { variable: e.target.value })}
+                        placeholder="e.g. user_email"
+                        style={{
+                          width: "100%",
+                          padding: "8px 10px",
+                          borderRadius: 8,
+                          border: `1px solid ${C.brd}`,
+                          background: C.inp,
+                          color: C.txt,
+                          fontSize: 12.5,
+                          fontFamily: "monospace",
+                          outline: "none",
+                          boxSizing: "border-box",
+                        }}
+                      />
+                      <div style={{ fontSize: 10.5, color: C.t3, marginTop: 4 }}>
+                        {isAr
+                          ? "\u0628\u0627\u0644\u0625\u0646\u062c\u0644\u064a\u0632\u064a\u0651\u0629 snake_case. \u0627\u0644\u0627\u0633\u062a\u062e\u062f\u0627\u0645 \u0644\u0627\u062d\u0642\u0627\u064b: {{user_email}}."
+                          : "Use snake_case. Reference it later with {{user_email}}."}
+                      </div>
                     </div>
-                    <input
-                      value={String(selectedNode.config.variable ?? "")}
-                      onChange={(e) => updateNodeConfig(selectedNode.id, { variable: e.target.value })}
-                      placeholder="e.g. user_email"
-                      style={{
-                        width: "100%",
-                        padding: "8px 10px",
-                        borderRadius: 8,
-                        border: `1px solid ${C.brd}`,
-                        background: C.inp,
-                        color: C.txt,
-                        fontSize: 12.5,
-                        fontFamily: "monospace",
-                        outline: "none",
-                        boxSizing: "border-box",
-                      }}
-                    />
+                    <div style={{
+                      fontSize: 10.5,
+                      color: C.t3,
+                      padding: 10,
+                      borderRadius: 8,
+                      background: C.inp,
+                      border: `1px dashed ${C.brd}`,
+                      lineHeight: 1.6,
+                    }}>
+                      {isAr
+                        ? "\ud83d\udca1 \u0636\u0639 \u0639\u0642\u062f\u0629 \"\u0631\u0633\u0627\u0644\u0629\" \u0642\u0628\u0644 \u0647\u0630\u0647 \u0627\u0644\u0639\u0642\u062f\u0629 \u062a\u0633\u0623\u0644 \u0627\u0644\u0633\u0624\u0627\u0644 (\u0645\u062b\u0644\u0627\u064b: \"\u0645\u0627 \u0631\u0642\u0645 \u0637\u0644\u0628\u0643\u061f\")\u060c \u062b\u0645\u0651 \u0631\u062f\u0651 \u0627\u0644\u0639\u0645\u064a\u0644 \u0627\u0644\u062a\u0627\u0644\u064a \u064a\u064f\u062d\u0641\u064e\u0638 \u0641\u064a \u0627\u0644\u0645\u062a\u063a\u064a\u0651\u0631 \u062a\u0644\u0642\u0627\u0626\u064a\u0627\u064b."
+                        : "\ud83d\udca1 Put a Message node before this asking the question (e.g. \"What's your order id?\"). The customer's next reply gets stored in the variable automatically."}
+                    </div>
                   </div>
                 )}
 
@@ -1631,14 +1678,19 @@ export default function BotBuilderPage() {
                   );
                 })()}
 
-                {/* API: url */}
+                {/* API: url + response variable. The runtime issues a
+                    GET (no headers/body yet — those land in a follow-up
+                    pass), pulls the JSON "response" field if present
+                    or the whole body otherwise, and stashes it under
+                    response_variable for downstream nodes to reference. */}
                 {selectedNode.type === "api" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   <div>
                     <div style={{ fontSize: 11, color: C.t2, marginBottom: 4, fontWeight: 600 }}>URL</div>
                     <input
                       value={String(selectedNode.config.url ?? "")}
                       onChange={(e) => updateNodeConfig(selectedNode.id, { url: e.target.value })}
-                      placeholder="https://api.example.com/..."
+                      placeholder="https://api.example.com/orders/{{order_id}}"
                       style={{
                         width: "100%",
                         padding: "8px 10px",
@@ -1652,6 +1704,39 @@ export default function BotBuilderPage() {
                         boxSizing: "border-box",
                       }}
                     />
+                    <div style={{ fontSize: 10.5, color: C.t3, marginTop: 4 }}>
+                      {isAr
+                        ? "يمكن استخدام {{variable}} من عقد Input سابقة. الطلب GET فقط."
+                        : "Reference {{variables}} from earlier Input nodes. GET only for now."}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: C.t2, marginBottom: 4, fontWeight: 600 }}>
+                      {isAr ? "اسم متغيّر الرد" : "Response Variable"}
+                    </div>
+                    <input
+                      value={String(selectedNode.config.response_variable ?? "")}
+                      onChange={(e) => updateNodeConfig(selectedNode.id, { response_variable: e.target.value })}
+                      placeholder="api_response"
+                      style={{
+                        width: "100%",
+                        padding: "8px 10px",
+                        borderRadius: 8,
+                        border: `1px solid ${C.brd}`,
+                        background: C.inp,
+                        color: C.txt,
+                        fontSize: 12.5,
+                        fontFamily: "monospace",
+                        outline: "none",
+                        boxSizing: "border-box",
+                      }}
+                    />
+                    <div style={{ fontSize: 10.5, color: C.t3, marginTop: 4 }}>
+                      {isAr
+                        ? "يخزّن الرد لاستخدامه في عقد لاحقة عبر {{response_variable}}."
+                        : "Stores the response for later nodes to use as {{response_variable}}."}
+                    </div>
+                  </div>
                   </div>
                 )}
 
