@@ -3,6 +3,7 @@
 import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { FONT_FAMILY } from "@/lib/constants/font";
+import { Icon } from "@/components/icons/icon";
 
 export interface AiInsightCard {
   icon: string;
@@ -54,7 +55,7 @@ export function AiInsightsBar({
         fontWeight: 700,
         color: C.txt,
       }}>
-        <span style={{ fontSize: 16 }}>🧠</span>
+        <span style={{ color: C.pri, display: "inline-flex" }}><Icon name="brain" size={16} /></span>
         {title || (isAr ? "رؤى الذكاء الاصطناعي" : "AI Insights")}
       </div>
 
@@ -94,7 +95,7 @@ export function AiInsightsBar({
                 marginBottom: 6,
               }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 18 }}>{card.icon}</span>
+                  <span style={{ color, display: "inline-flex" }}><Icon name={card.icon} size={16} /></span>
                   <span style={{ fontSize: 12.5, fontWeight: 600, color: C.txt }}>
                     {card.title}
                   </span>

@@ -857,10 +857,10 @@ export default function CampaignsPage() {
             </label>
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr", gap: 10 }}>
               {([
-                { key: "wa_only",  emoji: "📱", title: isAr ? "واتساب فقط"        : "WhatsApp only",   sub: isAr ? "بدون تكلفة SMS"            : "No SMS cost",          requiresSms: false },
-                { key: "sms_only", emoji: "💬", title: isAr ? "SMS فقط"            : "SMS only",        sub: isAr ? "تجاوز واتساب نهائياً"      : "Skip WhatsApp entirely", requiresSms: true  },
-                { key: "wa_sms",   emoji: "🔁", title: isAr ? "واتساب ثم SMS"      : "WhatsApp + SMS fallback", sub: isAr ? "SMS فقط عند فشل واتساب" : "SMS only when WhatsApp fails", requiresSms: true },
-                { key: "dual",     emoji: "📡", title: isAr ? "كلاهما (Dual)"     : "Dual",            sub: isAr ? "رسالتان لكلّ مستلم"        : "Two messages per contact", requiresSms: true },
+                { key: "wa_only",  icon: "msg",     title: isAr ? "واتساب فقط"        : "WhatsApp only",   sub: isAr ? "بدون تكلفة SMS"            : "No SMS cost",          requiresSms: false },
+                { key: "sms_only", icon: "phone",   title: isAr ? "SMS فقط"            : "SMS only",        sub: isAr ? "تجاوز واتساب نهائياً"      : "Skip WhatsApp entirely", requiresSms: true  },
+                { key: "wa_sms",   icon: "refresh", title: isAr ? "واتساب ثم SMS"      : "WhatsApp + SMS fallback", sub: isAr ? "SMS فقط عند فشل واتساب" : "SMS only when WhatsApp fails", requiresSms: true },
+                { key: "dual",     icon: "shuffle", title: isAr ? "كلاهما (Dual)"     : "Dual",            sub: isAr ? "رسالتان لكلّ مستلم"        : "Two messages per contact", requiresSms: true },
               ] as const).map((opt) => {
                 const selected = newCampaign.channelMode === opt.key;
                 const disabled = opt.requiresSms && !smsReady;
@@ -885,7 +885,7 @@ export default function CampaignsPage() {
                       display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
                     }}
                   >
-                    <div style={{ fontSize: 18 }}>{opt.emoji}</div>
+                    <Icon name={opt.icon} size={18} />
                     <div style={{ fontSize: 12.5, fontWeight: 700 }}>{opt.title}</div>
                     <div style={{ fontSize: 10.5, color: disabled ? C.t3 : C.t2, lineHeight: 1.3 }}>{opt.sub}</div>
                   </button>
@@ -893,10 +893,11 @@ export default function CampaignsPage() {
               })}
             </div>
             {!smsReady && (
-              <div style={{ fontSize: 11, color: C.t3, marginTop: 8 }}>
-                {isAr
-                  ? "💡 لتفعيل خيارات SMS، اربط حساب mobile.net.sa من الإعدادات > SMS."
-                  : "💡 Connect your mobile.net.sa account in Settings > SMS to unlock SMS modes."}
+              <div style={{ fontSize: 11, color: C.t3, marginTop: 8, display: "flex", alignItems: "flex-start", gap: 6 }}>
+                <span style={{ color: C.pri, display: "inline-flex", marginTop: 1, flexShrink: 0 }}><Icon name="sparkles" size={12} /></span>
+                <span>{isAr
+                  ? "لتفعيل خيارات SMS، اربط حساب mobile.net.sa من الإعدادات > SMS."
+                  : "Connect your mobile.net.sa account in Settings > SMS to unlock SMS modes."}</span>
               </div>
             )}
             {newCampaign.channelMode !== "wa_only" && smsReady && (
@@ -924,8 +925,9 @@ export default function CampaignsPage() {
               background: `${C.pri}06`,
             }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 700, color: C.txt }}>
-                  💰 {isAr ? "تقدير التكلفة" : "Cost Estimate"}
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: C.txt, display: "flex", alignItems: "center", gap: 6 }}>
+                  <Icon name="wallet" size={14} />
+                  <span>{isAr ? "تقدير التكلفة" : "Cost Estimate"}</span>
                 </div>
                 {estimateLoading && (
                   <div style={{ fontSize: 11, color: C.t3 }}>{isAr ? "جارٍ الحساب..." : "Calculating..."}</div>
@@ -945,8 +947,8 @@ export default function CampaignsPage() {
                   {/* Each channel row stays its own line — no aggregation. */}
                   {estimate.whatsapp.count > 0 && (
                     <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 12.5, borderBottom: `1px dashed ${C.brd}` }}>
-                      <span style={{ color: C.txt }}>
-                        📱 {isAr ? "واتساب" : "WhatsApp"}
+                      <span style={{ color: C.txt, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        <Icon name="msg" size={12} /> {isAr ? "واتساب" : "WhatsApp"}
                         <span style={{ color: C.t3, fontWeight: 400, marginInlineStart: 6 }}>
                           ({estimate.whatsapp.count.toLocaleString()} × {estimate.whatsapp.unit_price.toFixed(2)} {isAr ? "ر.س" : "SAR"})
                         </span>
@@ -959,8 +961,8 @@ export default function CampaignsPage() {
 
                   {(estimate.sms.count > 0 || estimate.sms.is_fallback) && (
                     <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 12.5, borderBottom: `1px dashed ${C.brd}` }}>
-                      <span style={{ color: C.txt }}>
-                        💬 {isAr ? "SMS" : "SMS"}
+                      <span style={{ color: C.txt, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        <Icon name="phone" size={12} /> {isAr ? "SMS" : "SMS"}
                         <span style={{ color: C.t3, fontWeight: 400, marginInlineStart: 6 }}>
                           {estimate.sms.is_fallback
                             ? (isAr ? `(احتياط — ${estimate.sms.unit_price.toFixed(2)} ر.س لكل رسالة فاشلة على واتساب)` : `(fallback — ${estimate.sms.unit_price.toFixed(2)} SAR per WA failure)`)
@@ -1001,8 +1003,9 @@ export default function CampaignsPage() {
               override per campaign — either narrow the cap, broaden
               the window, or both. */}
           <div style={{ borderTop: `1px solid ${C.brd}`, paddingTop: 16 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 700, color: C.txt, marginBottom: 4 }}>
-              {isAr ? "🛡️ سياسة الإرسال" : "🛡️ Sending Policy"}
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: C.txt, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+              <Icon name="shield" size={14} />
+              <span>{isAr ? "سياسة الإرسال" : "Sending Policy"}</span>
             </div>
             <div style={{ fontSize: 11, color: C.t3, marginBottom: 12, lineHeight: 1.6 }}>
               {isAr
@@ -1020,8 +1023,9 @@ export default function CampaignsPage() {
                   style={{ width: 16, height: 16, accentColor: C.pri, cursor: "pointer" }}
                 />
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: C.txt }}>
-                    {isAr ? "🕒 تخصيص نافذة الإرسال" : "🕒 Customise send window"}
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.txt, display: "flex", alignItems: "center", gap: 6 }}>
+                    <Icon name="timer" size={13} />
+                    <span>{isAr ? "تخصيص نافذة الإرسال" : "Customise send window"}</span>
                   </div>
                   <div style={{ fontSize: 11, color: C.t2 }}>
                     {isAr ? "الافتراضي: 09:00 - 21:00، تجنّب الجمعة" : "Default: 09:00 - 21:00, skip Fridays"}
@@ -1071,8 +1075,9 @@ export default function CampaignsPage() {
                   style={{ width: 16, height: 16, accentColor: C.pri, cursor: "pointer" }}
                 />
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: C.txt }}>
-                    {isAr ? "📊 تخصيص حد الإرسال للعميل" : "📊 Customise per-contact cap"}
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.txt, display: "flex", alignItems: "center", gap: 6 }}>
+                    <Icon name="chart" size={13} />
+                    <span>{isAr ? "تخصيص حد الإرسال للعميل" : "Customise per-contact cap"}</span>
                   </div>
                   <div style={{ fontSize: 11, color: C.t2 }}>
                     {isAr ? "الافتراضي: 2 رسائل / 7 أيام لكلّ عميل" : "Default: 2 messages / 7 days per contact"}
@@ -1237,8 +1242,9 @@ export default function CampaignsPage() {
                 style={{ width: 16, height: 16, accentColor: C.pri, cursor: "pointer" }}
               />
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 700, color: C.txt }}>
-                  🧪 {isAr ? "تفعيل A/B Testing" : "Enable A/B Testing"}
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: C.txt, display: "flex", alignItems: "center", gap: 6 }}>
+                  <Icon name="target" size={14} />
+                  <span>{isAr ? "تفعيل A/B Testing" : "Enable A/B Testing"}</span>
                 </div>
                 <div style={{ fontSize: 11.5, color: C.t2, marginTop: 2 }}>
                   {isAr
@@ -1731,7 +1737,7 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
         return (
           <Card style={{ marginBottom: 16, padding: 16, background: `${COLORS.warn}10`, border: `1px solid ${COLORS.warn}40` }}>
             <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-              <div style={{ fontSize: 22, lineHeight: 1 }}>🐢</div>
+              <div style={{ color: COLORS.warn, display: "inline-flex" }}><Icon name="timer" size={22} /></div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13.5, fontWeight: 700, color: C.txt, marginBottom: 4 }}>
                   {isAr ? "Meta يخفّض سرعة الإرسال (Pacing)" : "Meta is throttling send rate (Pacing)"}
@@ -1742,8 +1748,9 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
                     : `Actual rate ${p.actualRatePerMin?.toFixed?.(0) ?? p.actualRatePerMin} msg/min — expected ${p.expectedRatePerMin?.toFixed?.(0) ?? p.expectedRatePerMin} msg/min (over ${p.minutesElapsed} minutes).`}
                 </div>
                 {p.tip && (
-                  <div style={{ fontSize: 11.5, color: C.t3, lineHeight: 1.6, padding: "6px 10px", background: C.card, borderRadius: 6, border: `1px solid ${C.brd}` }}>
-                    💡 {p.tip}
+                  <div style={{ fontSize: 11.5, color: C.t3, lineHeight: 1.6, padding: "6px 10px", background: C.card, borderRadius: 6, border: `1px solid ${C.brd}`, display: "flex", alignItems: "flex-start", gap: 6 }}>
+                    <span style={{ color: C.pri, display: "inline-flex", marginTop: 1, flexShrink: 0 }}><Icon name="sparkles" size={12} /></span>
+                    <span>{p.tip}</span>
                   </div>
                 )}
               </div>
@@ -2714,7 +2721,7 @@ function CampaignEngagementPanel({
 
   return (
     <Card style={{ marginBottom: 24 }}>
-      <CardHeader title={isAr ? "📈 الأداء والتكلفة" : "📈 Engagement & Cost"} />
+      <CardHeader title={isAr ? "الأداء والتكلفة" : "Engagement & Cost"} />
       <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 20 }}>
 
         {/* Cost metrics row */}

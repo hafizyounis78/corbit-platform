@@ -410,7 +410,7 @@ export default function TemplatesPage() {
                       )}
                       {tmpl.header_media_url && tmpl.header_format === "document" && (
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                          <span style={{ fontSize: 28 }}>📄</span>
+                          <Icon name="file" size={28} />
                           <a href={tmpl.header_media_url} target="_blank" rel="noreferrer" style={{ color: "#075E54", fontSize: 10, textDecoration: "underline" }}>
                             {isAr ? "افتح المستند" : "Open document"}
                           </a>
@@ -418,9 +418,7 @@ export default function TemplatesPage() {
                       )}
                       {!tmpl.header_media_url && (
                         <>
-                          <span style={{ fontSize: 22 }}>
-                            {tmpl.header_format === "image" ? "🖼" : tmpl.header_format === "video" ? "🎬" : "📄"}
-                          </span>
+                          <Icon name={tmpl.header_format === "image" ? "image" : tmpl.header_format === "video" ? "video" : "file"} size={22} />
                           <span>
                             {tmpl.header_format === "image" ? (isAr ? "صورة" : "Image")
                               : tmpl.header_format === "video" ? (isAr ? "فيديو" : "Video")
@@ -850,7 +848,7 @@ export default function TemplatesPage() {
         if (top) {
           const rate = Number(top.open_rate ?? top.openRate ?? 0);
           cards.push({
-            icon: "🏆",
+            icon: "award",
             title: isAr ? "أعلى أداء" : "Top Performer",
             value: rate ? `${rate.toFixed(1)}%` : undefined,
             caption: isAr
@@ -862,7 +860,7 @@ export default function TemplatesPage() {
         }
         if (rejected.length > 0) {
           cards.push({
-            icon: "⚠️",
+            icon: "alert",
             title: isAr ? "قوالب مرفوضة" : "Rejected Templates",
             value: rejected.length,
             caption: isAr
@@ -874,7 +872,7 @@ export default function TemplatesPage() {
         }
         if (pending.length > 0) {
           cards.push({
-            icon: "⏳",
+            icon: "timer",
             title: isAr ? "قيد المراجعة" : "Pending Review",
             value: pending.length,
             caption: isAr
@@ -884,7 +882,7 @@ export default function TemplatesPage() {
           });
         } else if (approved.length >= 5) {
           cards.push({
-            icon: "💡",
+            icon: "sparkles",
             title: isAr ? "اقتراح" : "Suggestion",
             caption: isAr
               ? "أضف قالب CSAT لقياس رضا العملاء بعد كل محادثة"
@@ -1222,10 +1220,11 @@ export default function TemplatesPage() {
                     template (corbit_csat) was rejected for exactly
                     this reason on 2026-05-05's external test. */}
                 {newTemplate.category === "authentication" && (
-                  <div style={{ marginTop: 6, fontSize: 11, color: C.t2, lineHeight: 1.6, padding: "8px 10px", borderRadius: 8, background: `${COLORS.err}12`, border: `1px solid ${COLORS.err}30` }}>
-                    ⚠️ {isAr
+                  <div style={{ marginTop: 6, fontSize: 11, color: C.t2, lineHeight: 1.6, padding: "8px 10px", borderRadius: 8, background: `${COLORS.err}12`, border: `1px solid ${COLORS.err}30`, display: "flex", alignItems: "flex-start", gap: 6 }}>
+                    <span style={{ color: COLORS.err, marginTop: 1, display: "inline-flex", flexShrink: 0 }}><Icon name="alert" size={13} /></span>
+                    <span>{isAr
                       ? "سياسة Meta لقوالب المصادقة: الأزرار لا تقبل متغيّرات أو ايموجي، النصّ يجب أن يحتوي رمز تحقّق فقط (مثل: {{1}} هو رمز التحقّق الخاصّ بك). أيّ تخصيص آخر سيؤدّي للرفض."
-                      : "Meta auth-template policy: buttons cannot contain variables or emojis; body must be a verification code only (e.g. {{1}} is your verification code). Anything fancier gets rejected."}
+                      : "Meta auth-template policy: buttons cannot contain variables or emojis; body must be a verification code only (e.g. {{1}} is your verification code). Anything fancier gets rejected."}</span>
                   </div>
                 )}
               </div>
@@ -1263,11 +1262,11 @@ export default function TemplatesPage() {
               {/* 5-button picker — none / text / image / video / document */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6, marginBottom: 10 }}>
                 {([
-                  { key: "none",     emoji: "🚫", labelAr: "بدون",     labelEn: "None"     },
-                  { key: "text",     emoji: "📝", labelAr: "نصّ",       labelEn: "Text"     },
-                  { key: "image",    emoji: "🖼️", labelAr: "صورة",     labelEn: "Image"    },
-                  { key: "video",    emoji: "🎥", labelAr: "فيديو",    labelEn: "Video"    },
-                  { key: "document", emoji: "📄", labelAr: "ملف",      labelEn: "Document" },
+                  { key: "none",     icon: "ban",   labelAr: "بدون",     labelEn: "None"     },
+                  { key: "text",     icon: "text",  labelAr: "نصّ",       labelEn: "Text"     },
+                  { key: "image",    icon: "image", labelAr: "صورة",     labelEn: "Image"    },
+                  { key: "video",    icon: "video", labelAr: "فيديو",    labelEn: "Video"    },
+                  { key: "document", icon: "file",  labelAr: "ملف",      labelEn: "Document" },
                 ] as const).map((opt) => {
                   const selected = newTemplate.header_format === opt.key;
                   return (
@@ -1297,7 +1296,7 @@ export default function TemplatesPage() {
                         fontFamily: FONT_FAMILY,
                       }}
                     >
-                      <span style={{ fontSize: 16 }}>{opt.emoji}</span>
+                      <Icon name={opt.icon} size={16} />
                       <span>{isAr ? opt.labelAr : opt.labelEn}</span>
                     </button>
                   );
@@ -1398,7 +1397,7 @@ export default function TemplatesPage() {
                       )}
                       {newTemplate.header_format === "document" && (
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          <span style={{ fontSize: 24 }}>📄</span>
+                          <Icon name="file" size={24} />
                           <a href={newTemplate.header_media_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: C.pri, textDecoration: "underline" }}>
                             {isAr ? "معاينة الملف" : "Preview file"}
                           </a>
@@ -1412,8 +1411,9 @@ export default function TemplatesPage() {
                         )}
                         {newTemplate.header_upload_status === "pending_handle" && (
                           <div style={{ flex: 1, padding: "10px 12px", borderRadius: 8, background: "#f59e0b15", border: "1px solid #f59e0b40", color: "#92400e", fontSize: 12, lineHeight: 1.7 }}>
-                            <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 12.5 }}>
-                              ⚠️ {isAr ? "تكامل Meta لم يُفعَّل بعد" : "Meta integration not yet configured"}
+                            <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 12.5, display: "flex", alignItems: "center", gap: 6 }}>
+                              <Icon name="alert" size={14} />
+                              <span>{isAr ? "تكامل Meta لم يُفعَّل بعد" : "Meta integration not yet configured"}</span>
                             </div>
                             <div>
                               {isAr
@@ -1528,8 +1528,9 @@ export default function TemplatesPage() {
                     background: `${COLORS.err}10`, border: `1.5px solid ${COLORS.err}50`,
                     fontSize: 12, lineHeight: 1.7,
                   }}>
-                    <div style={{ fontWeight: 700, color: COLORS.err, marginBottom: 6 }}>
-                      🚫 {isAr ? "محتوى محظور من Meta" : "Content prohibited by Meta"}
+                    <div style={{ fontWeight: 700, color: COLORS.err, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+                      <Icon name="ban" size={14} />
+                      <span>{isAr ? "محتوى محظور من Meta" : "Content prohibited by Meta"}</span>
                     </div>
                     {contentReport.violations.map((v, i) => (
                       <div key={i} style={{ marginBottom: 6 }}>
@@ -1852,9 +1853,9 @@ export default function TemplatesPage() {
                             borderRadius: bi === newTemplate.buttons.length - 1 ? "0 0 8px 8px" : 0,
                             display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
                           }}>
-                            {btn.type === "url" && <span style={{ fontSize: 10 }}>🔗</span>}
-                            {btn.type === "phone" && <span style={{ fontSize: 10 }}>📞</span>}
-                            {btn.type === "quick_reply" && <span style={{ fontSize: 10 }}>↩️</span>}
+                            {btn.type === "url" && <Icon name="link" size={11} />}
+                            {btn.type === "phone" && <Icon name="phone" size={11} />}
+                            {btn.type === "quick_reply" && <Icon name="reply" size={11} />}
                             {btn.text || (isAr ? "نص الزر" : "Button text")}
                           </div>
                         ))}

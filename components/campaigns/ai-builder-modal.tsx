@@ -8,6 +8,7 @@ import { useCampaignBuilderPresets } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
 import { COLORS } from "@/lib/constants/colors";
 import { FONT_FAMILY } from "@/lib/constants/font";
+import { Icon } from "@/components/icons/icon";
 
 interface Preset {
   key: string;
@@ -162,8 +163,7 @@ export function CampaignAIBuilderModal({ open, onClose, onDraftReady }: Props) {
               width: 36, height: 36, borderRadius: 10,
               background: AI_COLOR, color: "#fff",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 18,
-            }}>🧠</div>
+            }}><Icon name="brain" size={20} /></div>
             <div>
               <div style={{ fontSize: 16, fontWeight: 700, color: C.txt }}>
                 {isAr ? "منشئ الحملات الذكي" : "AI Campaign Builder"}
@@ -218,7 +218,7 @@ export function CampaignAIBuilderModal({ open, onClose, onDraftReady }: Props) {
                     if (!loading) (e.currentTarget as HTMLButtonElement).style.borderColor = C.brd;
                   }}
                 >
-                  <div style={{ fontSize: 22, marginBottom: 6 }}>{p.icon}</div>
+                  <div style={{ color: AI_COLOR, marginBottom: 6 }}><Icon name={p.icon} size={22} /></div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: C.txt, marginBottom: 4 }}>
                     {isAr ? p.title_ar : p.title_en}
                   </div>
@@ -291,7 +291,12 @@ export function CampaignAIBuilderModal({ open, onClose, onDraftReady }: Props) {
               >
                 {loading
                   ? (isAr ? "جارٍ التحليل..." : "Analyzing...")
-                  : (isAr ? "✨ ابني الحملة" : "✨ Build it")}
+                  : (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <Icon name="sparkles" size={14} />
+                      <span>{isAr ? "ابني الحملة" : "Build it"}</span>
+                    </span>
+                  )}
               </button>
             </div>
           </div>
@@ -326,8 +331,9 @@ export function CampaignAIBuilderModal({ open, onClose, onDraftReady }: Props) {
                 </div>
               )}
               {draft.rationale && (
-                <div style={{ fontSize: 12, color: C.t2, fontStyle: "italic" }}>
-                  💡 {draft.rationale}
+                <div style={{ fontSize: 12, color: C.t2, fontStyle: "italic", display: "flex", alignItems: "flex-start", gap: 6 }}>
+                  <span style={{ color: AI_COLOR, display: "inline-flex", marginTop: 2 }}><Icon name="sparkles" size={12} /></span>
+                  <span>{draft.rationale}</span>
                 </div>
               )}
             </div>
