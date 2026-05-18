@@ -60,23 +60,23 @@ function getSentimentColor(sentiment: string | undefined, score?: number | null)
 }
 
 /**
- * Vivid 5-tier sentiment labels with emoji that double as a
- * color-blind-safe signal.
+ * Vivid 5-tier sentiment labels. Returns icon name + text so callers
+ * can render <Icon> consistently rather than relying on emoji glyphs.
  */
-function getSentimentLabel(sentiment: string | undefined, isAr: boolean, score?: number | null): string {
+function getSentimentLabel(sentiment: string | undefined, isAr: boolean, score?: number | null): { icon: string; text: string } {
   const tier = getSentimentTier(sentiment, score);
-  if (tier === "very_positive") return isAr ? "🤩 سعيد جداً" : "🤩 Delighted";
-  if (tier === "positive")      return isAr ? "😊 سعيد" : "😊 Happy";
-  if (tier === "neutral")       return isAr ? "😐 محايد" : "😐 Neutral";
-  if (tier === "dissatisfied")  return isAr ? "😕 غير راضٍ" : "😕 Dissatisfied";
-  return isAr ? "😠 غاضب" : "😠 Angry";
+  if (tier === "very_positive") return { icon: "smile", text: isAr ? "سعيد جداً" : "Delighted" };
+  if (tier === "positive")      return { icon: "smile", text: isAr ? "سعيد" : "Happy" };
+  if (tier === "neutral")       return { icon: "meh", text: isAr ? "محايد" : "Neutral" };
+  if (tier === "dissatisfied")  return { icon: "frown", text: isAr ? "غير راضٍ" : "Dissatisfied" };
+  return { icon: "frown", text: isAr ? "غاضب" : "Angry" };
 }
 
-/** Trend chip helper — returns text + colour pair, or null when
+/** Trend chip helper — returns icon + text + colour, or null when
  *  trend is stable / unknown (no chip rendered then). */
-function getTrendDisplay(trend: string | null | undefined, isAr: boolean): { label: string; color: string } | null {
-  if (trend === "worsening") return { label: isAr ? "📉 يسوء" : "📉 Worsening", color: "#E84855" };
-  if (trend === "improving") return { label: isAr ? "📈 يتحسّن" : "📈 Improving", color: "#34C77B" };
+function getTrendDisplay(trend: string | null | undefined, isAr: boolean): { icon: string; text: string; color: string } | null {
+  if (trend === "worsening") return { icon: "trendingDown", text: isAr ? "يسوء" : "Worsening", color: "#E84855" };
+  if (trend === "improving") return { icon: "trendingUp",   text: isAr ? "يتحسّن" : "Improving", color: "#34C77B" };
   return null;
 }
 
@@ -795,7 +795,7 @@ export default function InboxPage() {
                           alignItems: "center",
                           gap: 2,
                         }}>
-                          {getSentimentLabel(c.sentiment, isAr, c.sentimentScore)}
+                          {(() => { const sl = getSentimentLabel(c.sentiment, isAr, c.sentimentScore); return (<><Icon name={sl.icon} size={11} /><span>{sl.text}</span></>); })()}
                         </span>
                       );
                     })()}
@@ -811,8 +811,10 @@ export default function InboxPage() {
                           padding: "1px 6px", borderRadius: 6,
                           background: td.color + "12",
                           border: `1px solid ${td.color}25`,
+                          display: "inline-flex", alignItems: "center", gap: 3,
                         }}>
-                          {td.label}
+                          <Icon name={td.icon} size={11} />
+                          <span>{td.text}</span>
                         </span>
                       );
                     })()}
@@ -826,33 +828,39 @@ export default function InboxPage() {
                         padding: "1px 6px", borderRadius: 6,
                         background: "#E8485515",
                         border: "1px solid #E8485540",
+                        display: "inline-flex", alignItems: "center", gap: 3,
                       }}>
-                        🚨 {isAr ? "تصعيد تلقائي" : "Escalated"}
+                        <Icon name="siren" size={11} />
+                        <span>{isAr ? "تصعيد تلقائي" : "Escalated"}</span>
                       </span>
                     )}
                     {/* Intent pill — what the customer is here for
                         (شكوى / استفسار / نيّة شراء …). Backend already
                         humanises the AI's English enum. */}
                     {c.intent && (
-                      <span style={{ fontSize: 10, color: C.info, fontWeight: 500, padding: "1px 6px", borderRadius: 6, background: C.info + "10" }}>
-                        🎯 {c.intent}
+                      <span style={{ fontSize: 10, color: C.info, fontWeight: 500, padding: "1px 6px", borderRadius: 6, background: C.info + "10", display: "inline-flex", alignItems: "center", gap: 3 }}>
+                        <Icon name="target" size={11} />
+                        <span>{c.intent}</span>
                       </span>
                     )}
                     {/* Assignment chip — agent wins if both are set
                         (agent assignment is more specific than team). */}
                     {c.assignedUser?.name && (
-                      <span style={{ fontSize: 10, color: C.info, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 2 }}>
-                        👤 {c.assignedUser.name}
+                      <span style={{ fontSize: 10, color: C.info, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 3 }}>
+                        <Icon name="user" size={11} />
+                        <span>{c.assignedUser.name}</span>
                       </span>
                     )}
                     {!c.assignedUser?.name && c.assignedTeam?.name && (
-                      <span style={{ fontSize: 10, color: C.info, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 2 }}>
-                        👥 {c.assignedTeam.name}
+                      <span style={{ fontSize: 10, color: C.info, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 3 }}>
+                        <Icon name="users" size={11} />
+                        <span>{c.assignedTeam.name}</span>
                       </span>
                     )}
                     {!c.assignedUser?.name && !c.assignedTeam?.name && !c.aiEnabled && (
-                      <span style={{ fontSize: 10, color: C.warn, fontWeight: 500 }}>
-                        ⏳ {isAr ? "غير مسند" : "Unassigned"}
+                      <span style={{ fontSize: 10, color: C.warn, fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 3 }}>
+                        <Icon name="timer" size={11} />
+                        <span>{isAr ? "غير مسند" : "Unassigned"}</span>
                       </span>
                     )}
                   </div>
@@ -932,7 +940,8 @@ export default function InboxPage() {
               }}
             >
               <span style={{ width: 6, height: 6, borderRadius: 3, background: sentColor }} />
-              {sentLabel}
+              <Icon name={sentLabel.icon} size={12} />
+              <span>{sentLabel.text}</span>
             </button>
             {/* Trend indicator next to sentiment — only renders when
                 worsening or improving (stable is silent). */}
@@ -944,7 +953,8 @@ export default function InboxPage() {
                 border: `1px solid ${sentTrend.color}30`,
                 fontSize: 11, fontWeight: 600, color: sentTrend.color,
               }}>
-                {sentTrend.label}
+                <Icon name={sentTrend.icon} size={12} />
+                <span>{sentTrend.text}</span>
               </span>
             )}
             {/* Auto-escalation banner-chip in the header so the
@@ -958,7 +968,8 @@ export default function InboxPage() {
                 border: "1px solid #E8485540",
                 fontSize: 11, fontWeight: 700, color: "#E84855",
               }}>
-                🚨 {isAr ? "تصعيد تلقائي" : "Escalated"}
+                <Icon name="siren" size={12} />
+                <span>{isAr ? "تصعيد تلقائي" : "Escalated"}</span>
               </span>
             )}
             {/* AI Toggle */}
@@ -1127,17 +1138,17 @@ export default function InboxPage() {
             <button
               onClick={requestCsat}
               title={isAr ? "طلب تقييم العميل" : "Request customer satisfaction rating"}
-              style={{ width: 34, height: 34, borderRadius: 8, border: "1.5px solid " + (dk ? C.brd : "#D5D2CC"), background: "transparent", color: C.t2, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}
+              style={{ width: 34, height: 34, borderRadius: 8, border: "1.5px solid " + (dk ? C.brd : "#D5D2CC"), background: "transparent", color: C.t2, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
             >
-              ⭐
+              <Icon name="star" size={15} />
             </button>
             {/* Translate all customer messages in this thread */}
             <button
               onClick={translateAllVisible}
               title={isAr ? "ترجمة كل الرسائل" : "Translate all messages"}
-              style={{ width: 34, height: 34, borderRadius: 8, border: "1.5px solid " + (dk ? C.brd : "#D5D2CC"), background: "transparent", color: C.t2, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}
+              style={{ width: 34, height: 34, borderRadius: 8, border: "1.5px solid " + (dk ? C.brd : "#D5D2CC"), background: "transparent", color: C.t2, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
             >
-              🌐
+              <Icon name="translate" size={15} />
             </button>
             {/* Detail toggle */}
             <button
@@ -1160,12 +1171,14 @@ export default function InboxPage() {
           {/* Assignment indicator. Specificity wins: agent ▸ team ▸ unassigned. */}
           {selected.assignedUser?.name && (
             <span style={{ fontSize: 11.5, color: C.info, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4 }}>
-              👤 {selected.assignedUser.name}
+              <Icon name="user" size={12} />
+              <span>{selected.assignedUser.name}</span>
             </span>
           )}
           {!selected.assignedUser?.name && selected.assignedTeam?.name && (
             <span style={{ fontSize: 11.5, color: C.info, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4 }}>
-              👥 {selected.assignedTeam.name}
+              <Icon name="users" size={12} />
+              <span>{selected.assignedTeam.name}</span>
             </span>
           )}
           {!isAiOn && !selected.assignedUser?.name && !selected.assignedTeam?.name && (
@@ -1214,8 +1227,9 @@ export default function InboxPage() {
                         textAlign: translations[String(m.id)].targetLang === "ar" ? "right" : "left",
                       }}
                     >
-                      <div style={{ fontSize: 10, fontWeight: 700, marginBottom: 3, opacity: 0.7, letterSpacing: 0.3 }}>
-                        {translations[String(m.id)].targetLang === "ar" ? "🌐 العربية" : "🌐 English"}
+                      <div style={{ fontSize: 10, fontWeight: 700, marginBottom: 3, opacity: 0.7, letterSpacing: 0.3, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        <Icon name="translate" size={11} />
+                        <span>{translations[String(m.id)].targetLang === "ar" ? "العربية" : "English"}</span>
                       </div>
                       {translations[String(m.id)].text}
                     </div>
@@ -1245,7 +1259,7 @@ export default function InboxPage() {
                         opacity: translating[String(m.id)] ? 0.6 : 1,
                       }}
                     >
-                      {translating[String(m.id)] ? "…" : "🌐"}
+                      {translating[String(m.id)] ? "…" : <Icon name="translate" size={13} />}
                     </button>
                     <button
                       onClick={() => setReportContext({
@@ -1265,7 +1279,7 @@ export default function InboxPage() {
                       onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = C.err; }}
                       onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = C.t3; }}
                     >
-                      🚩
+                      <Icon name="flag" size={13} />
                     </button>
                   </div>
                 )}
@@ -1402,9 +1416,9 @@ export default function InboxPage() {
               : `${windowRemaining.hours > 0 ? `${windowRemaining.hours}h` : ''}${windowRemaining.minutes > 0 ? ` ${windowRemaining.minutes}m` : ''}`;
 
             const headline = isUrgent
-              ? (isAr ? `⚠️ النافذة ستُغلق خلال ${remainingText} — جهّز قالباً!` : `⚠️ Closes in ${remainingText} — get a template ready`)
+              ? (isAr ? `النافذة ستُغلق خلال ${remainingText} — جهّز قالباً!` : `Closes in ${remainingText} — get a template ready`)
               : isWarning
-              ? (isAr ? `🟠 النافذة على وشك الانتهاء — متبقّي ${remainingText}` : `🟠 Window closing soon — ${remainingText} left`)
+              ? (isAr ? `النافذة على وشك الانتهاء — متبقّي ${remainingText}` : `Window closing soon — ${remainingText} left`)
               : (isAr ? `النافذة مفتوحة — متبقّي ${remainingText}` : `Window open — ${remainingText} left`);
 
             return (
@@ -1416,6 +1430,11 @@ export default function InboxPage() {
                 marginBottom: 10, fontSize: 11.5,
               }}>
                 <div style={{ width: 6, height: 6, borderRadius: 3, background: tone.dot }} />
+                {(isUrgent || isWarning) && (
+                  <span style={{ color: tone.fg, display: "inline-flex" }}>
+                    <Icon name="alert" size={13} />
+                  </span>
+                )}
                 <span style={{ color: isUrgent || isWarning ? tone.fg : C.t2, flex: 1, fontWeight: isUrgent ? 600 : 400 }}>
                   {headline}
                 </span>
@@ -1612,8 +1631,8 @@ export default function InboxPage() {
               }}
               title={isAr ? "تحرير التصنيفات" : "Edit tags"}
             >
-              <span style={{ fontSize: 13, lineHeight: 1 }}>🏷️</span>
-              {isAr ? "تصنيف" : "Tag"}
+              <Icon name="tag" size={13} />
+              <span>{isAr ? "تصنيف" : "Tag"}</span>
             </button>
           </div>
         </div>
