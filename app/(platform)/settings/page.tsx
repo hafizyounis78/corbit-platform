@@ -66,7 +66,7 @@ function ToggleRow({ label, on, onToggle, desc, icon, C, comingSoon }: { label: 
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", borderRadius: 10, background: C.inp, marginBottom: 4, opacity: comingSoon ? 0.55 : 1 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
-        {icon && <span style={{ fontSize: 16 }}>{icon}</span>}
+        {icon && <span style={{ display: "inline-flex", color: C.t2 }}><Icon name={icon} size={18} /></span>}
         <div style={{ flex: 1 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ fontWeight: 600, fontSize: 13 }}>{label}</span>
@@ -105,7 +105,7 @@ function AutoMessageBlock({
     <div style={{ padding: "14px 14px 12px", borderRadius: 12, background: C.inp, marginBottom: 10 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: on ? 10 : 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
-          <span style={{ fontSize: 16 }}>{icon}</span>
+          <span style={{ display: "inline-flex", color: C.t2 }}><Icon name={icon} size={18} /></span>
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 600, fontSize: 13 }}>{label}</div>
             <div style={{ fontSize: 11, color: C.t2, marginTop: 2 }}>{desc}</div>
@@ -883,7 +883,7 @@ export default function SettingsPage() {
                 {([
                   {
                     key: "hybrid",
-                    icon: "🔀",
+                    icon: "shuffle",
                     label: ar ? "هجين (مُوصى به)" : "Hybrid (recommended)",
                     desc: ar
                       ? "البوت يردّ على الكلمات المحفّزة، الذكاء الاصطناعي يكمل الباقي."
@@ -891,7 +891,7 @@ export default function SettingsPage() {
                   },
                   {
                     key: "bot_only",
-                    icon: "🤖",
+                    icon: "bot",
                     label: ar ? "بوت فقط" : "Bot only",
                     desc: ar
                       ? "فقط البوتات تردّ. أيّ سؤال خارج الكلمات المحفّزة لن يُردّ عليه."
@@ -899,7 +899,7 @@ export default function SettingsPage() {
                   },
                   {
                     key: "ai_only",
-                    icon: "🧠",
+                    icon: "brain",
                     label: ar ? "ذكاء اصطناعي فقط" : "AI only",
                     desc: ar
                       ? "كلّ الرسائل تروح للذكاء الاصطناعي. البوتات معطّلة حتى لو منشورة."
@@ -932,8 +932,9 @@ export default function SettingsPage() {
                           {active && <div style={{ width: 10, height: 10, borderRadius: 5, background: C.pri }} />}
                         </div>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>
-                            <span style={{ marginInlineEnd: 6 }}>{opt.icon}</span>{opt.label}
+                          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2, display: "flex", alignItems: "center", gap: 6 }}>
+                            <Icon name={opt.icon} size={15} />
+                            <span>{opt.label}</span>
                           </div>
                           <div style={{ fontSize: 11.5, color: C.t2, lineHeight: 1.6 }}>{opt.desc}</div>
                         </div>
@@ -950,7 +951,7 @@ export default function SettingsPage() {
               <AutoMessageBlock
                 C={C}
                 ar={ar}
-                icon="👋"
+                icon="hand"
                 label={ar ? "رسالة الترحيب" : "Welcome Message"}
                 desc={ar ? "تُرسل تلقائيّاً لمّا يبدأ العميل محادثة جديدة" : "Auto-send when a new conversation starts"}
                 placeholder={ar ? "مرحباً بك في متجرنا! كيف نقدر نخدمك؟" : "Welcome to our store! How can we help?"}
@@ -962,7 +963,7 @@ export default function SettingsPage() {
               <AutoMessageBlock
                 C={C}
                 ar={ar}
-                icon="🌙"
+                icon="moon"
                 label={ar ? "رسالة الغياب" : "Away Message"}
                 desc={ar ? "تُرسل تلقائيّاً خارج ساعات العمل المضبوطة" : "Auto-send outside configured business hours"}
                 placeholder={ar ? "نعتذر، نحن خارج الدوام الآن. سنرد عليك في أقرب وقت." : "We're currently away. We'll get back to you soon."}
@@ -974,7 +975,7 @@ export default function SettingsPage() {
               <AutoMessageBlock
                 C={C}
                 ar={ar}
-                icon="⏳"
+                icon="timer"
                 label={ar ? "رسالة قائمة الانتظار" : "Queue Message"}
                 desc={ar ? "تُرسل عند وضع العميل في طابور الانتظار" : "Sent when the customer is placed in queue"}
                 placeholder={ar ? "شكراً لتواصلك. أنت في قائمة الانتظار وسيتم الردّ عليك قريباً." : "Thanks for reaching out. You're in queue, we'll be with you shortly."}
@@ -996,7 +997,7 @@ export default function SettingsPage() {
               <div style={{ marginBottom: 14 }}>
                 <FieldLabel C={C}>{ar ? "السمة" : "Theme"}</FieldLabel>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 4 }}>
-                  {([["light", "☀️", ar ? "فاتح" : "Light"], ["dark", "🌙", ar ? "داكن" : "Dark"]] as const).map(([key, icon, label]) => (
+                  {([["light", "sun", ar ? "فاتح" : "Light"], ["dark", "moon", ar ? "داكن" : "Dark"]] as const).map(([key, iconName, label]) => (
                     <div
                       key={key}
                       onClick={() => { if ((key === "dark") !== dk) toggleTheme(); }}
@@ -1009,7 +1010,7 @@ export default function SettingsPage() {
                         textAlign: "center",
                       }}
                     >
-                      <div style={{ fontSize: 20, marginBottom: 4 }}>{icon}</div>
+                      <div style={{ display: "flex", justifyContent: "center", marginBottom: 4 }}><Icon name={iconName} size={22} /></div>
                       <div style={{ fontSize: 12, fontWeight: (key === "dark") === dk ? 700 : 400 }}>{label}</div>
                     </div>
                   ))}
@@ -1083,12 +1084,12 @@ export default function SettingsPage() {
             <div style={{ fontSize: 11.5, color: C.t2, marginBottom: 12, lineHeight: 1.6 }}>
               {ar ? "تظهر في الجرس أعلى الشاشة + يصدر صوت عند الوصول." : "Shown in the bell at top + an audio chime on arrival."}
             </div>
-            <ToggleRow C={C} label={ar ? "محادثة جديدة" : "New Conversation"} desc={ar ? "عند وصول محادثة جديدة" : "When a new conversation arrives"} on={notifNew} onToggle={() => setNotifNew(!notifNew)} icon="💬" />
-            <ToggleRow C={C} label={ar ? "رسالة جديدة" : "New Message"} desc={ar ? "عند وصول رسالة في محادثة حالية" : "When a message arrives in existing conversation"} on={notifMsg} onToggle={() => setNotifMsg(!notifMsg)} icon="📩" />
-            <ToggleRow C={C} label={ar ? "تعيين" : "Assignment"} desc={ar ? "عند تعيين محادثة لك" : "When a conversation is assigned to you"} on={notifAssign} onToggle={() => setNotifAssign(!notifAssign)} icon="👤" />
-            <ToggleRow C={C} label={ar ? "تصعيد" : "Escalation"} desc={ar ? "عند تصعيد محادثة" : "When a conversation is escalated"} on={notifEsc} onToggle={() => setNotifEsc(!notifEsc)} icon="🚨" />
-            <ToggleRow C={C} label={ar ? "تحذير SLA" : "SLA Warning"} desc={ar ? "عند اقتراب انتهاء وقت الاستجابة" : "When response time is nearing limit"} on={notifSla} onToggle={() => setNotifSla(!notifSla)} icon="⏰" />
-            <ToggleRow C={C} label={ar ? "رصيد منخفض" : "Low Balance"} desc={ar ? "عند انخفاض رصيد الحساب" : "When account balance is low"} on={notifBal} onToggle={() => setNotifBal(!notifBal)} icon="💰" />
+            <ToggleRow C={C} label={ar ? "محادثة جديدة" : "New Conversation"} desc={ar ? "عند وصول محادثة جديدة" : "When a new conversation arrives"} on={notifNew} onToggle={() => setNotifNew(!notifNew)} icon="msg" />
+            <ToggleRow C={C} label={ar ? "رسالة جديدة" : "New Message"} desc={ar ? "عند وصول رسالة في محادثة حالية" : "When a message arrives in existing conversation"} on={notifMsg} onToggle={() => setNotifMsg(!notifMsg)} icon="mail" />
+            <ToggleRow C={C} label={ar ? "تعيين" : "Assignment"} desc={ar ? "عند تعيين محادثة لك" : "When a conversation is assigned to you"} on={notifAssign} onToggle={() => setNotifAssign(!notifAssign)} icon="user" />
+            <ToggleRow C={C} label={ar ? "تصعيد" : "Escalation"} desc={ar ? "عند تصعيد محادثة" : "When a conversation is escalated"} on={notifEsc} onToggle={() => setNotifEsc(!notifEsc)} icon="siren" />
+            <ToggleRow C={C} label={ar ? "تحذير SLA" : "SLA Warning"} desc={ar ? "عند اقتراب انتهاء وقت الاستجابة" : "When response time is nearing limit"} on={notifSla} onToggle={() => setNotifSla(!notifSla)} icon="timer" />
+            <ToggleRow C={C} label={ar ? "رصيد منخفض" : "Low Balance"} desc={ar ? "عند انخفاض رصيد الحساب" : "When account balance is low"} on={notifBal} onToggle={() => setNotifBal(!notifBal)} icon="wallet" />
           </Card>
 
           {/* Notification Channels */}
@@ -1097,11 +1098,11 @@ export default function SettingsPage() {
             <div style={{ fontSize: 11.5, color: C.t2, marginBottom: 12, lineHeight: 1.6 }}>
               {ar ? "البريد والـ SMS يعملان على التنبيهات الحرجة فقط (رصيد منخفض، انتهاء باقة، تصعيد)." : "Email + SMS run only for critical alerts (low balance, plan expiry, escalation)."}
             </div>
-            <ToggleRow C={C} comingSoon label={ar ? "إشعارات المتصفح" : "Browser Push"} desc={ar ? "إشعارات منبثقة في المتصفح" : "Browser push notifications"} on={pushBrowser} onToggle={() => setPushBrowser(!pushBrowser)} icon="🔔" />
-            <ToggleRow C={C} label={ar ? "البريد الإلكتروني" : "Email"} desc={ar ? "إرسال إشعارات البريد للأنواع المحدّدة" : "Send selected notifications via email"} on={pushEmail} onToggle={() => setPushEmail(!pushEmail)} icon="📧" />
-            <ToggleRow C={C} label={ar ? "الصوت" : "Sound"} desc={ar ? "تشغيل صوت عند وصول إشعار" : "Play sound on notification"} on={pushSound} onToggle={() => setPushSound(!pushSound)} icon="🔊" />
-            <ToggleRow C={C} label={ar ? "SMS للجوّال" : "SMS to phone"} desc={ar ? "رسالة SMS للتنبيهات الحرجة فقط" : "SMS for critical alerts only"} on={pushMobile} onToggle={() => setPushMobile(!pushMobile)} icon="📱" />
-            <ToggleRow C={C} label={ar ? "واتساب" : "WhatsApp"} desc={ar ? "إشعارات تصلك على واتساب عبر قالب معتمد" : "Notifications delivered via an approved WhatsApp template"} on={pushWhatsapp} onToggle={() => setPushWhatsapp(!pushWhatsapp)} icon="💬" />
+            <ToggleRow C={C} comingSoon label={ar ? "إشعارات المتصفح" : "Browser Push"} desc={ar ? "إشعارات منبثقة في المتصفح" : "Browser push notifications"} on={pushBrowser} onToggle={() => setPushBrowser(!pushBrowser)} icon="bell" />
+            <ToggleRow C={C} label={ar ? "البريد الإلكتروني" : "Email"} desc={ar ? "إرسال إشعارات البريد للأنواع المحدّدة" : "Send selected notifications via email"} on={pushEmail} onToggle={() => setPushEmail(!pushEmail)} icon="mail" />
+            <ToggleRow C={C} label={ar ? "الصوت" : "Sound"} desc={ar ? "تشغيل صوت عند وصول إشعار" : "Play sound on notification"} on={pushSound} onToggle={() => setPushSound(!pushSound)} icon="volume" />
+            <ToggleRow C={C} label={ar ? "SMS للجوّال" : "SMS to phone"} desc={ar ? "رسالة SMS للتنبيهات الحرجة فقط" : "SMS for critical alerts only"} on={pushMobile} onToggle={() => setPushMobile(!pushMobile)} icon="phone" />
+            <ToggleRow C={C} label={ar ? "واتساب" : "WhatsApp"} desc={ar ? "إشعارات تصلك على واتساب عبر قالب معتمد" : "Notifications delivered via an approved WhatsApp template"} on={pushWhatsapp} onToggle={() => setPushWhatsapp(!pushWhatsapp)} icon="msg" />
 
             {/* Inline template name field — only renders when the
                 operator opts into WhatsApp notifications. The backend
@@ -1128,7 +1129,7 @@ export default function SettingsPage() {
             )}
 
             <div style={{ marginTop: 12 }}>
-              <ToggleRow C={C} label={ar ? "ساعات الهدوء" : "Quiet Hours"} desc={ar ? "إيقاف الإشعارات خلال فترة محددة" : "Mute notifications during a specific period"} on={quietHours} onToggle={() => { setQuietHours(!quietHours); markChanged(); }} icon="🌙" />
+              <ToggleRow C={C} label={ar ? "ساعات الهدوء" : "Quiet Hours"} desc={ar ? "إيقاف الإشعارات خلال فترة محددة" : "Mute notifications during a specific period"} on={quietHours} onToggle={() => { setQuietHours(!quietHours); markChanged(); }} icon="moon" />
               {quietHours && (
                 <div style={{ marginTop: 6, padding: "10px 12px", borderRadius: 10, background: C.inp, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                   <span style={{ fontSize: 11.5, color: C.t2 }}>{ar ? "من" : "From"}</span>
@@ -1150,7 +1151,7 @@ export default function SettingsPage() {
             </div>
 
             <div style={{ marginTop: 14 }}>
-              <ToggleRow C={C} label={ar ? "التقارير التلقائية" : "Auto Reports"} desc={ar ? "إرسال تقارير دورية تلقائياً عبر البريد" : "Email periodic performance reports"} on={autoReports} onToggle={() => { setAutoReports(!autoReports); markChanged(); }} icon="📊" />
+              <ToggleRow C={C} label={ar ? "التقارير التلقائية" : "Auto Reports"} desc={ar ? "إرسال تقارير دورية تلقائياً عبر البريد" : "Email periodic performance reports"} on={autoReports} onToggle={() => { setAutoReports(!autoReports); markChanged(); }} icon="chart" />
               {autoReports && (
                 <div style={{ marginTop: 6, padding: "10px 12px", borderRadius: 10, background: C.inp, display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={{ fontSize: 11.5, color: C.t2, marginInlineEnd: 4 }}>{ar ? "التكرار:" : "Frequency:"}</span>
@@ -1189,10 +1190,10 @@ export default function SettingsPage() {
           {/* Authentication */}
           <Card style={{ padding: 18 }}>
             <SectionTitle>{ar ? "المصادقة" : "Authentication"}</SectionTitle>
-            <ToggleRow C={C} label={ar ? "المصادقة الثنائية" : "Two-Factor Authentication"} desc={ar ? "طلب رمز SMS إضافي عند تسجيل الدخول. يتطلّب رقم جوّال مسجّل." : "Require an SMS code on login. Requires a phone on file."} on={twoFA} onToggle={() => { setTwoFA(!twoFA); markChanged(); }} icon="🔐" />
-            <ToggleRow C={C} comingSoon label={ar ? "تسجيل الدخول الموحد" : "Single Sign-On (SSO)"} desc={ar ? "تسجيل الدخول عبر مزود هوية خارجي" : "Login via external identity provider"} on={sso} onToggle={() => setSSO(!sso)} icon="🔑" />
-            <ToggleRow C={C} comingSoon label={ar ? "قائمة IP المسموحة" : "IP Whitelist"} desc={ar ? "تقييد الوصول لعناوين IP محددة" : "Restrict access to specific IPs"} on={ipWhite} onToggle={() => setIpWhite(!ipWhite)} icon="🛡️" />
-            <ToggleRow C={C} comingSoon label={ar ? "مهلة الجلسة" : "Session Timeout"} desc={ar ? "تسجيل خروج تلقائي بعد فترة خمول" : "Auto-logout after inactivity"} on={sessTimeout} onToggle={() => setSessTimeout(!sessTimeout)} icon="⏱️" />
+            <ToggleRow C={C} label={ar ? "المصادقة الثنائية" : "Two-Factor Authentication"} desc={ar ? "طلب رمز SMS إضافي عند تسجيل الدخول. يتطلّب رقم جوّال مسجّل." : "Require an SMS code on login. Requires a phone on file."} on={twoFA} onToggle={() => { setTwoFA(!twoFA); markChanged(); }} icon="lock" />
+            <ToggleRow C={C} comingSoon label={ar ? "تسجيل الدخول الموحد" : "Single Sign-On (SSO)"} desc={ar ? "تسجيل الدخول عبر مزود هوية خارجي" : "Login via external identity provider"} on={sso} onToggle={() => setSSO(!sso)} icon="key" />
+            <ToggleRow C={C} comingSoon label={ar ? "قائمة IP المسموحة" : "IP Whitelist"} desc={ar ? "تقييد الوصول لعناوين IP محددة" : "Restrict access to specific IPs"} on={ipWhite} onToggle={() => setIpWhite(!ipWhite)} icon="shield" />
+            <ToggleRow C={C} comingSoon label={ar ? "مهلة الجلسة" : "Session Timeout"} desc={ar ? "تسجيل خروج تلقائي بعد فترة خمول" : "Auto-logout after inactivity"} on={sessTimeout} onToggle={() => setSessTimeout(!sessTimeout)} icon="timer" />
 
             <div style={{ marginTop: 10, opacity: 0.55 }}>
               <FieldLabel C={C}>
@@ -1355,7 +1356,7 @@ export default function SettingsPage() {
                 {
                   channel: "WhatsApp",
                   color: C.wa,
-                  emoji: "💬",
+                  icon: "msg",
                   metrics: [
                     { label: ar ? "نسبة القراءة" : "Read Rate", value: "79%", color: C.ok },
                     { label: ar ? "التكلفة" : "Cost", value: ar ? "0.20-0.30 ر.س" : "0.20-0.30 SAR", color: C.pri },
@@ -1365,7 +1366,7 @@ export default function SettingsPage() {
                 {
                   channel: "SMS",
                   color: "#5B21B6",
-                  emoji: "📱",
+                  icon: "phone",
                   metrics: [
                     { label: ar ? "نسبة القراءة" : "Read Rate", value: "95%", color: C.ok },
                     { label: ar ? "التكلفة" : "Cost", value: ar ? "0.15-0.30 ر.س" : "0.15-0.30 SAR", color: C.warn },
@@ -1375,7 +1376,7 @@ export default function SettingsPage() {
               ].map((row) => (
                 <div key={row.channel} style={{ padding: 12, borderRadius: 12, background: C.inp }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, fontWeight: 700, fontSize: 13 }}>
-                    <span style={{ fontSize: 16 }}>{row.emoji}</span>
+                    <span style={{ color: row.color, display: "inline-flex" }}><Icon name={row.icon} size={16} /></span>
                     <span style={{ color: row.color }}>{row.channel}</span>
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
@@ -1429,14 +1430,14 @@ export default function SettingsPage() {
             <Card style={{ padding: 18 }}>
               <SectionTitle>{ar ? "الأدوار والصلاحيات" : "Roles & Permissions"}</SectionTitle>
               {[
-                { role: ar ? "مدير" : "Admin", count: roleCounts.admin, color: C.err, desc: ar ? "وصول كامل لجميع الإعدادات والبيانات" : "Full access to all settings and data", icon: "🔴" },
-                { role: ar ? "مشرف" : "Supervisor", count: roleCounts.supervisor, color: C.warn, desc: ar ? "إدارة الفريق ومراقبة المحادثات" : "Team management & conversation monitoring", icon: "🟡" },
-                { role: ar ? "وكيل" : "Agent", count: roleCounts.agent, color: C.ok, desc: ar ? "التعامل مع المحادثات والعملاء" : "Handle conversations and customers", icon: "🟢" },
+                { role: ar ? "مدير" : "Admin", count: roleCounts.admin, color: C.err, desc: ar ? "وصول كامل لجميع الإعدادات والبيانات" : "Full access to all settings and data" },
+                { role: ar ? "مشرف" : "Supervisor", count: roleCounts.supervisor, color: C.warn, desc: ar ? "إدارة الفريق ومراقبة المحادثات" : "Team management & conversation monitoring" },
+                { role: ar ? "وكيل" : "Agent", count: roleCounts.agent, color: C.ok, desc: ar ? "التعامل مع المحادثات والعملاء" : "Handle conversations and customers" },
               ].map((r, i) => (
                 <div key={i} style={{ padding: 14, borderRadius: 12, background: C.inp, marginBottom: 6 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 18 }}>{r.icon}</span>
+                      <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 5, background: r.color }} />
                       <span style={{ fontSize: 13, fontWeight: 600 }}>{r.role}</span>
                       <Badge color={r.color}>{r.count} {ar ? "أعضاء" : "members"}</Badge>
                     </div>
@@ -1481,28 +1482,28 @@ export default function SettingsPage() {
               desc={ar ? "إغلاق المحادثات غير النشطة بعد 24 ساعة" : "Close inactive conversations after 24 hours"}
               on={autoClose}
               onToggle={() => setAutoClose(!autoClose)}
-              icon="🔒"
+              icon="lock"
             />
             <ToggleRow C={C}
               label={ar ? "تعيين تلقائي" : "Auto Assign"}
               desc={ar ? "تعيين المحادثات الجديدة تلقائياً للوكلاء المتاحين" : "Auto-assign new conversations to available agents"}
               on={autoAssign}
               onToggle={() => setAutoAssign(!autoAssign)}
-              icon="🔄"
+              icon="refresh"
             />
             <ToggleRow C={C}
               label={ar ? "استلام العميل" : "Customer Takeover"}
               desc={ar ? "السماح للعملاء بتحويل من البوت للوكيل" : "Allow customers to transfer from bot to agent"}
               on={custTakeover}
               onToggle={() => setCustTakeover(!custTakeover)}
-              icon="🤝"
+              icon="handshake"
             />
             <ToggleRow C={C}
               label={ar ? "استبيان بعد الإغلاق" : "Post-Close Survey"}
               desc={ar ? "إرسال استبيان رضا بعد إغلاق المحادثة" : "Send satisfaction survey after closing conversation"}
               on={postSurvey}
               onToggle={() => setPostSurvey(!postSurvey)}
-              icon="⭐"
+              icon="star"
             />
 
             <div style={{ marginTop: 18, padding: 14, borderRadius: 10, background: `${C.pri}08`, border: `1px solid ${C.pri}20` }}>
