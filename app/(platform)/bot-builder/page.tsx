@@ -13,7 +13,7 @@ import type { Bot, FlowNode } from "@/data/bots";
 import { COLORS } from "@/lib/constants/colors";
 import { FONT_FAMILY } from "@/lib/constants/font";
 import type { ThemeColors } from "@/types/common";
-import { useBots } from "@/lib/api/hooks";
+import { useBots, useTeams } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
 import { AiInsightsBar, type AiInsightCard } from "@/components/shared/ai-insights-bar";
 
@@ -59,7 +59,7 @@ const ADD_NODE_TYPES: AddNodeOption[] = [
   { type: "buttons", label: "Buttons", labelAr: "\u0623\u0632\u0631\u0627\u0631" },
   { type: "transfer", label: "Transfer", labelAr: "\u062A\u062D\u0648\u064A\u0644" },
   { type: "end", label: "End", labelAr: "\u0646\u0647\u0627\u064A\u0629" },
-  { type: "ai", label: "AI", labelAr: "\u0630\u0643\u0627\u0621 \u0627\u0635\u0637\u0646\u0627\u0639\u064A", comingSoon: true },
+  { type: "ai", label: "AI", labelAr: "\u0630\u0643\u0627\u0621 \u0627\u0635\u0637\u0646\u0627\u0639\u064A" },
   { type: "condition", label: "Condition", labelAr: "\u0634\u0631\u0637", comingSoon: true },
   { type: "input", label: "Input", labelAr: "\u0625\u062F\u062E\u0627\u0644", comingSoon: true },
   { type: "api", label: "API", labelAr: "API", comingSoon: true },
@@ -76,6 +76,11 @@ export default function BotBuilderPage() {
   const isMobile = useIsMobile();
 
   const { data: apiBots, isLoading, mutate } = useBots();
+  // Pulled for AI node's escalate_to_team dropdown so operators don't
+  // free-type a team name that doesn't exist (escalation silently no-ops).
+  const { data: teamsData } = useTeams();
+  const teams: { id: string; name: string; name_ar?: string }[] =
+    Array.isArray(teamsData) ? teamsData : (teamsData as any)?.data ?? [];
   const bots: Bot[] = (Array.isArray(apiBots) ? apiBots : []).map((b: any) => ({
     ...b,
     st: b.st ?? b.status ?? "unpublished",
@@ -1341,7 +1346,13 @@ export default function BotBuilderPage() {
                   </div>
                 )}
 
-                {/* AI: model selector + prompt */}
+                {/* AI: model + prompt + escalation guardrails. The model
+                    dropdown defaults to gpt-4o-mini \u2014 same model the
+                    inbox auto-reply uses, ~30\u00D7 cheaper than gpt-4 at
+                    comparable quality for short replies. Claude/Gemini
+                    options stay listed for future provider support,
+                    but the backend currently routes them through
+                    OpenAI's gpt-4o-mini regardless. */}
                 {selectedNode.type === "ai" && (
                   <>
                     <div>
@@ -1349,7 +1360,7 @@ export default function BotBuilderPage() {
                         {isAr ? "\u0646\u0645\u0648\u0630\u062C AI" : "AI Model"}
                       </div>
                       <select
-                        value={String(selectedNode.config.model ?? "gpt-4")}
+                        value={String(selectedNode.config.model ?? "gpt-4o-mini")}
                         onChange={(e) => updateNodeConfig(selectedNode.id, { model: e.target.value })}
                         style={{
                           width: "100%",
@@ -1365,10 +1376,9 @@ export default function BotBuilderPage() {
                           cursor: "pointer",
                         }}
                       >
+                        <option value="gpt-4o-mini">GPT-4o mini ({isAr ? "\u0627\u0644\u0645\u0648\u0635\u0649 \u0628\u0647" : "Recommended"})</option>
                         <option value="gpt-4">GPT-4</option>
                         <option value="gpt-3.5">GPT-3.5 Turbo</option>
-                        <option value="claude-3">Claude 3</option>
-                        <option value="gemini">Gemini Pro</option>
                       </select>
                     </div>
                     <div>
@@ -1394,6 +1404,108 @@ export default function BotBuilderPage() {
                           boxSizing: "border-box",
                         }}
                       />
+                    </div>
+
+                    {/* Conversation context toggle. OFF by default to keep
+                        token usage predictable; flip ON when the bot needs
+                        to remember earlier turns in the same conversation. */}
+                    <label style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "8px 10px",
+                      borderRadius: 8,
+                      border: `1px solid ${C.brd}`,
+                      background: C.inp,
+                      cursor: "pointer",
+                      fontSize: 12.5,
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={!!selectedNode.config.conversation_context}
+                        onChange={(e) => updateNodeConfig(selectedNode.id, { conversation_context: e.target.checked })}
+                        style={{ accentColor: NODE_COLORS.ai, cursor: "pointer" }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ color: C.txt, fontWeight: 600 }}>
+                          {isAr ? "\u062D\u0641\u0638 \u0633\u064A\u0627\u0642 \u0627\u0644\u0645\u062D\u0627\u062F\u062B\u0629" : "Conversation context"}
+                        </div>
+                        <div style={{ color: C.t3, fontSize: 10.5, marginTop: 2 }}>
+                          {isAr
+                            ? "\u064A\u0631\u0633\u0644 \u0622\u062E\u0631 10 \u0631\u0633\u0627\u0626\u0644 \u0645\u0639 \u0643\u0644 \u0637\u0644\u0628 (\u064A\u0632\u064A\u062F \u0627\u0644\u062A\u0643\u0644\u0641\u0629)"
+                            : "Sends last 10 messages with each call (raises cost)"}
+                        </div>
+                      </div>
+                    </label>
+
+                    {/* Escalate keywords \u2014 comma-separated. Empty string
+                        disables; null/missing uses backend defaults
+                        ("\u0645\u0648\u0638\u0641", "\u0625\u0646\u0633\u0627\u0646", "human", etc.). */}
+                    <div>
+                      <div style={{ fontSize: 11, color: C.t2, marginBottom: 4, fontWeight: 600 }}>
+                        {isAr ? "\u0643\u0644\u0645\u0627\u062A \u0627\u0644\u062A\u062D\u0648\u064A\u0644 \u0644\u0625\u0646\u0633\u0627\u0646 (\u0645\u0641\u0635\u0648\u0644\u0629 \u0628\u0641\u0648\u0627\u0635\u0644)" : "Escalate keywords (comma-separated)"}
+                      </div>
+                      <input
+                        value={(() => {
+                          const v = selectedNode.config.escalate_keywords;
+                          if (Array.isArray(v)) return v.join(", ");
+                          return typeof v === "string" ? v : "";
+                        })()}
+                        onChange={(e) => updateNodeConfig(selectedNode.id, { escalate_keywords: e.target.value })}
+                        placeholder={isAr ? "\u0645\u0648\u0638\u0641, \u0625\u0646\u0633\u0627\u0646, \u062E\u062F\u0645\u0629 \u0627\u0644\u0639\u0645\u0644\u0627\u0621" : "agent, human, operator"}
+                        style={{
+                          width: "100%",
+                          padding: "8px 10px",
+                          borderRadius: 8,
+                          border: `1px solid ${C.brd}`,
+                          background: C.inp,
+                          color: C.txt,
+                          fontSize: 12.5,
+                          fontFamily: FONT_FAMILY,
+                          outline: "none",
+                          boxSizing: "border-box",
+                        }}
+                      />
+                      <div style={{ fontSize: 10.5, color: C.t3, marginTop: 4 }}>
+                        {isAr
+                          ? "\u0627\u062A\u0631\u0643\u0647\u0627 \u0641\u0627\u0631\u063A\u0629 \u0644\u0627\u0633\u062A\u062E\u062F\u0627\u0645 \u0627\u0644\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0627\u0641\u062A\u0631\u0627\u0636\u064A\u0629. \u0623\u064A\u0651 \u0643\u0644\u0645\u0629 \u062A\u0637\u0627\u0628\u0642 \u0633\u062A\u062D\u0648\u0651\u0644 \u0627\u0644\u0645\u062D\u0627\u062F\u062B\u0629 \u0641\u0648\u0631\u0627\u064B \u0628\u062F\u0648\u0646 \u0627\u0633\u062A\u062F\u0639\u0627\u0621 AI."
+                          : "Leave empty for defaults. Any match transfers immediately, skipping the OpenAI call."}
+                      </div>
+                    </div>
+
+                    {/* Team dropdown \u2014 pulled from /teams. Plain text
+                        was the previous storage shape; we keep accepting
+                        text but offer the dropdown for new flows. */}
+                    <div>
+                      <div style={{ fontSize: 11, color: C.t2, marginBottom: 4, fontWeight: 600 }}>
+                        {isAr ? "\u0641\u0631\u064A\u0642 \u0627\u0644\u062A\u062D\u0648\u064A\u0644 \u0639\u0646\u062F \u0627\u0644\u062A\u0635\u0639\u064A\u062F" : "Escalate to team"}
+                      </div>
+                      <select
+                        value={String(selectedNode.config.escalate_to_team ?? "")}
+                        onChange={(e) => updateNodeConfig(selectedNode.id, { escalate_to_team: e.target.value })}
+                        style={{
+                          width: "100%",
+                          padding: "8px 10px",
+                          borderRadius: 8,
+                          border: `1px solid ${C.brd}`,
+                          background: C.inp,
+                          color: C.txt,
+                          fontSize: 12.5,
+                          fontFamily: FONT_FAMILY,
+                          outline: "none",
+                          boxSizing: "border-box",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <option value="">
+                          {isAr ? "\u0628\u062F\u0648\u0646 \u0641\u0631\u064A\u0642 \u0645\u062D\u062F\u0651\u062F (\u064A\u0638\u0647\u0631 \u0641\u064A \u0635\u0646\u062F\u0648\u0642 \u0627\u0644\u0648\u0627\u0631\u062F)" : "No specific team (goes to inbox queue)"}
+                        </option>
+                        {teams.map((t) => (
+                          <option key={t.id} value={isAr && t.name_ar ? t.name_ar : t.name}>
+                            {isAr && t.name_ar ? t.name_ar : t.name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </>
                 )}
