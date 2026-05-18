@@ -1678,67 +1678,182 @@ export default function BotBuilderPage() {
                   );
                 })()}
 
-                {/* API: url + response variable. The runtime issues a
-                    GET (no headers/body yet — those land in a follow-up
-                    pass), pulls the JSON "response" field if present
-                    or the whole body otherwise, and stashes it under
-                    response_variable for downstream nodes to reference. */}
-                {selectedNode.type === "api" && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  <div>
-                    <div style={{ fontSize: 11, color: C.t2, marginBottom: 4, fontWeight: 600 }}>URL</div>
-                    <input
-                      value={String(selectedNode.config.url ?? "")}
-                      onChange={(e) => updateNodeConfig(selectedNode.id, { url: e.target.value })}
-                      placeholder="https://api.example.com/orders/{{order_id}}"
-                      style={{
-                        width: "100%",
-                        padding: "8px 10px",
-                        borderRadius: 8,
-                        border: `1px solid ${C.brd}`,
-                        background: C.inp,
-                        color: C.txt,
-                        fontSize: 12.5,
-                        fontFamily: "monospace",
-                        outline: "none",
-                        boxSizing: "border-box",
-                      }}
-                    />
-                    <div style={{ fontSize: 10.5, color: C.t3, marginTop: 4 }}>
-                      {isAr
-                        ? "يمكن استخدام {{variable}} من عقد Input سابقة. الطلب GET فقط."
-                        : "Reference {{variables}} from earlier Input nodes. GET only for now."}
+                {/* API: method + URL + headers + body + response variable.
+                    All four config fields flow through {{var}} interpolation
+                    at runtime, so an Input node earlier in the flow can
+                    populate {{order_id}} and the request reaches the right
+                    endpoint with the right payload. Body parses as JSON
+                    when valid, otherwise sends as raw text/plain. */}
+                {selectedNode.type === "api" && (() => {
+                  const method = String(selectedNode.config.method ?? "GET").toUpperCase();
+                  const showBody = ["POST", "PUT", "PATCH"].includes(method);
+                  const rawHeaders = selectedNode.config.headers;
+                  const headers: { key: string; value: string }[] = Array.isArray(rawHeaders)
+                    ? rawHeaders.map((h: any) => ({ key: String(h?.key ?? ""), value: String(h?.value ?? "") }))
+                    : [];
+                  return (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <div style={{ width: 100 }}>
+                          <div style={{ fontSize: 11, color: C.t2, marginBottom: 4, fontWeight: 600 }}>
+                            {isAr ? "النوع" : "Method"}
+                          </div>
+                          <select
+                            value={method}
+                            onChange={(e) => updateNodeConfig(selectedNode.id, { method: e.target.value })}
+                            style={{
+                              width: "100%",
+                              padding: "8px 10px",
+                              borderRadius: 8,
+                              border: `1px solid ${C.brd}`,
+                              background: C.inp,
+                              color: C.txt,
+                              fontSize: 12.5,
+                              fontFamily: "monospace",
+                              outline: "none",
+                              boxSizing: "border-box",
+                              cursor: "pointer",
+                            }}
+                          >
+                            <option value="GET">GET</option>
+                            <option value="POST">POST</option>
+                            <option value="PUT">PUT</option>
+                            <option value="PATCH">PATCH</option>
+                            <option value="DELETE">DELETE</option>
+                          </select>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 11, color: C.t2, marginBottom: 4, fontWeight: 600 }}>URL</div>
+                          <input
+                            value={String(selectedNode.config.url ?? "")}
+                            onChange={(e) => updateNodeConfig(selectedNode.id, { url: e.target.value })}
+                            placeholder="https://api.example.com/orders/{{order_id}}"
+                            style={{
+                              width: "100%",
+                              padding: "8px 10px",
+                              borderRadius: 8,
+                              border: `1px solid ${C.brd}`,
+                              background: C.inp,
+                              color: C.txt,
+                              fontSize: 12.5,
+                              fontFamily: "monospace",
+                              outline: "none",
+                              boxSizing: "border-box",
+                              direction: "ltr",
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ fontSize: 11, color: C.t2, marginBottom: 4, fontWeight: 600 }}>
+                          {isAr ? "الـ Headers (اختياري)" : "Headers (optional)"}
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          {headers.map((h, i) => (
+                            <div key={i} style={{ display: "flex", gap: 6 }}>
+                              <input
+                                value={h.key}
+                                onChange={(e) => {
+                                  const next = headers.slice();
+                                  next[i] = { ...h, key: e.target.value };
+                                  updateNodeConfig(selectedNode.id, { headers: next });
+                                }}
+                                placeholder="Authorization"
+                                style={{
+                                  flex: 1, padding: "7px 10px", borderRadius: 6,
+                                  border: `1px solid ${C.brd}`, background: C.inp, color: C.txt,
+                                  fontSize: 12, fontFamily: "monospace", outline: "none", direction: "ltr",
+                                }}
+                              />
+                              <input
+                                value={h.value}
+                                onChange={(e) => {
+                                  const next = headers.slice();
+                                  next[i] = { ...h, value: e.target.value };
+                                  updateNodeConfig(selectedNode.id, { headers: next });
+                                }}
+                                placeholder="Bearer {{token}}"
+                                style={{
+                                  flex: 1.4, padding: "7px 10px", borderRadius: 6,
+                                  border: `1px solid ${C.brd}`, background: C.inp, color: C.txt,
+                                  fontSize: 12, fontFamily: "monospace", outline: "none", direction: "ltr",
+                                }}
+                              />
+                              <button
+                                onClick={() => {
+                                  const next = headers.filter((_, idx) => idx !== i);
+                                  updateNodeConfig(selectedNode.id, { headers: next });
+                                }}
+                                style={{
+                                  width: 24, height: 30, borderRadius: 6,
+                                  border: `1px solid ${C.brd}`, background: "transparent",
+                                  color: "#EF4444", cursor: "pointer", fontSize: 14,
+                                  display: "flex", alignItems: "center", justifyContent: "center", padding: 0,
+                                }}
+                              >
+                                {"×"}
+                              </button>
+                            </div>
+                          ))}
+                          <button
+                            onClick={() => updateNodeConfig(selectedNode.id, {
+                              headers: [...headers, { key: "", value: "" }],
+                            })}
+                            style={{
+                              padding: "6px 10px", borderRadius: 6,
+                              border: `2px dashed ${C.brd}`, background: "transparent",
+                              color: C.t3, cursor: "pointer", fontSize: 11.5, fontFamily: FONT_FAMILY,
+                            }}
+                          >
+                            + {isAr ? "إضافة Header" : "Add Header"}
+                          </button>
+                        </div>
+                      </div>
+
+                      {showBody && (
+                        <div>
+                          <div style={{ fontSize: 11, color: C.t2, marginBottom: 4, fontWeight: 600 }}>
+                            {isAr ? "محتوى الطلب (JSON)" : "Request Body (JSON)"}
+                          </div>
+                          <textarea
+                            value={String(selectedNode.config.body ?? "")}
+                            onChange={(e) => updateNodeConfig(selectedNode.id, { body: e.target.value })}
+                            rows={4}
+                            placeholder={'{\n  "order_id": "{{order_id}}",\n  "status": "new"\n}'}
+                            style={{
+                              width: "100%", padding: "8px 10px", borderRadius: 8,
+                              border: `1px solid ${C.brd}`, background: C.inp, color: C.txt,
+                              fontSize: 12, fontFamily: "monospace", outline: "none",
+                              resize: "vertical", boxSizing: "border-box", direction: "ltr",
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <div style={{ fontSize: 11, color: C.t2, marginBottom: 4, fontWeight: 600 }}>
+                          {isAr ? "اسم متغيّر الرد" : "Response Variable"}
+                        </div>
+                        <input
+                          value={String(selectedNode.config.response_variable ?? "")}
+                          onChange={(e) => updateNodeConfig(selectedNode.id, { response_variable: e.target.value })}
+                          placeholder="api_response"
+                          style={{
+                            width: "100%", padding: "8px 10px", borderRadius: 8,
+                            border: `1px solid ${C.brd}`, background: C.inp, color: C.txt,
+                            fontSize: 12.5, fontFamily: "monospace", outline: "none", boxSizing: "border-box",
+                          }}
+                        />
+                        <div style={{ fontSize: 10.5, color: C.t3, marginTop: 4 }}>
+                          {isAr
+                            ? "يخزّن الرد لاستخدامه في عقد لاحقة عبر {{response_variable}}."
+                            : "Stores the response for later nodes to use as {{response_variable}}."}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 11, color: C.t2, marginBottom: 4, fontWeight: 600 }}>
-                      {isAr ? "اسم متغيّر الرد" : "Response Variable"}
-                    </div>
-                    <input
-                      value={String(selectedNode.config.response_variable ?? "")}
-                      onChange={(e) => updateNodeConfig(selectedNode.id, { response_variable: e.target.value })}
-                      placeholder="api_response"
-                      style={{
-                        width: "100%",
-                        padding: "8px 10px",
-                        borderRadius: 8,
-                        border: `1px solid ${C.brd}`,
-                        background: C.inp,
-                        color: C.txt,
-                        fontSize: 12.5,
-                        fontFamily: "monospace",
-                        outline: "none",
-                        boxSizing: "border-box",
-                      }}
-                    />
-                    <div style={{ fontSize: 10.5, color: C.t3, marginTop: 4 }}>
-                      {isAr
-                        ? "يخزّن الرد لاستخدامه في عقد لاحقة عبر {{response_variable}}."
-                        : "Stores the response for later nodes to use as {{response_variable}}."}
-                    </div>
-                  </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* Connections */}
                 <div>
