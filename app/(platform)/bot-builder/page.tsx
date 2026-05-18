@@ -98,6 +98,21 @@ export default function BotBuilderPage() {
   const [deleteTarget, setDeleteTarget] = useState<Bot | null>(null);
   const [deletingBot, setDeletingBot] = useState(false);
 
+  // Template picker modal — fetched on first open and cached for the
+  // session so reopening doesn't re-hit the API.
+  type BotTemplate = {
+    id: string;
+    name_ar: string;
+    name_en: string;
+    description_ar: string;
+    description_en: string;
+    category: string;
+    node_count: number;
+  };
+  const [showTemplatesModal, setShowTemplatesModal] = useState(false);
+  const [templates, setTemplates] = useState<BotTemplate[] | null>(null);
+  const [creatingFromTemplate, setCreatingFromTemplate] = useState<string | null>(null);
+
   /* ---- Flow editor state ---- */
   const [flow, setFlow] = useState<FlowNode[]>([]);
   const [flowLoading, setFlowLoading] = useState(false);
@@ -202,6 +217,35 @@ export default function BotBuilderPage() {
     setNewBot({ name: "", description: "", trigger: "", aiEnabled: true, startNode: "welcome", cooldownHours: 24 });
     setShowCreateModal(true);
   }, []);
+
+  const handleOpenTemplates = useCallback(async () => {
+    setShowTemplatesModal(true);
+    if (templates !== null) return;
+    try {
+      const res = await api.get("/bots/templates");
+      const list = (res?.data?.data ?? res?.data ?? []) as BotTemplate[];
+      setTemplates(Array.isArray(list) ? list : []);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || (isAr ? "تعذّر تحميل القوالب" : "Failed to load templates");
+      showToast(msg);
+      setTemplates([]);
+    }
+  }, [templates, isAr, showToast]);
+
+  const handleCreateFromTemplate = useCallback(async (templateId: string) => {
+    setCreatingFromTemplate(templateId);
+    try {
+      await api.post(`/bots/templates/${templateId}`);
+      mutate();
+      showToast(isAr ? "تمّ إنشاء البوت من القالب ✓" : "Bot created from template ✓");
+      setShowTemplatesModal(false);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || (isAr ? "تعذّر إنشاء البوت" : "Failed to create bot");
+      showToast(msg);
+    } finally {
+      setCreatingFromTemplate(null);
+    }
+  }, [isAr, showToast, mutate]);
 
   const handleSelectBot = useCallback((id: number) => {
     setSelectedBotId(id);
@@ -2115,10 +2159,16 @@ export default function BotBuilderPage() {
             {isAr ? "\u0625\u0646\u0634\u0627\u0621 \u0648\u0625\u062f\u0627\u0631\u0629 \u062a\u062f\u0641\u0642\u0627\u062a \u0627\u0644\u0645\u062d\u0627\u062f\u062b\u0627\u062a \u0627\u0644\u0622\u0644\u064a\u0629" : "Create and manage automated conversation flows"}
           </p>
         </div>
-        <Button primary onClick={handleCreateFlow}>
-          <Icon name="zap" size={14} />
-          {isAr ? "\u0625\u0646\u0634\u0627\u0621 \u062a\u062f\u0641\u0642" : "Create Flow"}
-        </Button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Button outline onClick={handleOpenTemplates}>
+            <Icon name="bot" size={14} />
+            {isAr ? "\u0627\u0628\u062f\u0623 \u0645\u0646 \u0642\u0627\u0644\u0628" : "Start from Template"}
+          </Button>
+          <Button primary onClick={handleCreateFlow}>
+            <Icon name="zap" size={14} />
+            {isAr ? "\u0625\u0646\u0634\u0627\u0621 \u062a\u062f\u0641\u0642" : "Create Flow"}
+          </Button>
+        </div>
       </div>
 
       {/* Summary stats */}
@@ -2287,7 +2337,83 @@ export default function BotBuilderPage() {
         </div>
       )}
 
-      {/* ── Delete Bot Confirmation Modal ── */}
+      {/* ── Pick Template Modal ── */}
+      <Modal
+        open={showTemplatesModal}
+        onClose={() => !creatingFromTemplate && setShowTemplatesModal(false)}
+        title={isAr ? "\u0627\u062E\u062A\u0631 \u0642\u0627\u0644\u0628 \u0627\u0644\u0628\u0648\u062A" : "Pick a Bot Template"}
+        wide
+        hideFooter
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <p style={{ margin: 0, fontSize: 13, color: C.t2, lineHeight: 1.6 }}>
+            {isAr
+              ? "\u0627\u062E\u062A\u0631 \u0642\u0627\u0644\u0628\u0627\u064B \u062C\u0627\u0647\u0632\u0627\u064B \u0648\u0639\u062F\u0651\u0644 \u0639\u0644\u064A\u0647 \u2014 \u0627\u0644\u0628\u0648\u062A \u064A\u064F\u0646\u0634\u0623 \u0643\u0645\u0633\u0648\u0651\u062F\u0629 \u0644\u062A\u0631\u0627\u062C\u0639 \u0627\u0644\u0646\u0635\u0648\u0635 \u0648\u0623\u0633\u0645\u0627\u0621 \u0627\u0644\u0641\u0631\u0642 \u0642\u0628\u0644 \u0627\u0644\u0646\u0634\u0631."
+              : "Pick a starter and tweak it \u2014 bots are created as drafts so you can review the copy and team names before going live."}
+          </p>
+          {templates === null && (
+            <div style={{ padding: 30, textAlign: "center", color: C.t3, fontSize: 13 }}>
+              {isAr ? "\u062C\u0627\u0631\u064D \u0627\u0644\u062A\u062D\u0645\u064A\u0644..." : "Loading..."}
+            </div>
+          )}
+          {templates !== null && templates.length === 0 && (
+            <div style={{ padding: 30, textAlign: "center", color: C.t3, fontSize: 13 }}>
+              {isAr ? "\u0644\u0627 \u062A\u0648\u062C\u062F \u0642\u0648\u0627\u0644\u0628 \u0645\u062A\u0627\u062D\u0629" : "No templates available"}
+            </div>
+          )}
+          {templates && templates.length > 0 && (
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)",
+              gap: 10,
+              marginTop: 8,
+            }}>
+              {templates.map((t) => {
+                const busy = creatingFromTemplate === t.id;
+                const anyBusy = creatingFromTemplate !== null;
+                return (
+                  <div
+                    key={t.id}
+                    style={{
+                      padding: 14,
+                      borderRadius: 12,
+                      border: `1px solid ${C.brd}`,
+                      background: C.card,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 8,
+                      opacity: anyBusy && !busy ? 0.55 : 1,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <Badge color={COLORS.ai}>{t.category}</Badge>
+                      <Badge color={C.t3}>{t.node_count} {isAr ? "\u0639\u0642\u062F\u0629" : "nodes"}</Badge>
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: C.txt }}>
+                      {isAr ? t.name_ar : t.name_en}
+                    </div>
+                    <div style={{ fontSize: 12, color: C.t2, lineHeight: 1.6, flex: 1 }}>
+                      {isAr ? t.description_ar : t.description_en}
+                    </div>
+                    <Button
+                      primary
+                      small
+                      disabled={anyBusy}
+                      onClick={() => handleCreateFromTemplate(t.id)}
+                    >
+                      {busy
+                        ? (isAr ? "\u062C\u0627\u0631\u064D \u0627\u0644\u0625\u0646\u0634\u0627\u0621..." : "Creating...")
+                        : (isAr ? "\u0627\u0633\u062A\u062E\u062F\u0627\u0645 \u0647\u0630\u0627 \u0627\u0644\u0642\u0627\u0644\u0628" : "Use this template")}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      {/* \u2500\u2500 Delete Bot Modal \u2500\u2500 */}
       <Modal
         open={!!deleteTarget}
         onClose={() => !deletingBot && setDeleteTarget(null)}
