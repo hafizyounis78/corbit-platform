@@ -85,6 +85,9 @@ import {
   Sparkles,
   Star,
   Store,
+  ThumbsDown,
+  ThumbsUp,
+  Ticket,
   Sun,
   Tag,
   Target,
@@ -213,6 +216,9 @@ const ICON_MAP: Record<string, LucideIcon> = {
   circleDot: Circle,
   trendingUp: TrendingUp,
   trendingDown: TrendingDown,
+  thumbsUp: ThumbsUp,
+  thumbsDown: ThumbsDown,
+  ticket: Ticket,
 };
 
 interface IconProps {

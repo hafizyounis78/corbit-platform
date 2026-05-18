@@ -5,6 +5,7 @@ import { Card } from "@/components/ui";
 import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { FONT_FAMILY } from "@/lib/constants/font";
+import { Icon } from "@/components/icons/icon";
 
 type Plan = {
   key: string;
@@ -187,8 +188,9 @@ export function SalesPlaybookPanel() {
         <div style={{ fontSize: 11, color: C.t2, marginBottom: 4, letterSpacing: 0.5 }}>
           {isAr ? "للموظّفين فقط — مبيعات/دعم" : "INTERNAL — Sales / Support"}
         </div>
-        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: C.txt }}>
-          📚 {isAr ? "دليل المبيعات" : "Sales Playbook"}
+        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: C.txt, display: "flex", alignItems: "center", gap: 8 }}>
+          <Icon name="book" size={20} />
+          <span>{isAr ? "دليل المبيعات" : "Sales Playbook"}</span>
         </h2>
         <p style={{ margin: "6px 0 0", fontSize: 13, color: C.t2, lineHeight: 1.6 }}>
           {isAr
@@ -199,8 +201,9 @@ export function SalesPlaybookPanel() {
 
       {/* Plans table */}
       <div style={{ marginBottom: 28 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: C.txt }}>
-          {isAr ? "💼 الخطط" : "💼 Plans"}
+        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: C.txt, display: "flex", alignItems: "center", gap: 8 }}>
+          <Icon name="wallet" size={18} />
+          <span>{isAr ? "الخطط" : "Plans"}</span>
         </h3>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
           {PLANS.map((p) => (
@@ -219,7 +222,10 @@ export function SalesPlaybookPanel() {
                   background: C.pri, color: "#fff",
                   fontSize: 10, fontWeight: 700,
                 }}>
-                  ⭐ {isAr ? "الأكثر اختياراً" : "Most picked"}
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                    <Icon name="star" size={10} />
+                    <span>{isAr ? "الأكثر اختياراً" : "Most picked"}</span>
+                  </span>
                 </div>
               )}
               <div style={{ fontWeight: 700, fontSize: 15, color: C.txt, marginBottom: 6 }}>
@@ -232,8 +238,8 @@ export function SalesPlaybookPanel() {
                 ≈ {p.monthly_sar.toLocaleString()} {isAr ? "ريال" : "SAR"}
               </div>
               <div style={{ borderTop: `1px solid ${C.brd}`, paddingTop: 10, fontSize: 12, color: C.t2, lineHeight: 1.7 }}>
-                <div>⚡ {p.throughput}</div>
-                <div>💬 {p.conversations}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}><Icon name="zap" size={12} /><span>{p.throughput}</span></div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}><Icon name="msg" size={12} /><span>{p.conversations}</span></div>
                 <div style={{ marginTop: 8, color: C.txt, fontSize: 11.5, lineHeight: 1.5 }}>
                   {isAr ? p.bestFor_ar : p.bestFor_en}
                 </div>
@@ -241,17 +247,19 @@ export function SalesPlaybookPanel() {
             </Card>
           ))}
         </div>
-        <div style={{ marginTop: 10, fontSize: 11.5, color: C.t3 }}>
-          💡 {isAr
+        <div style={{ marginTop: 10, fontSize: 11.5, color: C.t3, display: "flex", alignItems: "flex-start", gap: 6 }}>
+          <span style={{ color: C.pri, display: "inline-flex", marginTop: 1, flexShrink: 0 }}><Icon name="sparkles" size={12} /></span>
+          <span>{isAr
             ? "الأسعار قابلة للتعديل من Nova > Plans. ما هو معروض هنا = القيم الافتراضيّة."
-            : "Prices are editable from Nova > Plans. The values shown here are the defaults."}
+            : "Prices are editable from Nova > Plans. The values shown here are the defaults."}</span>
         </div>
       </div>
 
       {/* Scenarios */}
       <div>
-        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: C.txt }}>
-          {isAr ? "🎯 سيناريوهات شائعة" : "🎯 Common Scenarios"}
+        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: C.txt, display: "flex", alignItems: "center", gap: 8 }}>
+          <Icon name="target" size={18} />
+          <span>{isAr ? "سيناريوهات شائعة" : "Common Scenarios"}</span>
         </h3>
         <div style={{ display: "grid", gap: 10 }}>
           {SCENARIOS.map((s) => {
@@ -285,8 +293,9 @@ export function SalesPlaybookPanel() {
                 {isOpen && (
                   <div style={{ padding: "14px 18px", borderTop: `1px solid ${C.brd}`, background: C.inp }}>
                     <div style={{ marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, color: C.t2, fontWeight: 700, marginBottom: 4, letterSpacing: 0.3 }}>
-                        🗣️ {isAr ? "الطرح" : "PITCH"}
+                      <div style={{ fontSize: 11, color: C.t2, fontWeight: 700, marginBottom: 4, letterSpacing: 0.3, display: "flex", alignItems: "center", gap: 5 }}>
+                        <Icon name="msg" size={11} />
+                        <span>{isAr ? "الطرح" : "PITCH"}</span>
                       </div>
                       <div style={{ fontSize: 12.5, color: C.txt, lineHeight: 1.7 }}>
                         {isAr ? s.pitch_ar : s.pitch_en}
@@ -294,14 +303,16 @@ export function SalesPlaybookPanel() {
                     </div>
                     {s.objection_ar && (
                       <div style={{ paddingTop: 10, borderTop: `1px dashed ${C.brd}` }}>
-                        <div style={{ fontSize: 11, color: C.warn, fontWeight: 700, marginBottom: 4, letterSpacing: 0.3 }}>
-                          🛡️ {isAr ? "اعتراض شائع" : "COMMON OBJECTION"}
+                        <div style={{ fontSize: 11, color: C.warn, fontWeight: 700, marginBottom: 4, letterSpacing: 0.3, display: "flex", alignItems: "center", gap: 5 }}>
+                          <Icon name="shield" size={11} />
+                          <span>{isAr ? "اعتراض شائع" : "COMMON OBJECTION"}</span>
                         </div>
                         <div style={{ fontSize: 12.5, color: C.t2, fontStyle: "italic", marginBottom: 8 }}>
                           "{isAr ? s.objection_ar : s.objection_en}"
                         </div>
-                        <div style={{ fontSize: 11, color: C.pri, fontWeight: 700, marginBottom: 4, letterSpacing: 0.3 }}>
-                          ✅ {isAr ? "ردّ مقترح" : "SUGGESTED REPLY"}
+                        <div style={{ fontSize: 11, color: C.pri, fontWeight: 700, marginBottom: 4, letterSpacing: 0.3, display: "flex", alignItems: "center", gap: 5 }}>
+                          <Icon name="check" size={11} />
+                          <span>{isAr ? "ردّ مقترح" : "SUGGESTED REPLY"}</span>
                         </div>
                         <div style={{ fontSize: 12.5, color: C.txt, lineHeight: 1.7 }}>
                           {isAr ? s.reply_ar : s.reply_en}
@@ -319,7 +330,10 @@ export function SalesPlaybookPanel() {
       {/* Footer */}
       <Card style={{ padding: 16, marginTop: 20, background: C.inp, border: `1px dashed ${C.brd}` }}>
         <div style={{ fontSize: 12, color: C.t2, lineHeight: 1.7 }}>
-          <strong style={{ color: C.txt }}>📖 {isAr ? "تذكير:" : "Reminder:"}</strong>{" "}
+          <strong style={{ color: C.txt, display: "inline-flex", alignItems: "center", gap: 5, marginInlineEnd: 4 }}>
+            <Icon name="book" size={13} />
+            <span>{isAr ? "تذكير:" : "Reminder:"}</span>
+          </strong>{" "}
           {isAr
             ? "هذا الدليل مرجع داخلي — لا تشاركه مع العملاء كما هو. اقتبس منه ما يناسب ولكن صياغة الردود خارجياً يجب أن تكون مخصّصة."
             : "This is an internal reference — don't share it as-is with customers. Quote what fits, but external replies should be tailored."}

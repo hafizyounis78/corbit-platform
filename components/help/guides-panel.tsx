@@ -8,6 +8,7 @@ import { useHelpGuides } from "@/lib/api/hooks";
 import { MarkdownText } from "./markdown-text";
 import { HelpfulVote } from "./helpful-vote";
 import { FONT_FAMILY } from "@/lib/constants/font";
+import { Icon } from "@/components/icons/icon";
 
 interface GuideStep {
   id: string;
@@ -160,7 +161,9 @@ export function GuidesPanel({ onNavigate }: { onNavigate: (path: string) => void
                         cursor: "pointer",
                       }}
                     >
-                      📎 {isAr ? "افتح هذه الصفحة" : "Open this page"} →
+                      <Icon name="link" size={13} />
+                      <span>{isAr ? "افتح هذه الصفحة" : "Open this page"}</span>
+                      <span>→</span>
                     </button>
                   )}
                 </div>
@@ -206,7 +209,7 @@ export function GuidesPanel({ onNavigate }: { onNavigate: (path: string) => void
         padding: "10px 14px", borderRadius: 12, background: C.inp,
         marginBottom: 16,
       }}>
-        <span style={{ fontSize: 14 }}>🔍</span>
+        <Icon name="search" size={14} />
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -226,12 +229,14 @@ export function GuidesPanel({ onNavigate }: { onNavigate: (path: string) => void
       </div>
 
       {guides.length === 0 ? (
-        <div style={{ padding: "40px 18px", textAlign: "center", color: C.t3, fontSize: 13 }}>
-          📭 {isAr ? "لم تُنشَر أدلّة بعد." : "No guides published yet."}
+        <div style={{ padding: "40px 18px", textAlign: "center", color: C.t3, fontSize: 13, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+          <Icon name="inbox" size={20} />
+          <span>{isAr ? "لم تُنشَر أدلّة بعد." : "No guides published yet."}</span>
         </div>
       ) : filtered.length === 0 ? (
-        <div style={{ padding: "40px 18px", textAlign: "center", color: C.t3, fontSize: 13 }}>
-          🔎 {isAr ? `لا توجد نتائج لـ "${search}"` : `No matches for "${search}"`}
+        <div style={{ padding: "40px 18px", textAlign: "center", color: C.t3, fontSize: 13, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+          <Icon name="search" size={20} />
+          <span>{isAr ? `لا توجد نتائج لـ "${search}"` : `No matches for "${search}"`}</span>
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>

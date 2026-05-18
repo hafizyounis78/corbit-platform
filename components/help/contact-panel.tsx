@@ -5,6 +5,7 @@ import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { useHelpContact } from "@/lib/api/hooks";
 import { FONT_FAMILY } from "@/lib/constants/font";
+import { Icon } from "@/components/icons/icon";
 
 interface ContactPayload {
   whatsapp:  { number: string; url: string };
@@ -41,7 +42,7 @@ export function ContactPanel() {
 
   const cards = [
     {
-      icon: "📱",
+      icon: "msg",
       bg: "#25D366",
       title: "WhatsApp",
       desc: isAr ? "تواصل معنا مباشرة عبر واتساب" : "Chat with us on WhatsApp",
@@ -50,7 +51,7 @@ export function ContactPanel() {
       value: contact.whatsapp.number,
     },
     {
-      icon: "📞",
+      icon: "phone",
       bg: C.pri,
       title: isAr ? "اتصال هاتفي" : "Phone Call",
       desc: pick(contact.hours),
@@ -59,7 +60,7 @@ export function ContactPanel() {
       value: contact.phone.number,
     },
     {
-      icon: "📧",
+      icon: "mail",
       bg: C.info,
       title: isAr ? "البريد الإلكتروني" : "Email",
       desc: pick(contact.email_sla),
@@ -76,10 +77,11 @@ export function ContactPanel() {
           <div style={{
             width: 56, height: 56, borderRadius: 16,
             background: `${c.bg}15`,
+            color: c.bg,
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 28, margin: "0 auto 12px",
+            margin: "0 auto 12px",
           }}>
-            {c.icon}
+            <Icon name={c.icon} size={28} />
           </div>
           <h3 style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700 }}>{c.title}</h3>
           <p style={{ fontSize: 12.5, color: C.t2, margin: "0 0 10px", lineHeight: 1.6 }}>

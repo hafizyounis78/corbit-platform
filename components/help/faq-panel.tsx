@@ -7,6 +7,7 @@ import { useHelpFaqs } from "@/lib/api/hooks";
 import { MarkdownText } from "./markdown-text";
 import { HelpfulVote } from "./helpful-vote";
 import { FONT_FAMILY } from "@/lib/constants/font";
+import { Icon } from "@/components/icons/icon";
 
 interface FaqItem {
   id: string;
@@ -38,8 +39,9 @@ export function FaqPanel() {
 
   if (faqs.length === 0) {
     return (
-      <div style={{ padding: "40px 18px", textAlign: "center", color: C.t3, fontSize: 13 }}>
-        📭 {isAr ? "لا توجد أسئلة شائعة بعد." : "No FAQ entries yet."}
+      <div style={{ padding: "40px 18px", textAlign: "center", color: C.t3, fontSize: 13, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+        <Icon name="inbox" size={20} />
+        <span>{isAr ? "لا توجد أسئلة شائعة بعد." : "No FAQ entries yet."}</span>
       </div>
     );
   }

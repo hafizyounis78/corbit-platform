@@ -6,6 +6,7 @@ import { useLocale } from "@/lib/i18n/locale-provider";
 import { useToast } from "@/hooks/use-toast";
 import { getHelpClientToken } from "@/lib/api/hooks";
 import { FONT_FAMILY } from "@/lib/constants/font";
+import { Icon } from "@/components/icons/icon";
 import api from "@/lib/api/client";
 
 const VOTE_KEY_PREFIX = "corbit:help:voted:";
@@ -128,7 +129,8 @@ export function HelpfulVote({
         disabled={busy}
         style={btnStyle(vote === "yes", "#34C77B")}
       >
-        👍 {yes > 0 && <span style={{ opacity: 0.85 }}>{yes}</span>}
+        <Icon name="thumbsUp" size={13} />
+        {yes > 0 && <span style={{ opacity: 0.85 }}>{yes}</span>}
       </button>
       <button
         type="button"
@@ -136,7 +138,8 @@ export function HelpfulVote({
         disabled={busy}
         style={btnStyle(vote === "no", "#E84855")}
       >
-        👎 {no > 0 && <span style={{ opacity: 0.85 }}>{no}</span>}
+        <Icon name="thumbsDown" size={13} />
+        {no > 0 && <span style={{ opacity: 0.85 }}>{no}</span>}
       </button>
       {vote && (
         <span style={{ fontSize: 11, color: C.t3 }}>
