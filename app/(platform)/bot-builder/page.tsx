@@ -130,6 +130,18 @@ export default function BotBuilderPage() {
   const [testCurrentNodeId, setTestCurrentNodeId] = useState<string | null>(null);
   const [testInputValue, setTestInputValue] = useState("");
 
+  // Per-node analytics (last 30 days, rolled up). Refreshed when a
+  // bot is opened so badges reflect what production has been hitting.
+  type NodeAnalytics = {
+    node_id: string;
+    visited?: number;
+    escalated?: number;
+    completed?: number;
+    error?: number;
+    last_visited_at?: string | null;
+  };
+  const [nodeAnalytics, setNodeAnalytics] = useState<Record<string, NodeAnalytics>>({});
+
   const selectedBot = useMemo(
     () => (selectedBotId !== null ? bots.find((b) => b.id === selectedBotId) ?? null : null),
     [bots, selectedBotId],
@@ -139,6 +151,30 @@ export default function BotBuilderPage() {
     () => (selectedNodeId ? flow.find((n) => n.id === selectedNodeId) ?? null : null),
     [flow, selectedNodeId],
   );
+
+  /* ---- Fetch per-node analytics in parallel with the flow ---- */
+  useEffect(() => {
+    if (selectedBotId === null) {
+      setNodeAnalytics({});
+      return;
+    }
+    let cancelled = false;
+    api
+      .get(`/bots/${selectedBotId}/node-analytics`)
+      .then((res: any) => {
+        if (cancelled) return;
+        const list = (res?.data?.data ?? res?.data ?? []) as NodeAnalytics[];
+        const byId: Record<string, NodeAnalytics> = {};
+        for (const row of Array.isArray(list) ? list : []) {
+          if (row?.node_id) byId[row.node_id] = row;
+        }
+        setNodeAnalytics(byId);
+      })
+      .catch(() => {
+        if (!cancelled) setNodeAnalytics({});
+      });
+    return () => { cancelled = true; };
+  }, [selectedBotId]);
 
   /* ---- Fetch flow when bot is selected ---- */
   useEffect(() => {
@@ -1055,20 +1091,64 @@ export default function BotBuilderPage() {
                         </div>
                       </div>
 
-                      {/* Type badge */}
-                      <div style={{
-                        display: "inline-flex",
-                        alignSelf: "flex-start",
-                        padding: "2px 7px",
-                        borderRadius: 6,
-                        background: `${color}15`,
-                        color: color,
-                        fontSize: 9,
-                        fontWeight: 700,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.5px",
-                      }}>
-                        {nodeTypes[node.type]?.label[lang] ?? node.type}
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                        {/* Type badge */}
+                        <div style={{
+                          display: "inline-flex",
+                          padding: "2px 7px",
+                          borderRadius: 6,
+                          background: `${color}15`,
+                          color: color,
+                          fontSize: 9,
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.5px",
+                        }}>
+                          {nodeTypes[node.type]?.label[lang] ?? node.type}
+                        </div>
+
+                        {/* Visit count badge — only shown when the node
+                            actually got visited in the last 30 days, so
+                            an empty canvas doesn't show zeros everywhere.
+                            Escalation count rides as a red sub-badge for
+                            AI / transfer nodes that actually bailed. */}
+                        {(() => {
+                          const stats = nodeAnalytics[node.id];
+                          const visited = stats?.visited ?? 0;
+                          if (visited <= 0) return null;
+                          const escalated = stats?.escalated ?? 0;
+                          return (
+                            <span style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 4,
+                              fontSize: 9,
+                              fontWeight: 700,
+                              color: C.t2,
+                            }}
+                            title={isAr ? `زيارات آخر 30 يوم: ${visited}${escalated ? ` — تحويلات: ${escalated}` : ""}` : `Visits in last 30d: ${visited}${escalated ? ` — escalations: ${escalated}` : ""}`}
+                            >
+                              <span style={{
+                                padding: "2px 6px",
+                                borderRadius: 6,
+                                background: `${C.t3}15`,
+                                color: C.t2,
+                              }}>
+                                👁 {visited.toLocaleString()}
+                              </span>
+                              {escalated > 0 && (
+                                <span style={{
+                                  padding: "2px 6px",
+                                  borderRadius: 6,
+                                  background: "#EF444415",
+                                  color: "#B91C1C",
+                                }}>
+                                  ↗ {escalated.toLocaleString()}
+                                </span>
+                              )}
+                            </span>
+                          );
+                        })()}
                       </div>
 
                       {/* Config preview */}
