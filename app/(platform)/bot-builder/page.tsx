@@ -778,7 +778,7 @@ export default function BotBuilderPage() {
             color: "#0F8B5E", fontSize: 13, fontWeight: 600,
             display: "flex", alignItems: "center", gap: 8,
           }}>
-            \ud83d\udd17 {isAr
+            {"\ud83d\udd17"} {isAr
               ? "\u0648\u0636\u0639 \u0627\u0644\u0631\u0628\u0637: \u0627\u0636\u063a\u0637 \u0639\u0644\u0649 \u0639\u0642\u062f\u0629 \u0627\u0644\u0647\u062f\u0641. Esc \u0644\u0644\u0625\u0644\u063a\u0627\u0621."
               : "Connect mode: click the target node. Esc to cancel."}
             <button
@@ -926,7 +926,7 @@ export default function BotBuilderPage() {
                           }}
                           title={isAr ? "\u062D\u0630\u0641" : "Delete"}
                         >
-                          \u00D7
+                          {"\u00D7"}
                         </button>
                       )}
 
@@ -1242,7 +1242,7 @@ export default function BotBuilderPage() {
                               fontFamily: FONT_FAMILY,
                             }}
                           >
-                            \u00D7
+                            {"\u00D7"}
                           </button>
                         </div>
                       ))}
