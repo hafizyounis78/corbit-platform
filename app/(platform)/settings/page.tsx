@@ -672,16 +672,16 @@ export default function SettingsPage() {
   }, [bizHoursData]);
 
   const tabs = [
-    { key: "general", label: ar ? "عام" : "General" },
-    { key: "notifications", label: ar ? "الإشعارات" : "Notifications" },
-    { key: "security", label: ar ? "الأمان" : "Security" },
-    { key: "channels", label: ar ? "القنوات" : "Channels" },
-    { key: "csat", label: ar ? "⭐ التقييم" : "⭐ CSAT" },
-    { key: "quick-replies", label: ar ? "⚡ الردود السريعة" : "⚡ Quick Replies" },
-    { key: "whatsapp", label: ar ? "ربط الواتساب" : "WhatsApp" },
-    { key: "sms", label: ar ? "📱 SMS" : "📱 SMS" },
-    { key: "team", label: ar ? "الفريق" : "Team" },
-    { key: "api", label: ar ? "واجهة API" : "API" },
+    { key: "general", label: ar ? "عام" : "General", icon: "gear" },
+    { key: "notifications", label: ar ? "الإشعارات" : "Notifications", icon: "bell" },
+    { key: "security", label: ar ? "الأمان" : "Security", icon: "lock" },
+    { key: "channels", label: ar ? "القنوات" : "Channels", icon: "channels" },
+    { key: "csat", label: ar ? "التقييم" : "CSAT", icon: "star" },
+    { key: "quick-replies", label: ar ? "الردود السريعة" : "Quick Replies", icon: "zap" },
+    { key: "whatsapp", label: ar ? "ربط الواتساب" : "WhatsApp", icon: "msg" },
+    { key: "sms", label: "SMS", icon: "phone" },
+    { key: "team", label: ar ? "الفريق" : "Team", icon: "users" },
+    { key: "api", label: ar ? "واجهة API" : "API", icon: "code" },
   ];
 
   const grid2Style = { display: "grid", gridTemplateColumns: isMob ? "1fr" : "1fr 1fr", gap: 14 } as const;
