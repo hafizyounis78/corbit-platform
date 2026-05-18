@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-media-query";
 import { Card, Button, Badge, SearchInput } from "@/components/ui";
 import { Icon } from "@/components/icons/icon";
+import { BrandIcon } from "@/components/icons/brand-icon";
 import { FONT_FAMILY } from "@/lib/constants/font";
 import { integrationCategories } from "@/data/integrations";
 import { useIntegrations } from "@/lib/api/hooks";
@@ -59,7 +60,7 @@ export default function IntegrationsPage() {
     cat: a.cat || a.category || "",
     name: ar ? (a.name_ar || a.name) : a.name,
     desc: ar ? (a.description_ar || a.description || a.desc) : (a.description || a.desc),
-    icon: a.icon || "📦",
+    icon: a.icon || a.id || "",
     color: a.color || C.pri,
     features: ar ? (a.features_ar || a.features || []) : (a.features || []),
     connected: a.connected ?? a.is_connected ?? false,
@@ -93,7 +94,9 @@ export default function IntegrationsPage() {
           <div>
             <Card style={{ padding: 20, marginBottom: 14 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                <div style={{ width: 52, height: 52, borderRadius: 14, background: `${app.color}15`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>{app.icon}</div>
+                <div style={{ width: 52, height: 52, borderRadius: 14, background: `${app.color}15`, display: "flex", alignItems: "center", justifyContent: "center", color: app.color }}>
+                  <BrandIcon name={app.icon} size={28} />
+                </div>
                 <div style={{ flex: 1 }}>
                   <h2 style={{ margin: "0 0 4px", fontSize: 18, fontWeight: 700 }}>{app.name}</h2>
                   <p style={{ margin: 0, fontSize: 12, color: C.t2 }}>{app.desc}</p>
@@ -172,7 +175,7 @@ export default function IntegrationsPage() {
         <div style={{ padding: "10px 16px", marginBottom: 14, borderRadius: 10, background: `${C.ok}08`, border: `1px solid ${C.ok}20`, display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: C.ok }}><Icon name="check" size={12} /> {connected.length} {ar ? "\u0645\u062a\u0635\u0644\u0629" : "connected"}</span>
           <div style={{ display: "flex", gap: 3, marginInlineStart: "auto" }}>
-            {connected.map((id) => { const a = apps.find((x: any) => x.id === id); return a ? <span key={id} onClick={() => setViewApp(id)} style={{ width: 28, height: 28, borderRadius: 7, background: `${a.color}15`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, cursor: "pointer" }}>{a.icon}</span> : null; })}
+            {connected.map((id) => { const a = apps.find((x: any) => x.id === id); return a ? <span key={id} onClick={() => setViewApp(id)} style={{ width: 28, height: 28, borderRadius: 7, background: `${a.color}15`, display: "flex", alignItems: "center", justifyContent: "center", color: a.color, cursor: "pointer" }}><BrandIcon name={a.icon} size={16} /></span> : null; })}
           </div>
         </div>
       )}
@@ -188,7 +191,9 @@ export default function IntegrationsPage() {
             <Card key={app.id} style={{ cursor: "pointer", border: conn ? `1.5px solid ${C.ok}30` : (app.id === "salla" ? `1.5px solid ${app.color}40` : "1.5px solid transparent") }} onClick={() => { if (app.id === "salla") { window.location.href = "/integrations/salla"; } else { setViewApp(app.id); } }}>
               <div style={{ padding: 16 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
-                  <div style={{ width: 42, height: 42, borderRadius: 12, background: `${app.color}15`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>{app.icon}</div>
+                  <div style={{ width: 42, height: 42, borderRadius: 12, background: `${app.color}15`, display: "flex", alignItems: "center", justifyContent: "center", color: app.color }}>
+                    <BrandIcon name={app.icon} size={22} />
+                  </div>
                   <div>
                     <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                       <span style={{ fontWeight: 700, fontSize: 14 }}>{app.name}</span>

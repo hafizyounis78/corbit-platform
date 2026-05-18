@@ -7,6 +7,7 @@ import { useLocale } from "@/lib/i18n/locale-provider";
 import { useToast } from "@/hooks/use-toast";
 import { Card, Button, Badge } from "@/components/ui";
 import { Icon } from "@/components/icons/icon";
+import { BrandIcon } from "@/components/icons/brand-icon";
 import {
   useSallaStatus,
   useSallaWebhookEvents,
@@ -200,16 +201,16 @@ function NotConnectedPanel({
 }) {
   const benefits = ar
     ? [
-        { icon: "📊", t: "تتبّع التحويلات الحقيقي", d: "ROI دقيق لكلّ حملة بدلاً من تقديري" },
-        { icon: "🔔", t: "إشعارات الطلبات تلقائياً", d: "تأكيد، شحن، تسليم — كلّها على واتساب" },
-        { icon: "🛒", t: "استرداد السلّات المتروكة", d: "تذكير العميل بعد 30 دقيقة من الترك" },
-        { icon: "👥", t: "مزامنة العملاء", d: "كلّ عملائك في سلّة يدخلون Corbit تلقائياً" },
+        { icon: "chart", t: "تتبّع التحويلات الحقيقي", d: "ROI دقيق لكلّ حملة بدلاً من تقديري" },
+        { icon: "bell",  t: "إشعارات الطلبات تلقائياً", d: "تأكيد، شحن، تسليم — كلّها على واتساب" },
+        { icon: "cart",  t: "استرداد السلّات المتروكة", d: "تذكير العميل بعد 30 دقيقة من الترك" },
+        { icon: "users", t: "مزامنة العملاء", d: "كلّ عملائك في سلّة يدخلون Corbit تلقائياً" },
       ]
     : [
-        { icon: "📊", t: "Real conversion tracking", d: "Accurate ROI per campaign, not estimated" },
-        { icon: "🔔", t: "Auto order notifications", d: "Confirmation, shipping, delivery — on WhatsApp" },
-        { icon: "🛒", t: "Cart abandonment recovery", d: "Reminder after 30 minutes" },
-        { icon: "👥", t: "Customer sync", d: "Every Salla customer auto-imported to Corbit" },
+        { icon: "chart", t: "Real conversion tracking", d: "Accurate ROI per campaign, not estimated" },
+        { icon: "bell",  t: "Auto order notifications", d: "Confirmation, shipping, delivery — on WhatsApp" },
+        { icon: "cart",  t: "Cart abandonment recovery", d: "Reminder after 30 minutes" },
+        { icon: "users", t: "Customer sync", d: "Every Salla customer auto-imported to Corbit" },
       ];
 
   return (
@@ -217,7 +218,7 @@ function NotConnectedPanel({
       <BackLink ar={ar} C={C} />
       <Card style={{ padding: 28, marginTop: 16 }}>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>🛒</div>
+          <div style={{ marginBottom: 12, display: "flex", justifyContent: "center", color: "#9B45D8" }}><BrandIcon name="salla" size={48} /></div>
           <h1 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 800, color: C.txt }}>
             {ar ? "اربط متجرك على سلّة" : "Connect your Salla store"}
           </h1>
@@ -246,7 +247,7 @@ function NotConnectedPanel({
                 border: `1px solid ${C.brd}`,
               }}
             >
-              <div style={{ fontSize: 22, marginBottom: 4 }}>{b.icon}</div>
+              <div style={{ marginBottom: 4, color: C.pri, display: "flex" }}><Icon name={b.icon} size={22} /></div>
               <div style={{ fontSize: 13, fontWeight: 700, color: C.txt, marginBottom: 2 }}>
                 {b.t}
               </div>
