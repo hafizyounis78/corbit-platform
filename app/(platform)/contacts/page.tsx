@@ -9,7 +9,7 @@ import { useIsMobile } from "@/hooks/use-media-query";
 import { Card, CardHeader, Button, Badge, TabBar, Avatar, SearchInput, DataTable, Modal } from "@/components/ui";
 import { Icon } from "@/components/icons/icon";
 import type { Contact } from "@/data/contacts";
-import { useContacts, useContactStats, useContactTags, useSegments } from "@/lib/api/hooks";
+import { useContacts, useContactStats, useContactTags, useSegments, useAiSegments } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
 import { SmartSegmentsBar } from "@/components/contacts/smart-segments-bar";
 import { CustomerInsightsBar } from "@/components/contacts/customer-insights-bar";
@@ -57,6 +57,17 @@ export default function ContactsPage() {
   // composable on top of the segment.
   const [activeSegment, setActiveSegment] = useState<string | null>(null);
   const [segmentContactIds, setSegmentContactIds] = useState<Set<string>>(new Set());
+  // Pull the smart-segment catalogue so we can look up the human name
+  // (name_ar / name_en) for the active segment banner instead of leaking
+  // the raw key like "recently_joined".
+  const { data: aiSegmentsData } = useAiSegments();
+  const activeSegmentName = useMemo(() => {
+    if (!activeSegment) return null;
+    const list = (aiSegmentsData as any)?.segments ?? [];
+    const found = list.find((s: any) => s.key === activeSegment);
+    if (!found) return activeSegment;
+    return isAr ? (found.name_ar || found.name_en || activeSegment) : (found.name_en || found.name_ar || activeSegment);
+  }, [activeSegment, aiSegmentsData, isAr]);
   // Detail drawer state — non-null id slides the drawer in; click-outside
   // or close button sets back to null.
   const [drawerContactId, setDrawerContactId] = useState<string | null>(null);
@@ -638,8 +649,8 @@ export default function ContactsPage() {
         }}>
           <span style={{ color: C.pri, fontWeight: 600 }}>
             {isAr
-              ? `جاري عرض الشريحة: ${activeSegment} (${segmentContactIds.size} جهة)`
-              : `Showing segment: ${activeSegment} (${segmentContactIds.size} contacts)`}
+              ? `جاري عرض الشريحة: ${activeSegmentName ?? activeSegment} (${segmentContactIds.size} جهة)`
+              : `Showing segment: ${activeSegmentName ?? activeSegment} (${segmentContactIds.size} contacts)`}
           </span>
           <button
             onClick={() => { setActiveSegment(null); setSegmentContactIds(new Set()); }}
