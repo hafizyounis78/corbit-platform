@@ -44,15 +44,25 @@ const NODE_COLORS: Record<string, string> = {
   api: "#E8713A",
 };
 
-const ADD_NODE_TYPES = [
+// `comingSoon` marks node types whose UI exists but whose runtime
+// handler in WhatsAppService::resolveBotReply isn't wired yet \u2014 the
+// engine only walks message/buttons/transfer/end at the moment.
+// Showing them as enabled would let operators publish bots that
+// silently fail when the customer hits an AI/Condition/Input/API
+// node. We keep them in the dropdown (greyed) so the feature surface
+// stays discoverable + bots already built with them keep editing,
+// but block new inserts behind a clear warning until the engine
+// catches up.
+type AddNodeOption = { type: string; label: string; labelAr: string; comingSoon?: boolean };
+const ADD_NODE_TYPES: AddNodeOption[] = [
   { type: "message", label: "Message", labelAr: "\u0631\u0633\u0627\u0644\u0629" },
   { type: "buttons", label: "Buttons", labelAr: "\u0623\u0632\u0631\u0627\u0631" },
-  { type: "condition", label: "Condition", labelAr: "\u0634\u0631\u0637" },
-  { type: "ai", label: "AI", labelAr: "\u0630\u0643\u0627\u0621 \u0627\u0635\u0637\u0646\u0627\u0639\u064A" },
-  { type: "input", label: "Input", labelAr: "\u0625\u062F\u062E\u0627\u0644" },
   { type: "transfer", label: "Transfer", labelAr: "\u062A\u062D\u0648\u064A\u0644" },
-  { type: "api", label: "API", labelAr: "API" },
   { type: "end", label: "End", labelAr: "\u0646\u0647\u0627\u064A\u0629" },
+  { type: "ai", label: "AI", labelAr: "\u0630\u0643\u0627\u0621 \u0627\u0635\u0637\u0646\u0627\u0639\u064A", comingSoon: true },
+  { type: "condition", label: "Condition", labelAr: "\u0634\u0631\u0637", comingSoon: true },
+  { type: "input", label: "Input", labelAr: "\u0625\u062F\u062E\u0627\u0644", comingSoon: true },
+  { type: "api", label: "API", labelAr: "API", comingSoon: true },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -674,33 +684,68 @@ export default function BotBuilderPage() {
                     boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
                   }}
                 >
-                  {ADD_NODE_TYPES.map((nt) => (
-                    <button
-                      key={nt.type}
-                      onClick={() => handleAddNode(nt.type)}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        width: "100%",
-                        padding: "9px 12px",
-                        border: "none",
-                        borderRadius: 8,
-                        background: "transparent",
-                        cursor: "pointer",
-                        fontFamily: FONT_FAMILY,
-                        fontSize: 13,
-                        color: C.txt,
-                        textAlign: isAr ? "right" : "left",
-                      }}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = `${NODE_COLORS[nt.type]}15`; }}
-                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-                    >
-                      <span style={{ fontSize: 16 }}>{NODE_ICONS[nt.type]}</span>
-                      <span style={{ fontWeight: 500 }}>{isAr ? nt.labelAr : nt.label}</span>
-                      <span style={{ marginLeft: "auto", fontSize: 10, color: NODE_COLORS[nt.type], fontWeight: 600, textTransform: "uppercase" }}>{nt.type}</span>
-                    </button>
-                  ))}
+                  {ADD_NODE_TYPES.map((nt) => {
+                    const disabled = !!nt.comingSoon;
+                    return (
+                      <button
+                        key={nt.type}
+                        onClick={() => {
+                          if (disabled) {
+                            showToast(
+                              isAr
+                                ? "هذه العقدة قيد التطوير ولا تعمل في البوت المنشور. ستتوفّر قريباً."
+                                : "This node type is still in development and won't execute in published bots. Coming soon.",
+                              "error",
+                            );
+                            return;
+                          }
+                          handleAddNode(nt.type);
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          width: "100%",
+                          padding: "9px 12px",
+                          border: "none",
+                          borderRadius: 8,
+                          background: "transparent",
+                          cursor: disabled ? "not-allowed" : "pointer",
+                          opacity: disabled ? 0.55 : 1,
+                          fontFamily: FONT_FAMILY,
+                          fontSize: 13,
+                          color: C.txt,
+                          textAlign: isAr ? "right" : "left",
+                        }}
+                        onMouseEnter={(e) => {
+                          if (disabled) return;
+                          (e.currentTarget as HTMLElement).style.background = `${NODE_COLORS[nt.type]}15`;
+                        }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                        title={disabled ? (isAr ? "قيد التطوير" : "Coming soon") : undefined}
+                      >
+                        <span style={{ fontSize: 16 }}>{NODE_ICONS[nt.type]}</span>
+                        <span style={{ fontWeight: 500 }}>{isAr ? nt.labelAr : nt.label}</span>
+                        {disabled ? (
+                          <span style={{
+                            marginInlineStart: "auto",
+                            fontSize: 9.5,
+                            padding: "2px 6px",
+                            borderRadius: 4,
+                            background: "#F59E0B22",
+                            color: "#B45309",
+                            fontWeight: 700,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.3px",
+                          }}>
+                            {isAr ? "قريباً" : "Soon"}
+                          </span>
+                        ) : (
+                          <span style={{ marginInlineStart: "auto", fontSize: 10, color: NODE_COLORS[nt.type], fontWeight: 600, textTransform: "uppercase" }}>{nt.type}</span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
