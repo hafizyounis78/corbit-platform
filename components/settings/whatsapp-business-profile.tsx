@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { useToast } from "@/hooks/use-toast";
@@ -65,6 +65,9 @@ export function WhatsAppBusinessProfile() {
     vertical: "",
     websites: [],
   });
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch the current profile on mount. A failure here usually means
@@ -86,6 +89,7 @@ export function WhatsAppBusinessProfile() {
           vertical: d.vertical ?? "",
           websites: Array.isArray(d.websites) ? d.websites : [],
         });
+        setPhotoUrl(d.photo_url ?? null);
       } catch (err: any) {
         if (cancelled) return;
         setError(err?.response?.data?.message || (isAr ? "تعذّر تحميل البروفايل" : "Failed to load profile"));
@@ -95,6 +99,41 @@ export function WhatsAppBusinessProfile() {
     })();
     return () => { cancelled = true; };
   }, [isAr]);
+
+  // Upload a new display picture via the Resumable Upload flow that the
+  // backend wraps. Refreshes the photo_url from the server after so the
+  // operator sees the live image (CDN may take a few seconds to update).
+  const uploadPhoto = async (file: File) => {
+    if (!file) return;
+    if (!/^image\/(jpe?g|png)$/i.test(file.type)) {
+      showToast(isAr ? "الصورة يجب أن تكون JPG أو PNG" : "Photo must be JPG or PNG");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      showToast(isAr ? "حجم الصورة يجب أن يكون أقلّ من 5 ميغا" : "Photo must be under 5 MB");
+      return;
+    }
+    setPhotoUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('photo', file);
+      await api.post('/settings/whatsapp/profile/photo', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      showToast(isAr ? "تمّ رفع الصورة" : "Photo uploaded");
+      // Re-fetch so we get the new URL from 360dialog
+      try {
+        const res = await api.get('/settings/whatsapp/profile');
+        const d = res.data?.data ?? res.data ?? {};
+        setPhotoUrl(d.photo_url ?? null);
+      } catch { /* non-fatal: upload succeeded, just stale preview */ }
+    } catch (err: any) {
+      showToast(err?.response?.data?.message || (isAr ? "فشل رفع الصورة" : "Failed to upload photo"));
+    } finally {
+      setPhotoUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const save = async () => {
     setSaving(true);
@@ -160,12 +199,59 @@ export function WhatsAppBusinessProfile() {
         </div>
       </div>
 
-      {/* Photo section removed: this WABA tier on 360dialog Cloud V2 does
-          not expose the profile picture via API — /configs/profile/photo
-          returns 404 and the business/profile response does not include
-          profile_picture_url either. The image is visible to end users
-          on WhatsApp, just not retrievable on our side. Showing an empty
-          circle would be misleading. */}
+      {/* Photo */}
+      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+        <div
+          style={{
+            width: 88,
+            height: 88,
+            borderRadius: "50%",
+            background: C.inp ?? C.bg,
+            border: `1px solid ${C.brd}`,
+            overflow: "hidden",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          {photoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={photoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : (
+            <Icon name="users" size={32} />
+          )}
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: C.txt, marginBottom: 4 }}>
+            {isAr ? "صورة البروفايل (الشعار)" : "Profile picture (logo)"}
+          </div>
+          <div style={{ fontSize: 11, color: C.t3, marginBottom: 8, lineHeight: 1.6 }}>
+            {isAr
+              ? "JPG أو PNG، حدّ أقصى 5 ميغا. تُعرض كدائرة على واتساب — اجعل الشعار في المنتصف."
+              : "JPG or PNG, up to 5 MB. WhatsApp shows it as a circle — keep the logo centered."}
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) uploadPhoto(f);
+            }}
+          />
+          <Button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={photoUploading}
+          >
+            <Icon name="pencil" size={14} />
+            {photoUploading
+              ? (isAr ? "جاري الرفع..." : "Uploading...")
+              : (isAr ? "رفع صورة جديدة" : "Upload new photo")}
+          </Button>
+        </div>
+      </div>
 
       <div style={{ height: 1, background: C.brd }} />
 
