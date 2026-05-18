@@ -1245,7 +1245,38 @@ export default function BotBuilderPage() {
 
                 {/* Buttons: editable button list */}
                 {selectedNode.type === "buttons" && (
-                  <div>
+                  <>
+                    {/* Question text that prefaces the buttons. Optional
+                        but strongly recommended \u2014 the customer sees this
+                        as a normal WhatsApp message right before the
+                        button strip ("\u0627\u062e\u062a\u0631 \u0627\u0644\u0642\u0633\u0645: \u2026"). Without it the
+                        buttons appear without context and feel abrupt. */}
+                    <div>
+                      <div style={{ fontSize: 11, color: C.t2, marginBottom: 4, fontWeight: 600 }}>
+                        {isAr ? "\u0627\u0644\u0633\u0624\u0627\u0644 (\u064a\u0638\u0647\u0631 \u0641\u0648\u0642 \u0627\u0644\u0623\u0632\u0631\u0627\u0631)" : "Question (shown above buttons)"}
+                      </div>
+                      <textarea
+                        value={String(selectedNode.config.text ?? "")}
+                        onChange={(e) => updateNodeConfig(selectedNode.id, { text: e.target.value })}
+                        rows={2}
+                        placeholder={isAr ? "\u0645\u062b\u0627\u0644: \u0627\u062e\u062a\u0631 \u0627\u0644\u0642\u0633\u0645 \u0627\u0644\u0645\u0646\u0627\u0633\u0628" : "e.g. Choose the right department"}
+                        style={{
+                          width: "100%",
+                          padding: "8px 10px",
+                          borderRadius: 8,
+                          border: `1px solid ${C.brd}`,
+                          background: C.inp,
+                          color: C.txt,
+                          fontSize: 12.5,
+                          fontFamily: FONT_FAMILY,
+                          outline: "none",
+                          resize: "vertical",
+                          boxSizing: "border-box",
+                        }}
+                      />
+                    </div>
+
+                    <div>
                     <div style={{ fontSize: 11, color: C.t2, marginBottom: 6, fontWeight: 600 }}>
                       {isAr ? "\u0627\u0644\u0623\u0632\u0631\u0627\u0631" : "Buttons"}
                     </div>
@@ -1315,7 +1346,13 @@ export default function BotBuilderPage() {
                         + {isAr ? "\u0625\u0636\u0627\u0641\u0629 \u0632\u0631" : "Add Button"}
                       </button>
                     </div>
-                  </div>
+                    </div>
+                    <div style={{ fontSize: 10.5, color: C.t3 }}>
+                      {isAr
+                        ? "\u0645\u0644\u0627\u062d\u0638\u0629: \u0648\u0627\u062a\u0633\u0627\u0628 \u064a\u062f\u0639\u0645 3 \u0623\u0632\u0631\u0627\u0631 \u0643\u062d\u062f\u0651 \u0623\u0642\u0635\u0649. \u0627\u0644\u0623\u0643\u062b\u0631 \u0645\u0646 \u0630\u0644\u0643 \u0633\u064a\u064f\u062a\u062c\u0627\u0647\u064e\u0644."
+                        : "Note: WhatsApp supports max 3 buttons. Extras are dropped."}
+                    </div>
+                  </>
                 )}
 
                 {/* Condition: expression */}
@@ -1536,31 +1573,63 @@ export default function BotBuilderPage() {
                   </div>
                 )}
 
-                {/* Transfer: team */}
-                {selectedNode.type === "transfer" && (
-                  <div>
-                    <div style={{ fontSize: 11, color: C.t2, marginBottom: 4, fontWeight: 600 }}>
-                      {isAr ? "\u0627\u0644\u0641\u0631\u064a\u0642" : "Team"}
+                {/* Transfer: team picker. Dropdown is the source of truth
+                    for new flows so operators can't typo a team name into
+                    a silent no-op. When an older bot stored a name that
+                    no longer matches a team, we keep showing it as a
+                    "custom" entry so the existing routing stays auditable
+                    until the operator picks a real team to replace it. */}
+                {selectedNode.type === "transfer" && (() => {
+                  const currentTeam = String(selectedNode.config.team ?? "");
+                  const teamMatches = (t: { name: string; name_ar?: string }) =>
+                    t.name === currentTeam || t.name_ar === currentTeam;
+                  const isCustom = currentTeam !== "" && !teams.some(teamMatches);
+                  return (
+                    <div>
+                      <div style={{ fontSize: 11, color: C.t2, marginBottom: 4, fontWeight: 600 }}>
+                        {isAr ? "\u0627\u0644\u0641\u0631\u064A\u0642" : "Team"}
+                      </div>
+                      <select
+                        value={currentTeam}
+                        onChange={(e) => updateNodeConfig(selectedNode.id, { team: e.target.value })}
+                        style={{
+                          width: "100%",
+                          padding: "8px 10px",
+                          borderRadius: 8,
+                          border: `1px solid ${isCustom ? "#F59E0B" : C.brd}`,
+                          background: C.inp,
+                          color: C.txt,
+                          fontSize: 12.5,
+                          fontFamily: FONT_FAMILY,
+                          outline: "none",
+                          boxSizing: "border-box",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <option value="">
+                          {isAr ? "\u2014 \u0627\u062e\u062a\u0631 \u0627\u0644\u0641\u0631\u064A\u0642 \u2014" : "\u2014 Select team \u2014"}
+                        </option>
+                        {teams.map((t) => (
+                          <option key={t.id} value={isAr && t.name_ar ? t.name_ar : t.name}>
+                            {isAr && t.name_ar ? t.name_ar : t.name}
+                          </option>
+                        ))}
+                        {isCustom && (
+                          <option value={currentTeam}>
+                            {currentTeam} {isAr ? "(\u063a\u064A\u0631 \u0645\u0639\u0631\u064e\u0651\u0641)" : "(unknown)"}
+                          </option>
+                        )}
+                      </select>
+                      {isCustom && (
+                        <div style={{ fontSize: 10.5, color: "#B45309", marginTop: 4 }}>
+                          {isAr
+                            ? `"${currentTeam}" \u063a\u064A\u0631 \u0645\u0637\u0627\u0628\u0642 \u0644\u0623\u064A\u0651 \u0641\u0631\u064A\u0642. \u0627\u0644\u062a\u062d\u0648\u064A\u0644 \u0633\u064A\u062e\u0644\u0651\u064A \u0627\u0644\u0645\u062d\u0627\u062f\u062b\u0629 \u0628\u0644\u0627 \u062a\u0639\u064A\u064A\u0646.`
+                            : `"${currentTeam}" doesn't match any team. Transfer will leave the conversation unassigned.`}
+                        </div>
+                      )}
                     </div>
-                    <input
-                      value={String(selectedNode.config.team ?? "")}
-                      onChange={(e) => updateNodeConfig(selectedNode.id, { team: e.target.value })}
-                      placeholder={isAr ? "\u0627\u0633\u0645 \u0627\u0644\u0641\u0631\u064A\u0642" : "Team name"}
-                      style={{
-                        width: "100%",
-                        padding: "8px 10px",
-                        borderRadius: 8,
-                        border: `1px solid ${C.brd}`,
-                        background: C.inp,
-                        color: C.txt,
-                        fontSize: 12.5,
-                        fontFamily: FONT_FAMILY,
-                        outline: "none",
-                        boxSizing: "border-box",
-                      }}
-                    />
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* API: url */}
                 {selectedNode.type === "api" && (
