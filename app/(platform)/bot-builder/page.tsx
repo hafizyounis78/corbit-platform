@@ -95,6 +95,10 @@ export default function BotBuilderPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newBot, setNewBot] = useState({ name: "", description: "", trigger: "", aiEnabled: true, startNode: "welcome", cooldownHours: 24 });
   const [savingCooldown, setSavingCooldown] = useState(false);
+  // Local draft of the cooldown input so the chip can show a "save"
+  // affordance whenever the typed value differs from the server value.
+  // Synced from `selectedBot.cooldownHours` via the effect below.
+  const [cooldownDraft, setCooldownDraft] = useState<number>(24);
   const [deleteTarget, setDeleteTarget] = useState<Bot | null>(null);
   const [deletingBot, setDeletingBot] = useState(false);
 
@@ -175,6 +179,12 @@ export default function BotBuilderPage() {
       });
     return () => { cancelled = true; };
   }, [selectedBotId]);
+
+  /* ---- Sync cooldown draft when the selected bot changes ---- */
+  useEffect(() => {
+    const serverValue = Number((selectedBot as any)?.cooldownHours ?? 24);
+    setCooldownDraft(serverValue);
+  }, [selectedBotId, (selectedBot as any)?.cooldownHours]);
 
   /* ---- Fetch flow when bot is selected ---- */
   useEffect(() => {
@@ -658,62 +668,104 @@ export default function BotBuilderPage() {
               <Badge color={getStatusColor(selectedBot.st)}>{selectedBot.st}</Badge>
               {selectedBot.ai && <Badge color={COLORS.ai}>AI</Badge>}
 
-              {/* Cooldown editor — inline number input. Saves on blur
-                  through PATCH /api/bots/{id}. cooldown_hours=0 disables
-                  the gate (bot fires every time, the pre-feature
-                  behaviour) so a tenant can opt out per-bot. */}
-              <div
-                title={isAr ? "فترة انتظار البوت قبل الردّ على نفس العميل (0 = بدون انتظار)" : "Cooldown before re-replying to same contact (0 = no cooldown)"}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                  padding: "3px 8px",
-                  borderRadius: 999,
-                  background: `${COLORS.warn}18`,
-                  color: COLORS.warn,
-                  fontSize: 11,
-                  fontWeight: 600,
-                }}
-              >
-                <Icon name="timer" size={11} />
-                <input
-                  type="number"
-                  min={0}
-                  max={72}
-                  defaultValue={(selectedBot as any).cooldownHours ?? 24}
-                  disabled={savingCooldown}
-                  onBlur={async (e) => {
-                    const v = Math.max(0, Math.min(72, Number(e.target.value) || 0));
-                    const current = Number((selectedBot as any).cooldownHours ?? 24);
-                    if (v === current) return;
-                    setSavingCooldown(true);
-                    try {
-                      await api.patch(`/bots/${selectedBotId}`, { cooldownHours: v });
-                      mutate();
-                      showToast(isAr ? "تم تحديث فترة الانتظار ✓" : "Cooldown updated ✓");
-                    } catch {
-                      showToast(isAr ? "تعذّر التحديث" : "Update failed");
-                      e.target.value = String(current);
-                    } finally {
-                      setSavingCooldown(false);
-                    }
-                  }}
-                  style={{
-                    width: 32,
-                    border: "none",
-                    background: "transparent",
-                    color: COLORS.warn,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    textAlign: "center",
-                    fontFamily: FONT_FAMILY,
-                    outline: "none",
-                    padding: 0,
-                  }}
-                />
-                <span>{isAr ? "س" : "h"}</span>
-              </div>
+              {/* Cooldown editor — controlled input. The draft state
+                  diverges from the server value as the user types; a
+                  save button appears next to the field whenever the two
+                  differ, so it's always clear whether the typed value
+                  is persisted. Enter also commits. cooldown_hours=0
+                  disables the gate (bot fires every time). */}
+              {(() => {
+                const serverValue = Number((selectedBot as any)?.cooldownHours ?? 24);
+                const dirty = cooldownDraft !== serverValue;
+                const commit = async () => {
+                  if (savingCooldown || !dirty) return;
+                  const v = Math.max(0, Math.min(72, Number(cooldownDraft) || 0));
+                  setSavingCooldown(true);
+                  try {
+                    await api.patch(`/bots/${selectedBotId}`, { cooldownHours: v });
+                    await mutate();
+                    showToast(isAr ? "تم تحديث فترة الانتظار ✓" : "Cooldown updated ✓");
+                  } catch {
+                    showToast(isAr ? "تعذّر التحديث" : "Update failed");
+                    setCooldownDraft(serverValue);
+                  } finally {
+                    setSavingCooldown(false);
+                  }
+                };
+                return (
+                  <div
+                    title={isAr ? "فترة انتظار البوت قبل الردّ على نفس العميل (0 = بدون انتظار)" : "Cooldown before re-replying to same contact (0 = no cooldown)"}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                      padding: "3px 6px 3px 8px",
+                      borderRadius: 999,
+                      background: dirty ? `${C.pri}20` : `${COLORS.warn}18`,
+                      color: dirty ? C.pri : COLORS.warn,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      border: dirty ? `1px dashed ${C.pri}` : "1px solid transparent",
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    <Icon name="timer" size={11} />
+                    <input
+                      type="number"
+                      min={0}
+                      max={72}
+                      value={cooldownDraft}
+                      disabled={savingCooldown}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        const n = raw === "" ? 0 : Math.max(0, Math.min(72, Number(raw)));
+                        setCooldownDraft(n);
+                      }}
+                      onKeyDown={(e) => { if (e.key === "Enter") commit(); }}
+                      style={{
+                        width: 32,
+                        border: "none",
+                        background: "transparent",
+                        color: "inherit",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        textAlign: "center",
+                        fontFamily: FONT_FAMILY,
+                        outline: "none",
+                        padding: 0,
+                      }}
+                    />
+                    <span>{isAr ? "س" : "h"}</span>
+                    {dirty && (
+                      <button
+                        type="button"
+                        onClick={commit}
+                        disabled={savingCooldown}
+                        title={isAr ? "حفظ" : "Save"}
+                        style={{
+                          marginInlineStart: 4,
+                          background: C.pri,
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: 999,
+                          padding: "2px 8px",
+                          fontFamily: FONT_FAMILY,
+                          fontSize: 10.5,
+                          fontWeight: 700,
+                          cursor: savingCooldown ? "wait" : "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 3,
+                        }}
+                      >
+                        {savingCooldown
+                          ? (isAr ? "..." : "...")
+                          : (<><Icon name="check" size={10} /><span>{isAr ? "حفظ" : "Save"}</span></>)}
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
             <p style={{ marginTop: 4, marginBottom: 0, fontSize: 13, color: C.t2 }}>{selectedBot.desc}</p>
           </div>
