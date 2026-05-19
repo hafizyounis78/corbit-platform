@@ -55,6 +55,12 @@ export interface ChatMessage {
   from: "customer" | "bot" | "agent";
   text: string;
   time: string;
+  // Media attachments — populated when the message is an inbound or
+  // outbound image/video/audio/document. text may still carry an
+  // accompanying caption, but the renderer draws the media itself
+  // when these are present.
+  type?: "text" | "image" | "video" | "audio" | "document" | "sticker";
+  media?: string | null;
 }
 
 export function getChatMessages(lang: Locale): ChatMessage[] {

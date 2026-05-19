@@ -124,6 +124,8 @@ function mapApiMessage(m: any): ChatMessage {
     from: m.from || m.sender || m.messageType || "customer",
     text: m.text || m.content || m.body || "",
     time: m.time || m.created_at || m.createdAt || "",
+    type: (m.type || m.message_type || m.messageType || "text") as ChatMessage["type"],
+    media: m.media || m.media_url || m.mediaUrl || null,
   };
 }
 
@@ -1213,7 +1215,69 @@ export default function InboxPage() {
                       <Icon name="bot" size={12} /> Bot
                     </div>
                   )}
-                  <div style={{ fontSize: 13.5, lineHeight: 1.7 }}>{m.text}</div>
+                  {/* Media preview — drawn before the caption text so the
+                      image/video sits on top of any accompanying caption.
+                      Sticker is treated as image. Audio + document fall
+                      back to a download chip. */}
+                  {m.media && (m.type === "image" || m.type === "sticker") && (
+                    <a href={m.media} target="_blank" rel="noopener noreferrer" style={{ display: "block", marginBottom: m.text ? 8 : 0 }}>
+                      <img
+                        src={m.media}
+                        alt=""
+                        style={{
+                          display: "block",
+                          maxWidth: "100%",
+                          maxHeight: 280,
+                          borderRadius: 10,
+                          objectFit: "cover",
+                        }}
+                      />
+                    </a>
+                  )}
+                  {m.media && m.type === "video" && (
+                    <video
+                      src={m.media}
+                      controls
+                      style={{
+                        display: "block",
+                        maxWidth: "100%",
+                        maxHeight: 280,
+                        borderRadius: 10,
+                        marginBottom: m.text ? 8 : 0,
+                      }}
+                    />
+                  )}
+                  {m.media && m.type === "audio" && (
+                    <audio
+                      src={m.media}
+                      controls
+                      style={{ display: "block", maxWidth: "100%", marginBottom: m.text ? 8 : 0 }}
+                    />
+                  )}
+                  {m.media && m.type === "document" && (
+                    <a
+                      href={m.media}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        padding: "8px 12px",
+                        borderRadius: 10,
+                        background: (!cu && !bo) ? "rgba(255,255,255,0.18)" : (dk ? C.brd : "#F2EFEA"),
+                        color: "inherit",
+                        textDecoration: "none",
+                        fontSize: 12.5,
+                        fontWeight: 600,
+                        marginBottom: m.text ? 8 : 0,
+                      }}
+                    >
+                      <Icon name="file" size={14} />
+                      <span>{isAr ? "افتح المستند" : "Open document"}</span>
+                    </a>
+                  )}
+                  {m.text && <div style={{ fontSize: 13.5, lineHeight: 1.7 }}>{m.text}</div>}
                   {m.id && translations[String(m.id)] && (
                     <div
                       style={{
