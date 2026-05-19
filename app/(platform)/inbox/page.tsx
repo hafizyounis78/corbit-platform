@@ -1218,12 +1218,41 @@ export default function InboxPage() {
                   {/* Media preview — drawn before the caption text so the
                       image/video sits on top of any accompanying caption.
                       Sticker is treated as image. Audio + document fall
-                      back to a download chip. */}
+                      back to a download chip. The onError handler swaps
+                      in a placeholder if the URL can't be fetched (the
+                      inbound case where media_url points at a Meta CDN
+                      URL the browser can't authenticate against). */}
                   {m.media && (m.type === "image" || m.type === "sticker") && (
                     <a href={m.media} target="_blank" rel="noopener noreferrer" style={{ display: "block", marginBottom: m.text ? 8 : 0 }}>
                       <img
                         src={m.media}
                         alt=""
+                        onError={(e) => {
+                          const img = e.currentTarget as HTMLImageElement;
+                          if (img.dataset.fallbackApplied) return;
+                          img.dataset.fallbackApplied = "1";
+                          const wrapper = img.parentElement;
+                          if (wrapper) {
+                            wrapper.removeAttribute("href");
+                            wrapper.style.cursor = "default";
+                            wrapper.innerHTML = `
+                              <div style="
+                                display: flex;
+                                align-items: center;
+                                gap: 8px;
+                                padding: 14px 16px;
+                                border-radius: 10px;
+                                background: ${dk ? "rgba(255,255,255,0.06)" : "#F2EFEA"};
+                                color: ${C.t2};
+                                font-size: 12px;
+                                font-style: italic;
+                              ">
+                                <span>📷</span>
+                                <span>${isAr ? "صورة من العميل — افتح المحادثة على واتساب لمشاهدتها" : "Customer photo — open in WhatsApp to view"}</span>
+                              </div>
+                            `;
+                          }
+                        }}
                         style={{
                           display: "block",
                           maxWidth: "100%",
