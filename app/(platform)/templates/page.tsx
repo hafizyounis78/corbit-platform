@@ -235,7 +235,7 @@ export default function TemplatesPage() {
   }, [templates, activeTab]);
 
   // Stats from API, fall back to computed
-  const { data: apiStats } = useTemplateStats();
+  const { data: apiStats, mutate: mutateStats } = useTemplateStats();
   const totalCount = templates.length;
   const approvedCount = templates.filter((t) => t.st === "approved").length;
   const pendingCount = templates.filter((t) => t.st === "pending").length;
@@ -997,7 +997,10 @@ export default function TemplatesPage() {
           try {
             await api.delete(`/templates/${deleteTarget.id}`);
             showToast(isAr ? "\u062A\u0645 \u0627\u0644\u062D\u0630\u0641 \u2713" : "Deleted \u2713");
-            mutate();
+            // Revalidate both the list and the stat cards in one
+            // pass so the counts at the top of the page don't lag
+            // behind the grid below (used to flicker after focus).
+            await Promise.all([mutate(), mutateStats()]);
             setDeleteTarget(null);
           } catch (err: any) {
             const msg = err?.response?.data?.message || (isAr ? "\u0641\u0634\u0644 \u0627\u0644\u062D\u0630\u0641" : "Failed to delete");
