@@ -2190,9 +2190,8 @@ export default function BotBuilderPage() {
                     border: `1px solid ${C.brd}`, background: "transparent",
                     color: C.t2, cursor: "pointer",
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 14,
                   }}
-                >\uD83D\uDD04</button>
+                ><Icon name="refresh" size={14} /></button>
                 <button
                   type="button"
                   onClick={() => setTestOpen(false)}
