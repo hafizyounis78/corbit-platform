@@ -2035,19 +2035,70 @@ export default function BotBuilderPage() {
                   );
                 })()}
 
-                {/* Connections */}
+                {/* Connections \u2014 each chip carries an X so an operator
+                    can remove a single wrong edge without deleting the
+                    whole node. For buttons nodes the connection order
+                    maps to the button index (1st = button 1, 2nd =
+                    button 2\u2026), so the chips are numbered to keep that
+                    explicit. */}
                 <div>
                   <div style={{ fontSize: 11, color: C.t2, marginBottom: 6, fontWeight: 600 }}>
                     {isAr ? "\u0645\u062a\u0635\u0644 \u0628\u0640" : "Connected to"}
                   </div>
                   {selectedNode.next.length > 0 ? (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                      {selectedNode.next.map((nid) => {
+                      {selectedNode.next.map((nid, idx) => {
                         const target = flow.find((n) => n.id === nid);
+                        const isButtons = selectedNode.type === "buttons";
+                        const removeAt = idx;
                         return (
-                          <Badge key={nid} color={target ? nodeColor(target.type) : C.info}>
-                            {target?.label ?? nid}
-                          </Badge>
+                          <span
+                            key={`${nid}-${idx}`}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 4,
+                              padding: "2px 4px 2px 8px",
+                              borderRadius: 999,
+                              background: `${target ? nodeColor(target.type) : C.info}20`,
+                              color: target ? nodeColor(target.type) : C.info,
+                              fontSize: 11,
+                              fontWeight: 600,
+                            }}
+                          >
+                            {isButtons && (
+                              <span style={{ opacity: 0.7, marginInlineEnd: 2 }}>
+                                {idx + 1}.
+                              </span>
+                            )}
+                            <span>{target?.label ?? nid}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFlow((prev) => prev.map((n) => {
+                                  if (n.id !== selectedNode.id) return n;
+                                  const nextArr = [...n.next];
+                                  nextArr.splice(removeAt, 1);
+                                  return { ...n, next: nextArr };
+                                }));
+                              }}
+                              title={isAr ? "\u062d\u0630\u0641 \u0627\u0644\u0648\u0635\u0644\u0629" : "Remove edge"}
+                              style={{
+                                background: "transparent",
+                                border: "none",
+                                cursor: "pointer",
+                                padding: 0,
+                                lineHeight: 1,
+                                display: "inline-flex",
+                                color: "inherit",
+                                opacity: 0.75,
+                              }}
+                              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
+                              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.opacity = "0.75"; }}
+                            >
+                              <Icon name="x" size={11} />
+                            </button>
+                          </span>
                         );
                       })}
                     </div>
