@@ -3,6 +3,7 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 import * as Sentry from "@sentry/nextjs";
 import api from '../api/client';
 import { API } from '../api/endpoints';
+import { IdleLogout } from './idle-logout';
 
 interface User {
   id: string;
@@ -195,6 +196,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       updateUser,
     }}>
       {children}
+      {/* 60-min idle timeout with a 60-sec warning modal. Renders
+          nothing when no user is signed in, so it has zero impact
+          on the login/landing pages. */}
+      <IdleLogout enabled={!!user && !!token} onLogout={logout} />
     </AuthContext.Provider>
   );
 }
