@@ -25,6 +25,7 @@ const NODE_ICONS: Record<string, string> = {
   message: "\uD83D\uDCAC",
   buttons: "\uD83D\uDD18",
   condition: "\uD83D\uDD00",
+  branch: "\uD83C\uDF3F",
   ai: "\uD83E\uDD16",
   end: "\uD83C\uDFC1",
   input: "\u270D\uFE0F",
@@ -37,6 +38,7 @@ const NODE_COLORS: Record<string, string> = {
   message: "#3B82F6",
   buttons: "#A855F7",
   condition: "#EAB308",
+  branch: "#0EA5E9",
   ai: "#8B5CF6",
   end: "#6B7280",
   input: "#EC4899",
@@ -61,6 +63,7 @@ const ADD_NODE_TYPES: AddNodeOption[] = [
   { type: "end", label: "End", labelAr: "\u0646\u0647\u0627\u064A\u0629" },
   { type: "ai", label: "AI", labelAr: "\u0630\u0643\u0627\u0621 \u0627\u0635\u0637\u0646\u0627\u0639\u064A" },
   { type: "condition", label: "Condition", labelAr: "\u0634\u0631\u0637" },
+  { type: "branch", label: "Branch", labelAr: "\u062A\u0641\u0631\u064A\u0639" },
   { type: "input", label: "Input", labelAr: "\u0625\u062F\u062E\u0627\u0644" },
   { type: "api", label: "API", labelAr: "API" },
 ];
@@ -329,6 +332,7 @@ export default function BotBuilderPage() {
         message: isAr ? "\u0631\u0633\u0627\u0644\u0629" : "Message",
         buttons: isAr ? "\u0623\u0632\u0631\u0627\u0631" : "Buttons",
         condition: isAr ? "\u0634\u0631\u0637" : "Condition",
+        branch: isAr ? "\u062A\u0641\u0631\u064A\u0639" : "Branch",
         ai: "AI",
         input: isAr ? "\u0625\u062F\u062E\u0627\u0644" : "Input",
         transfer: isAr ? "\u062A\u062D\u0648\u064A\u0644" : "Transfer",
@@ -486,6 +490,12 @@ export default function BotBuilderPage() {
       }
       if (node.type === "buttons" && Array.isArray(node.config.buttons)) return (node.config.buttons as string[]).join(", ");
       if (node.type === "condition" && node.config.expression) return String(node.config.expression);
+      if (node.type === "branch" && Array.isArray(node.config.outputs)) {
+        const labels = (node.config.outputs as Array<{ label?: string }>)
+          .map((o) => o?.label)
+          .filter(Boolean) as string[];
+        return labels.length ? labels.join(" | ") : (isAr ? `${(node.config.outputs as unknown[]).length} مخارج` : `${(node.config.outputs as unknown[]).length} outputs`);
+      }
       if (node.type === "ai" && node.config.model) return String(node.config.model);
       if (node.type === "transfer" && node.config.team) return String(node.config.team);
       if (node.type === "api" && node.config.url) return String(node.config.url);
@@ -579,6 +589,18 @@ export default function BotBuilderPage() {
             nodeId,
           });
           break;
+        case "branch": {
+          const outs = Array.isArray(node.config?.outputs) ? (node.config.outputs as Array<{ label?: string; keywords?: string[] }>) : [];
+          const summary = outs.length
+            ? outs.map((o, i) => `${i + 1}. ${o.label ?? "—"}`).join(" / ")
+            : (isAr ? "بدون مخارج معدّة" : "no outputs configured");
+          trace.push({
+            kind: "system",
+            text: isAr ? `🌿 تفريع: ${summary} (يأخذ المخرج الأوّل في وضع الاختبار)` : `🌿 Branch: ${summary} (test mode takes first output)`,
+            nodeId,
+          });
+          break;
+        }
         case "transfer":
           trace.push({
             kind: "system",
@@ -1682,6 +1704,74 @@ export default function BotBuilderPage() {
                       </div>
                     </label>
 
+                    {/* KB grounding toggle. OFF by default \u2014 flipping ON
+                        runs the inbox-style vector retrieve against the
+                        org's KB and injects the top-K chunks as kbContext.
+                        Adds embedding cost per call, so we keep it
+                        explicit instead of always-on. */}
+                    <label style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "8px 10px",
+                      borderRadius: 8,
+                      border: `1px solid ${C.brd}`,
+                      background: C.inp,
+                      cursor: "pointer",
+                      fontSize: 12.5,
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={!!selectedNode.config.use_knowledge_base}
+                        onChange={(e) => updateNodeConfig(selectedNode.id, { use_knowledge_base: e.target.checked })}
+                        style={{ accentColor: NODE_COLORS.ai, cursor: "pointer" }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ color: C.txt, fontWeight: 600 }}>
+                          {isAr ? "\u0627\u0633\u062A\u062E\u062F\u0645 \u0642\u0627\u0639\u062F\u0629 \u0627\u0644\u0645\u0639\u0631\u0641\u0629 (RAG)" : "Use Knowledge Base (RAG)"}
+                        </div>
+                        <div style={{ color: C.t3, fontSize: 10.5, marginTop: 2 }}>
+                          {isAr
+                            ? "\u064A\u0628\u062D\u062B \u0641\u064A \u0645\u0644\u0641\u0651\u0627\u062A KB \u0644\u0644\u0645\u0646\u0638\u0651\u0645\u0629 \u0648\u064A\u064F\u0645\u0631\u0651\u0631 \u0623\u0639\u0644\u0649 \u0627\u0644\u0645\u0642\u062A\u0637\u0641\u0627\u062A \u0644\u0644\u0646\u0645\u0648\u0630\u062C"
+                            : "Retrieves top chunks from the org's KB and passes them to the model"}
+                        </div>
+                      </div>
+                    </label>
+
+                    {/* Optional top-K when KB is enabled. Defaults to 3. */}
+                    {!!selectedNode.config.use_knowledge_base && (
+                      <div>
+                        <div style={{ fontSize: 11, color: C.t2, marginBottom: 4, fontWeight: 600 }}>
+                          {isAr ? "\u0639\u062F\u062F \u0627\u0644\u0645\u0642\u062A\u0637\u0641\u0627\u062A (Top-K)" : "Top-K chunks"}
+                        </div>
+                        <input
+                          type="number"
+                          min={1}
+                          max={10}
+                          value={Number(selectedNode.config.kb_top_k ?? 3)}
+                          onChange={(e) => {
+                            const v = Math.max(1, Math.min(10, Number(e.target.value) || 3));
+                            updateNodeConfig(selectedNode.id, { kb_top_k: v });
+                          }}
+                          style={{
+                            width: "100%",
+                            padding: "8px 10px",
+                            borderRadius: 8,
+                            border: `1px solid ${C.brd}`,
+                            background: C.inp,
+                            color: C.txt,
+                            fontSize: 12.5,
+                            fontFamily: FONT_FAMILY,
+                            outline: "none",
+                            boxSizing: "border-box",
+                          }}
+                        />
+                        <div style={{ fontSize: 10.5, color: C.t3, marginTop: 4 }}>
+                          {isAr ? "1-10. \u0627\u0644\u0627\u0641\u062A\u0631\u0627\u0636\u064A 3. \u0643\u0644 \u0645\u0642\u062A\u0637\u0641 \u064A\u0632\u064A\u062F ~150 \u062A\u0648\u0643\u0646." : "1-10. Default 3. Each chunk ~150 extra tokens."}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Escalate keywords \u2014 comma-separated. Empty string
                         disables; null/missing uses backend defaults
                         ("\u0645\u0648\u0638\u0641", "\u0625\u0646\u0633\u0627\u0646", "human", etc.). */}
@@ -1753,6 +1843,184 @@ export default function BotBuilderPage() {
                     </div>
                   </>
                 )}
+
+                {/* Branch: ordered list of outputs, each with its own
+                    keywords array. The runtime (BotFlowExecutor::
+                    matchBranchOutput) takes the first output whose
+                    keywords match the customer's reply — exact match
+                    first, then substring contains. The output flagged
+                    `is_default` (or one with empty keywords) catches
+                    everything else. Outputs map by index to next_nodes,
+                    so reordering them re-routes the existing edges. */}
+                {selectedNode.type === "branch" && (() => {
+                  const outputs: Array<{ label: string; keywords: string[]; is_default?: boolean }> =
+                    Array.isArray(selectedNode.config.outputs)
+                      ? (selectedNode.config.outputs as Array<{ label: string; keywords: string[]; is_default?: boolean }>)
+                      : [];
+
+                  const setOutputs = (next: Array<{ label: string; keywords: string[]; is_default?: boolean }>) =>
+                    updateNodeConfig(selectedNode.id, { outputs: next });
+
+                  const addOutput = () => {
+                    setOutputs([
+                      ...outputs,
+                      { label: isAr ? `مخرج ${outputs.length + 1}` : `Output ${outputs.length + 1}`, keywords: [] },
+                    ]);
+                  };
+
+                  const removeOutput = (idx: number) => {
+                    setOutputs(outputs.filter((_, i) => i !== idx));
+                  };
+
+                  const updateLabel = (idx: number, label: string) => {
+                    setOutputs(outputs.map((o, i) => (i === idx ? { ...o, label } : o)));
+                  };
+
+                  const updateKeywords = (idx: number, raw: string) => {
+                    const list = raw
+                      .split(",")
+                      .map((s) => s.trim())
+                      .filter((s) => s !== "");
+                    setOutputs(outputs.map((o, i) => (i === idx ? { ...o, keywords: list } : o)));
+                  };
+
+                  const toggleDefault = (idx: number) => {
+                    setOutputs(outputs.map((o, i) => (i === idx ? { ...o, is_default: !o.is_default } : o)));
+                  };
+
+                  return (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      <div style={{
+                        fontSize: 10.5,
+                        color: C.t3,
+                        padding: 10,
+                        borderRadius: 8,
+                        background: C.inp,
+                        border: `1px dashed ${C.brd}`,
+                        lineHeight: 1.7,
+                      }}>
+                        {isAr
+                          ? "كل مخرج له عنوان وكلمات مفتاحيّة (مفصولة بفاصلة). البوت يأخذ أوّل مخرج تتطابق كلمته مع ردّ العميل. ارجع لـ \"وضع الربط\" لربط كل مخرج بعقدة لاحقة."
+                          : "Each output has a label and keywords (comma-separated). The bot takes the first output whose keyword matches the customer reply. Use \"Connect mode\" to link each output to a downstream node."}
+                      </div>
+
+                      {outputs.map((output, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            border: `1px solid ${C.brd}`,
+                            borderRadius: 10,
+                            padding: 10,
+                            background: C.inp,
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 8,
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{
+                              fontSize: 11,
+                              fontWeight: 700,
+                              color: NODE_COLORS.branch,
+                              padding: "2px 8px",
+                              borderRadius: 999,
+                              background: NODE_COLORS.branch + "22",
+                              minWidth: 26,
+                              textAlign: "center",
+                            }}>
+                              {idx + 1}
+                            </span>
+                            <input
+                              value={output.label ?? ""}
+                              onChange={(e) => updateLabel(idx, e.target.value)}
+                              placeholder={isAr ? "اسم المخرج (مثلاً: الفنادق)" : "Output label (e.g. Hotels)"}
+                              style={{
+                                flex: 1,
+                                padding: "6px 8px",
+                                borderRadius: 6,
+                                border: `1px solid ${C.brd}`,
+                                background: C.bg,
+                                color: C.txt,
+                                fontSize: 12.5,
+                                fontFamily: FONT_FAMILY,
+                                outline: "none",
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeOutput(idx)}
+                              title={isAr ? "حذف المخرج" : "Remove output"}
+                              style={{
+                                padding: "4px 8px",
+                                borderRadius: 6,
+                                border: `1px solid ${C.brd}`,
+                                background: "transparent",
+                                color: COLORS.err,
+                                cursor: "pointer",
+                                fontSize: 14,
+                                lineHeight: 1,
+                              }}
+                            >
+                              ×
+                            </button>
+                          </div>
+
+                          <input
+                            value={(output.keywords ?? []).join(", ")}
+                            onChange={(e) => updateKeywords(idx, e.target.value)}
+                            placeholder={isAr ? "كلمات مفتاحيّة مفصولة بفاصلة: 1, فنادق, فندق" : "Keywords comma-separated: 1, hotels, hotel"}
+                            style={{
+                              padding: "6px 8px",
+                              borderRadius: 6,
+                              border: `1px solid ${C.brd}`,
+                              background: C.bg,
+                              color: C.txt,
+                              fontSize: 12,
+                              fontFamily: FONT_FAMILY,
+                              outline: "none",
+                              direction: "ltr",
+                            }}
+                          />
+
+                          <label style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                            fontSize: 11,
+                            color: C.t2,
+                            cursor: "pointer",
+                          }}>
+                            <input
+                              type="checkbox"
+                              checked={!!output.is_default}
+                              onChange={() => toggleDefault(idx)}
+                              style={{ accentColor: NODE_COLORS.branch, cursor: "pointer" }}
+                            />
+                            {isAr ? "مخرج افتراضي (لو ما تطابقت أيّ كلمة)" : "Default output (when no keyword matches)"}
+                          </label>
+                        </div>
+                      ))}
+
+                      <button
+                        type="button"
+                        onClick={addOutput}
+                        style={{
+                          padding: "8px 10px",
+                          borderRadius: 8,
+                          border: `1px dashed ${NODE_COLORS.branch}`,
+                          background: "transparent",
+                          color: NODE_COLORS.branch,
+                          fontSize: 12.5,
+                          fontFamily: FONT_FAMILY,
+                          cursor: "pointer",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {isAr ? "+ إضافة مخرج" : "+ Add output"}
+                      </button>
+                    </div>
+                  );
+                })()}
 
                 {/* Input: variable name */}
                 {selectedNode.type === "input" && (
