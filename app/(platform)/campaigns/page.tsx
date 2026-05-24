@@ -712,8 +712,15 @@ export default function CampaignsPage() {
             setShowCreateModal(false);
             setIsSubmitting(false);
             mutate();
-          }).catch(() => {
-            showToast(isAr ? "فشل إنشاء الحملة، حاول مرة أخرى" : "Failed to create campaign, please try again");
+          }).catch((err: any) => {
+            // Surface the server's actual rejection so the operator
+            // can fix it (plan limit, wallet balance, missing template,
+            // SMS channel without setup, etc) instead of staring at a
+            // generic retry message.
+            const serverMsg = err?.response?.data?.message
+              || (err?.response?.data?.errors && Object.values(err.response.data.errors).flat()[0])
+              || null;
+            showToast(serverMsg || (isAr ? "فشل إنشاء الحملة، حاول مرة أخرى" : "Failed to create campaign, please try again"));
             setIsSubmitting(false);
           });
         }}
