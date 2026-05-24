@@ -263,13 +263,26 @@ export default function ContactsPage() {
     }
   }, [activeSegment]);
 
-  // Search: Enter key triggers server search
+  // Search: Enter triggers server search immediately; typing debounces
+  // a server search after 350ms so an operator doesn't have to press
+  // Enter to see results from outside the current page. The original
+  // Enter-only flow looked broken when the typed term lived past page 1
+  // — local filter returned 0 while the header still showed the org
+  // total, so the page read "1378 contacts" + "no results" at once.
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       setServerSearch(search);
       setPage(1);
     }
   };
+  useEffect(() => {
+    if (search === serverSearch) return;
+    const handle = setTimeout(() => {
+      setServerSearch(search);
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(handle);
+  }, [search, serverSearch]);
 
   // Segments from API
   const { data: segmentsResponse, mutate: mutateSegments } = useSegments();
@@ -681,7 +694,7 @@ export default function ContactsPage() {
         }}>
           <TabBar tabs={tabs} active={activeTab} onChange={setActiveTab} />
           <div style={{ flex: 1, minWidth: 200 }}>
-            <SearchInput value={search} onChange={setSearch} onKeyDown={handleSearchKeyDown} placeholder={isAr ? "\u0628\u062D\u062B \u0628\u0627\u0644\u0627\u0633\u0645 \u0623\u0648 \u0627\u0644\u0647\u0627\u062A\u0641... (Enter \u0644\u0644\u0628\u062D\u062B)" : "Search by name or phone... (Enter to search)"} />
+            <SearchInput value={search} onChange={setSearch} onKeyDown={handleSearchKeyDown} placeholder={isAr ? "\u0628\u062D\u062B \u0628\u0627\u0644\u0627\u0633\u0645 \u0623\u0648 \u0627\u0644\u0647\u0627\u062A\u0641..." : "Search by name or phone..."} />
           </div>
         </div>
 
