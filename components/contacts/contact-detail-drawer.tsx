@@ -87,6 +87,14 @@ export function ContactDetailDrawer({ contactId, onClose, onMutated }: Props) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
+  // Tag modal — quick inline add. The "وسم" button on the action bar
+  // used to fire showToast("✓") only, which made the button look broken
+  // because nothing actually changed. Now it opens this modal, POSTs to
+  // /contacts/{id}/tags, refreshes the drawer's tag list, and signals
+  // the parent so the contacts table re-renders.
+  const [showTagModal, setShowTagModal] = useState(false);
+  const [tagInput, setTagInput] = useState("");
+  const [savingTag, setSavingTag] = useState(false);
 
   useEffect(() => {
     if (!contactId) {
@@ -131,6 +139,41 @@ export function ContactDetailDrawer({ contactId, onClose, onMutated }: Props) {
       showToast(isAr ? "تعذّر التحديث" : "Couldn't update");
     } finally {
       setRecomputing(false);
+    }
+  };
+
+  const handleAddTag = async () => {
+    if (!contactId || savingTag) return;
+    const t = tagInput.trim();
+    if (!t) return;
+    if ((contact?.tags || []).some((x: any) => (typeof x === 'string' ? x : x?.tag) === t)) {
+      showToast(isAr ? "الوسم موجود بالفعل" : "Tag already exists");
+      return;
+    }
+    setSavingTag(true);
+    try {
+      await api.post(`/contacts/${contactId}/tags`, { tag: t });
+      setContact((prev) => prev ? { ...prev, tags: [...(prev.tags || []), t] } : prev);
+      setTagInput("");
+      setShowTagModal(false);
+      showToast(isAr ? "تمّت إضافة الوسم" : "Tag added");
+      onMutated?.();
+    } catch {
+      showToast(isAr ? "تعذّر إضافة الوسم" : "Couldn't add tag");
+    } finally {
+      setSavingTag(false);
+    }
+  };
+
+  const handleRemoveTag = async (tag: string) => {
+    if (!contactId) return;
+    try {
+      await api.delete(`/contacts/${contactId}/tags/${encodeURIComponent(tag)}`);
+      setContact((prev) => prev ? { ...prev, tags: (prev.tags || []).filter((x: any) => (typeof x === 'string' ? x : x?.tag) !== tag) } : prev);
+      showToast(isAr ? "تمّ حذف الوسم" : "Tag removed");
+      onMutated?.();
+    } catch {
+      showToast(isAr ? "تعذّر حذف الوسم" : "Couldn't remove tag");
     }
   };
 
@@ -295,8 +338,39 @@ export function ContactDetailDrawer({ contactId, onClose, onMutated }: Props) {
                     // React doesn't throw error #31 on legacy payloads.
                     const label = typeof t === 'string' ? t : (t?.tag ?? t?.name ?? '');
                     if (!label) return null;
+                    const color = label === "VIP" ? COLORS.warn : COLORS.pri;
                     return (
-                      <Badge key={i} color={label === "VIP" ? COLORS.warn : COLORS.pri}>{label}</Badge>
+                      <span
+                        key={i}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                          padding: "2px 8px",
+                          borderRadius: 999,
+                          background: color + "20",
+                          color,
+                          fontSize: 11,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {label}
+                        <button
+                          onClick={() => handleRemoveTag(label)}
+                          aria-label={isAr ? `حذف وسم ${label}` : `Remove ${label}`}
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            color,
+                            cursor: "pointer",
+                            padding: 0,
+                            lineHeight: 1,
+                            fontSize: 13,
+                          }}
+                        >
+                          ×
+                        </button>
+                      </span>
                     );
                   })}
                 </div>
@@ -458,7 +532,7 @@ export function ContactDetailDrawer({ contactId, onClose, onMutated }: Props) {
               <Button outline small onClick={() => showToast("✓")}>
                 <Icon name="megaphone" size={12} /> {isAr ? "حملة" : "Campaign"}
               </Button>
-              <Button outline small onClick={() => showToast("✓")}>
+              <Button outline small onClick={() => { setTagInput(""); setShowTagModal(true); }}>
                 <Icon name="tag" size={12} /> {isAr ? "وسم" : "Tag"}
               </Button>
               <Button outline small style={{ color: COLORS.err, borderColor: COLORS.err }}
@@ -580,6 +654,102 @@ export function ContactDetailDrawer({ contactId, onClose, onMutated }: Props) {
                 {deleting
                   ? (isAr ? "جاري الحذف..." : "Deleting...")
                   : (isAr ? "حذف نهائي" : "Delete")}
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Tag modal — sits above the drawer like the delete one. Enter
+          submits; Esc / Cancel closes. Backend rejects empty/duplicate
+          tags too, but we short-circuit duplicates client-side to avoid
+          a confusing 422. */}
+      {showTagModal && contact && (
+        <>
+          <div
+            onClick={() => !savingTag && setShowTagModal(false)}
+            style={{
+              position: "fixed", inset: 0,
+              background: "rgba(0,0,0,0.6)",
+              zIndex: 100,
+            }}
+          />
+          <div
+            style={{
+              position: "fixed",
+              top: "50%", left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: "min(420px, 92vw)",
+              background: C.card,
+              borderRadius: 14,
+              padding: 24,
+              boxShadow: "0 20px 60px rgba(0,0,0,0.4)",
+              zIndex: 101,
+              fontFamily: FONT_FAMILY,
+              direction: isAr ? "rtl" : "ltr",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <div style={{
+                width: 36, height: 36,
+                borderRadius: 10,
+                background: COLORS.pri + "20",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <Icon name="tag" size={18} />
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: C.txt }}>
+                {isAr ? "إضافة وسم" : "Add tag"}
+              </div>
+            </div>
+
+            <div style={{ fontSize: 12, color: C.t3, marginBottom: 6 }}>
+              {isAr
+                ? <>سيظهر الوسم في قائمة وسوم العميل ويمكن استخدامه لإنشاء شريحة.</>
+                : <>The tag will show on this contact and can be used to build a segment.</>}
+            </div>
+
+            <input
+              type="text"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleAddTag();
+                if (e.key === 'Escape' && !savingTag) setShowTagModal(false);
+              }}
+              autoFocus
+              disabled={savingTag}
+              maxLength={50}
+              placeholder={isAr ? "اسم الوسم (مثال: VIP)" : "Tag name (e.g. VIP)"}
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                borderRadius: 8,
+                border: `1.5px solid ${C.brd}`,
+                background: C.inp,
+                color: C.txt,
+                fontSize: 13,
+                fontFamily: FONT_FAMILY,
+                marginTop: 8,
+                marginBottom: 16,
+                boxSizing: "border-box",
+              }}
+            />
+
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <Button outline small disabled={savingTag}
+                onClick={() => { setShowTagModal(false); setTagInput(""); }}>
+                {isAr ? "إلغاء" : "Cancel"}
+              </Button>
+              <Button small
+                disabled={savingTag || !tagInput.trim()}
+                onClick={handleAddTag}
+                style={{
+                  opacity: (savingTag || !tagInput.trim()) ? 0.5 : 1,
+                }}>
+                {savingTag
+                  ? (isAr ? "جاري الحفظ..." : "Saving...")
+                  : (isAr ? "إضافة" : "Add")}
               </Button>
             </div>
           </div>
