@@ -76,6 +76,7 @@ export default function TemplatesPage() {
     header_media_url: "" as string,
     header_media_disk: "" as string,
     header_media_path: "" as string,
+    header_media_filename: "" as string,
     header_meta_handle: "" as string,
     header_upload_status: "" as "" | "ready" | "pending_handle" | "failed",
     header_upload_error: "" as string,
@@ -655,7 +656,7 @@ export default function TemplatesPage() {
               {syncing ? (isAr ? "\u062C\u0627\u0631\u064D \u0627\u0644\u0645\u0632\u0627\u0645\u0646\u0629..." : "Syncing...") : (isAr ? "\u0645\u0632\u0627\u0645\u0646\u0629" : "Sync")}
             </Button>
           </div>
-          <Button primary onClick={() => { setNewTemplate({ name: "", category: "utility", language: "ar", header: "", header_format: "none", header_media_url: "", header_media_disk: "", header_media_path: "", header_meta_handle: "", header_upload_status: "", header_upload_error: "", body: "", body_ar: "", footer: "", buttons: [], body_examples: [] }); setPreviewLang("ar"); setShowCreateModal(true); }}>
+          <Button primary onClick={() => { setNewTemplate({ name: "", category: "utility", language: "ar", header: "", header_format: "none", header_media_url: "", header_media_disk: "", header_media_path: "", header_media_filename: "", header_meta_handle: "", header_upload_status: "", header_upload_error: "", body: "", body_ar: "", footer: "", buttons: [], body_examples: [] }); setPreviewLang("ar"); setShowCreateModal(true); }}>
             <Icon name="file" size={14} />
             {t("createTmpl")}
           </Button>
@@ -1123,6 +1124,9 @@ export default function TemplatesPage() {
             payload.header_media_url    = newTemplate.header_media_url;
             payload.header_media_disk   = newTemplate.header_media_disk;
             payload.header_media_path   = newTemplate.header_media_path;
+            if (newTemplate.header_media_filename) {
+              payload.header_media_filename = newTemplate.header_media_filename;
+            }
             if (newTemplate.header_meta_handle) {
               payload.header_meta_handle = newTemplate.header_meta_handle;
             }
@@ -1137,7 +1141,7 @@ export default function TemplatesPage() {
             await api.post("/templates", payload);
             showToast(isAr ? "تم إنشاء القالب بنجاح" : "Template created successfully");
             setShowCreateModal(false);
-            setNewTemplate({ name: "", category: "utility", language: "ar", header: "", header_format: "none", header_media_url: "", header_media_disk: "", header_media_path: "", header_meta_handle: "", header_upload_status: "", header_upload_error: "", body: "", body_ar: "", footer: "", buttons: [], body_examples: [] });
+            setNewTemplate({ name: "", category: "utility", language: "ar", header: "", header_format: "none", header_media_url: "", header_media_disk: "", header_media_path: "", header_media_filename: "", header_meta_handle: "", header_upload_status: "", header_upload_error: "", body: "", body_ar: "", footer: "", buttons: [], body_examples: [] });
             mutate();
           } catch (err: any) {
             const msg = err?.response?.data?.message || (isAr ? "حدث خطأ" : "Error occurred");
@@ -1285,6 +1289,7 @@ export default function TemplatesPage() {
                         header_media_url: opt.key === "text" || opt.key === "none" ? "" : prev.header_media_url,
                         header_media_disk: opt.key === "text" || opt.key === "none" ? "" : prev.header_media_disk,
                         header_media_path: opt.key === "text" || opt.key === "none" ? "" : prev.header_media_path,
+                        header_media_filename: opt.key === "text" || opt.key === "none" ? "" : prev.header_media_filename,
                         header_meta_handle: opt.key === "text" || opt.key === "none" ? "" : prev.header_meta_handle,
                         header_upload_status: opt.key === "text" || opt.key === "none" ? "" : prev.header_upload_status,
                         header_upload_error: opt.key === "text" || opt.key === "none" ? "" : prev.header_upload_error,
@@ -1345,6 +1350,11 @@ export default function TemplatesPage() {
                           header_media_url:    data.media_url ?? "",
                           header_media_disk:   data.media_disk ?? "",
                           header_media_path:   data.media_path ?? "",
+                          // Preserve the operator's original filename so
+                          // the recipient sees "Receipt.pdf" instead of
+                          // "Untitled" on document headers. Backend returns
+                          // it; we also fall back to the local File.name.
+                          header_media_filename: data.media_filename ?? file.name ?? "",
                           header_meta_handle:  data.meta_handle ?? "",
                           header_upload_status: data.upload_status ?? "ready",
                           header_upload_error:  data.upload_error ?? "",
