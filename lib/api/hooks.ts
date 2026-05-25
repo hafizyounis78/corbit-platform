@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from 'react';
 import api from './client';
+import { subscribeToConversation, subscribeToOrg } from '../realtime/echo';
 
 // ─── Generic Hook ─────────────────────────────────────────
 //
@@ -68,30 +69,96 @@ export function useNavBadges() {
 
 // ─── Conversations ────────────────────────────────────────
 //
-// Inbox is polled every 8s in the background so new conversations
-// and unread bumps surface without a manual refresh. Visibility-aware
-// (see useApi) so background tabs stay quiet.
+// Real-time first: Pusher pushes a `.conversation.updated` event on
+// `private-org.{orgId}` whenever any thread gets a new message, and
+// the hook refetches the list immediately. The 8s background poll
+// stays in place as a hard safety net — if Pusher is unconfigured,
+// the socket drops, or the env var rollout lags behind a deploy,
+// the inbox keeps refreshing at the same cadence as before.
 export function useConversations(params?: { status?: string; search?: string; page?: number }) {
   const qs = new URLSearchParams();
   if (params?.status) qs.set('status', params.status);
   if (params?.search) qs.set('search', params.search);
   if (params?.page) qs.set('page', String(params.page));
   const q = qs.toString();
-  return useApi(`/conversations${q ? '?' + q : ''}`, [q], 8000);
+  const result = useApi(`/conversations${q ? '?' + q : ''}`, [q], 8000);
+
+  // Pull the org id from the logged-in user. Stored at login by the
+  // auth flow; absent during SSR or pre-login so we skip the
+  // subscription in that case.
+  const orgId = useOrgIdFromStorage();
+
+  useEffect(() => {
+    if (!orgId) return;
+    const unsub = subscribeToOrg(orgId, () => {
+      // Quietly refetch — useApi.mutate() runs the same fetch the
+      // poll uses, including the "no skeleton flash" path.
+      result.mutate(true);
+    });
+    return unsub;
+    // result.mutate identity is stable enough; including it would
+    // re-subscribe on every render. Channel auth + token is checked
+    // by the authorizer on each handshake so refresh isn't needed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId]);
+
+  return result;
 }
 
 export function useConversation(id: string | null) {
   return useApi(id ? `/conversations/${id}` : null, [id]);
 }
 
-// Active conversation refreshes faster (4s) — that's the chat the
-// agent is staring at, so new messages must appear quickly.
+// Active conversation: Pusher pushes `.message.new` on
+// `private-conversation.{id}` so the open thread appends without
+// waiting. The 4s poll stays as a hard backstop — covers reconnects,
+// dropped events, and the no-Pusher deploy window.
 export function useMessages(conversationId: string | null) {
-  return useApi(
+  const result = useApi(
     conversationId ? `/conversations/${conversationId}/messages` : null,
     [conversationId],
     4000,
   );
+
+  useEffect(() => {
+    if (!conversationId) return;
+    const unsub = subscribeToConversation(conversationId, () => {
+      result.mutate(true);
+    });
+    return unsub;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId]);
+
+  return result;
+}
+
+// Reads org_id from the auth_user blob stashed in localStorage on
+// login. Returns null during SSR or before login. Kept inline because
+// only the inbox hooks need it; promoting it to its own module would
+// be overkill for two callers.
+function useOrgIdFromStorage(): string | null {
+  const [orgId, setOrgId] = useState<string | null>(null);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = localStorage.getItem('auth_user');
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      // UserResource exposes the org under `org.id`; older sessions
+      // may have stored it as `org_id` or `organization.id` so we
+      // accept all three shapes.
+      const id =
+        parsed?.org?.id ??
+        parsed?.org_id ??
+        parsed?.organization_id ??
+        parsed?.organization?.id ??
+        null;
+      if (id) setOrgId(String(id));
+    } catch {
+      // ignore — falls back to null which disables the subscription
+    }
+  }, []);
+  return orgId;
 }
 
 export function useWindowStatus(conversationId: string | null) {

@@ -173,6 +173,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await api.post(API.AUTH.LOGOUT);
     } catch {}
+    // Tear the Pusher socket down before clearing the token —
+    // otherwise the next render fires another auth handshake with
+    // the now-missing token and surfaces a 401 in the console.
+    try {
+      const { disconnectRealtime } = await import('../realtime/echo');
+      disconnectRealtime();
+    } catch {}
     localStorage.removeItem('auth_token');
     localStorage.removeItem('auth_user');
     setToken(null);
