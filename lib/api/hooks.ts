@@ -71,17 +71,20 @@ export function useNavBadges() {
 //
 // Real-time first: Pusher pushes a `.conversation.updated` event on
 // `private-org.{orgId}` whenever any thread gets a new message, and
-// the hook refetches the list immediately. The 8s background poll
-// stays in place as a hard safety net — if Pusher is unconfigured,
-// the socket drops, or the env var rollout lags behind a deploy,
-// the inbox keeps refreshing at the same cadence as before.
+// the hook refetches the list immediately. The 60s background poll
+// is a heartbeat — it catches anything the socket missed during a
+// reconnect or transient outage, but it doesn't drive the UX.
+// Pusher carries the load.
+//
+// Industry-standard pattern: WebSocket primary + slow polling
+// fallback (Intercom, Crisp, Zendesk all do the same).
 export function useConversations(params?: { status?: string; search?: string; page?: number }) {
   const qs = new URLSearchParams();
   if (params?.status) qs.set('status', params.status);
   if (params?.search) qs.set('search', params.search);
   if (params?.page) qs.set('page', String(params.page));
   const q = qs.toString();
-  const result = useApi(`/conversations${q ? '?' + q : ''}`, [q], 8000);
+  const result = useApi(`/conversations${q ? '?' + q : ''}`, [q], 60000);
 
   // Pull the org id from the logged-in user. Stored at login by the
   // auth flow; absent during SSR or pre-login so we skip the
@@ -110,14 +113,14 @@ export function useConversation(id: string | null) {
 }
 
 // Active conversation: Pusher pushes `.message.new` on
-// `private-conversation.{id}` so the open thread appends without
-// waiting. The 4s poll stays as a hard backstop — covers reconnects,
-// dropped events, and the no-Pusher deploy window.
+// `private-conversation.{id}` so the open thread appends instantly.
+// The 30s poll is a heartbeat — catches anything the socket missed
+// during reconnect, not a primary update path.
 export function useMessages(conversationId: string | null) {
   const result = useApi(
     conversationId ? `/conversations/${conversationId}/messages` : null,
     [conversationId],
-    4000,
+    30000,
   );
 
   useEffect(() => {
