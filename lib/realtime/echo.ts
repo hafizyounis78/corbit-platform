@@ -16,6 +16,10 @@
 //
 // Disabled (no-op) when NEXT_PUBLIC_PUSHER_KEY isn't set. The hooks
 // fall back to polling in that case, so the inbox keeps working.
+//
+// Verbose console logs are emitted under the `[realtime]` prefix so
+// the lifecycle is reconstructable from a single browser-console
+// screenshot — we don't want another back-and-forth diagnosis cycle.
 
 import Echo from "laravel-echo";
 import Pusher from "pusher-js";
@@ -24,6 +28,15 @@ type AnyListener = (payload: any) => void;
 
 let echo: Echo<"pusher"> | null = null;
 let initFailed = false;
+
+const log = (...args: any[]) => {
+  // eslint-disable-next-line no-console
+  console.log("[realtime]", ...args);
+};
+const warn = (...args: any[]) => {
+  // eslint-disable-next-line no-console
+  console.warn("[realtime]", ...args);
+};
 
 function apiBaseUrl(): string {
   return (
@@ -48,7 +61,21 @@ function getEcho(): Echo<"pusher"> | null {
 
   const key = process.env.NEXT_PUBLIC_PUSHER_KEY;
   const cluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || "ap2";
+
+  // Log env presence on first init attempt — covers the #1 silent
+  // failure mode: Vercel build happened before the env vars were
+  // added, so the keys are missing from the bundle even though they
+  // exist in the dashboard.
+  log("init attempt", {
+    has_key: !!key,
+    key_prefix: key ? key.slice(0, 6) + "…" : null,
+    cluster,
+    api_base: apiBaseUrl(),
+    has_token: !!authToken(),
+  });
+
   if (!key) {
+    warn("aborting: NEXT_PUBLIC_PUSHER_KEY is empty. Vercel build must be re-run AFTER the env var is added.");
     initFailed = true;
     return null;
   }
@@ -71,6 +98,7 @@ function getEcho(): Echo<"pusher"> | null {
       authorizer: (channel: { name: string }) => ({
         authorize: (socketId: string, callback: (error: Error | null, data: any) => void) => {
           const token = authToken();
+          log("auth handshake", { channel: channel.name, has_token: !!token });
           fetch(`${apiBaseUrl()}/broadcasting/auth`, {
             method: "POST",
             headers: {
@@ -83,23 +111,50 @@ function getEcho(): Echo<"pusher"> | null {
               channel_name: channel.name,
             }).toString(),
           })
-            .then((res) => {
-              if (!res.ok) throw new Error(`auth ${res.status}`);
+            .then(async (res) => {
+              if (!res.ok) {
+                const body = await res.text().catch(() => "<unreadable>");
+                warn("auth handshake FAILED", {
+                  channel: channel.name,
+                  status: res.status,
+                  body: body.slice(0, 300),
+                });
+                throw new Error(`auth ${res.status}`);
+              }
               return res.json();
             })
-            .then((data) => callback(null, data))
+            .then((data) => {
+              log("auth handshake OK", { channel: channel.name });
+              callback(null, data);
+            })
             .catch((err) => callback(err instanceof Error ? err : new Error(String(err)), null));
         },
       }),
     });
 
+    // Surface socket lifecycle so a hung/refused connection is
+    // obvious without poking at the underlying Pusher object.
+    try {
+      const pusherClient = (echo as any).connector?.pusher;
+      pusherClient?.connection?.bind("state_change", (s: any) => {
+        log("socket state", s.previous, "→", s.current);
+      });
+      pusherClient?.connection?.bind("error", (e: any) => {
+        warn("socket error", {
+          type: e?.type,
+          error: e?.error,
+          data: e?.data,
+        });
+      });
+    } catch (e) {
+      warn("could not bind state listeners (non-fatal)", e);
+    }
+
+    log("Echo initialized");
     return echo;
   } catch (e) {
     initFailed = true;
-    // Surface once to the console so an env mismatch is debuggable; the
-    // hooks still fall back to polling so the inbox keeps working.
-    // eslint-disable-next-line no-console
-    console.warn("[realtime] Echo init failed, falling back to polling", e);
+    warn("Echo init threw, falling back to polling", e);
     return null;
   }
 }
@@ -114,13 +169,29 @@ export function subscribeToConversation(
   onNewMessage: AnyListener,
 ): () => void {
   const client = getEcho();
-  if (!client || !conversationId) return () => {};
+  if (!client || !conversationId) {
+    log("subscribeToConversation skipped", {
+      has_client: !!client,
+      conversation_id: conversationId,
+    });
+    return () => {};
+  }
 
   const channelName = `conversation.${conversationId}`;
-  const channel = client.private(channelName).listen(".message.new", onNewMessage);
+  log("subscribing", { channel: channelName });
+  const channel = client
+    .private(channelName)
+    .listen(".message.new", (payload: any) => {
+      log("event received .message.new", {
+        channel: channelName,
+        message_id: payload?.message?.id ?? null,
+      });
+      onNewMessage(payload);
+    });
 
   return () => {
     try {
+      log("unsubscribing", { channel: channelName });
       channel.stopListening(".message.new");
       client.leave(channelName);
     } catch {
@@ -135,13 +206,26 @@ export function subscribeToConversation(
  */
 export function subscribeToOrg(orgId: string, onConversationUpdated: AnyListener): () => void {
   const client = getEcho();
-  if (!client || !orgId) return () => {};
+  if (!client || !orgId) {
+    log("subscribeToOrg skipped", { has_client: !!client, org_id: orgId });
+    return () => {};
+  }
 
   const channelName = `org.${orgId}`;
-  const channel = client.private(channelName).listen(".conversation.updated", onConversationUpdated);
+  log("subscribing", { channel: channelName });
+  const channel = client
+    .private(channelName)
+    .listen(".conversation.updated", (payload: any) => {
+      log("event received .conversation.updated", {
+        channel: channelName,
+        conversation_id: payload?.conversation_id ?? null,
+      });
+      onConversationUpdated(payload);
+    });
 
   return () => {
     try {
+      log("unsubscribing", { channel: channelName });
       channel.stopListening(".conversation.updated");
       client.leave(channelName);
     } catch {
@@ -157,6 +241,7 @@ export function subscribeToOrg(orgId: string, onConversationUpdated: AnyListener
 export function disconnectRealtime(): void {
   if (!echo) return;
   try {
+    log("disconnecting");
     echo.disconnect();
   } finally {
     echo = null;
