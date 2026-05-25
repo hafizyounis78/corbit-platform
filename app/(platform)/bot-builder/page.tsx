@@ -105,6 +105,13 @@ export default function BotBuilderPage() {
   const [deleteTarget, setDeleteTarget] = useState<Bot | null>(null);
   const [deletingBot, setDeletingBot] = useState(false);
 
+  // Inline edit for the bot's description text shown on each card.
+  // editDescTarget holds the bot being edited; editDescDraft holds the
+  // textarea value while the modal is open.
+  const [editDescTarget, setEditDescTarget] = useState<Bot | null>(null);
+  const [editDescDraft, setEditDescDraft] = useState<string>("");
+  const [savingDesc, setSavingDesc] = useState(false);
+
   // Template picker modal — fetched on first open and cached for the
   // session so reopening doesn't re-hit the API.
   type BotTemplate = {
@@ -2697,10 +2704,34 @@ export default function BotBuilderPage() {
                 </button>
               </div>
 
-              {/* Description */}
-              <p style={{ marginBottom: 12, marginTop: 0, fontSize: 12.5, color: C.t2, lineHeight: 1.6 }}>
-                {bot.desc}
-              </p>
+              {/* Description — pencil sits inline so the affordance is
+                  always visible without a hover state (mobile-friendly). */}
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 6, marginBottom: 12 }}>
+                <p style={{ flex: 1, margin: 0, fontSize: 12.5, color: C.t2, lineHeight: 1.6 }}>
+                  {bot.desc || (
+                    <span style={{ color: C.t3, fontStyle: "italic" }}>
+                      {isAr ? "لا يوجد وصف — اضغط القلم لإضافة وصف" : "No description — click the pencil to add one"}
+                    </span>
+                  )}
+                </p>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditDescTarget(bot as any);
+                    setEditDescDraft(bot.desc ?? "");
+                  }}
+                  title={isAr ? "تعديل الوصف" : "Edit description"}
+                  style={{
+                    width: 26, height: 26, borderRadius: 7,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    background: `${COLORS.pri}10`, color: COLORS.pri,
+                    border: `1px solid ${COLORS.pri}30`, cursor: "pointer",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Icon name="pencil" size={12} />
+                </button>
+              </div>
 
               {/* Meta row */}
               <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 11.5, color: C.t3 }}>
@@ -2908,6 +2939,56 @@ export default function BotBuilderPage() {
       </Modal>
 
       {/* ── Create Bot Flow Modal ── */}
+      {/* Edit Description Modal */}
+      <Modal
+        open={!!editDescTarget}
+        onClose={() => !savingDesc && setEditDescTarget(null)}
+        title={isAr ? "تعديل وصف البوت" : "Edit Bot Description"}
+        submitLabel={savingDesc ? (isAr ? "جاري الحفظ..." : "Saving...") : (isAr ? "حفظ" : "Save")}
+        submitDisabled={savingDesc}
+        onSubmit={async () => {
+          if (!editDescTarget) return;
+          setSavingDesc(true);
+          try {
+            await api.patch(`/bots/${editDescTarget.id}`, {
+              description: editDescDraft.trim(),
+            });
+            showToast(isAr ? "تمّ حفظ الوصف ✓" : "Description saved ✓");
+            mutate();
+            setEditDescTarget(null);
+          } catch (err: any) {
+            const msg = err?.response?.data?.message || (isAr ? "تعذّر الحفظ" : "Failed to save");
+            showToast(msg);
+          } finally {
+            setSavingDesc(false);
+          }
+        }}
+      >
+        <div style={{ padding: "4px 4px 8px" }}>
+          <div style={{ fontSize: 12.5, color: C.t2, marginBottom: 10, lineHeight: 1.6 }}>
+            {isAr
+              ? `وصف يظهر على بطاقة البوت "${editDescTarget?.name ?? ""}" — يساعد فريقك على معرفة وظيفة البوت بسرعة.`
+              : `Description shown on the "${editDescTarget?.name ?? ""}" bot card — helps your team understand what the bot does at a glance.`}
+          </div>
+          <textarea
+            value={editDescDraft}
+            onChange={(e) => setEditDescDraft(e.target.value)}
+            placeholder={isAr ? "وصف مختصر لوظيفة البوت..." : "Brief description of what this bot does..."}
+            rows={5}
+            maxLength={1000}
+            autoFocus
+            style={{
+              width: "100%", padding: "10px 14px", borderRadius: 10,
+              border: `1px solid ${C.brd}`, background: C.inp, color: C.txt,
+              fontSize: 13, fontFamily: FONT_FAMILY, outline: "none", resize: "vertical",
+            }}
+          />
+          <div style={{ marginTop: 6, fontSize: 11, color: C.t3, textAlign: isAr ? "left" : "right" }}>
+            {editDescDraft.length} / 1000
+          </div>
+        </div>
+      </Modal>
+
       <Modal
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
