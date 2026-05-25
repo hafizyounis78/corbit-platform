@@ -2758,8 +2758,12 @@ export default function BotBuilderPage() {
       {/* AI Insights — derived from the loaded bot list. */}
       {(() => {
         if (!filteredBots || filteredBots.length === 0) return null;
-        const published = filteredBots.filter((b: any) => b.status === "published" || b.is_active);
-        const drafts = filteredBots.filter((b: any) => b.status === "draft");
+        // Status arrives as `st` from the API (BotResource maps to short
+        // key for the card badges); the `status` long form was a leftover
+        // assumption that always returned undefined, making the "no active
+        // bot" suggestion fire even when bots were published.
+        const published = filteredBots.filter((b: any) => b.st === "published" || b.status === "published" || b.is_active);
+        const drafts = filteredBots.filter((b: any) => b.st === "draft" || b.status === "draft");
         // Top performer by conversations served.
         const sortedByConvos = [...filteredBots].sort((a: any, b: any) => (b.conversations || 0) - (a.conversations || 0));
         const top = sortedByConvos[0];
