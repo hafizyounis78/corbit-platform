@@ -5,6 +5,7 @@ import { Card, Button, Badge, Modal, Toggle } from "@/components/ui";
 import { Icon } from "@/components/icons/icon";
 import { FONT_FAMILY } from "@/lib/constants/font";
 import { useToast } from "@/hooks/use-toast";
+import { usePlanUsage } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
 
 interface ApiKey {
@@ -63,6 +64,15 @@ export function ApiAndWebhooksPanel({
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [hooks, setHooks] = useState<Webhook[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Plan-flag mirror so the UI hints/disables match the backend gate.
+  //   api_enabled       → API keys section (Pro/Enterprise)
+  //   webhooks_enabled  → Webhooks section (Business/Enterprise)
+  // Existing keys/webhooks on lower plans still list/toggle/delete;
+  // we only block the create flow.
+  const { data: planData } = usePlanUsage();
+  const apiEnabled = (planData?.limits?.api_enabled as boolean | undefined) ?? false;
+  const webhooksEnabled = (planData?.limits?.webhooks_enabled as boolean | undefined) ?? false;
 
   // New-key modal
   const [showNewKey, setShowNewKey] = useState(false);
@@ -236,8 +246,41 @@ export function ApiAndWebhooksPanel({
       <Card style={{ padding: 18 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
           <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>{ar ? "مفاتيح API" : "API Keys"}</h3>
-          <Button primary small onClick={() => setShowNewKey(true)}>+ {ar ? "إنشاء مفتاح" : "Generate"}</Button>
+          <div title={!apiEnabled
+            ? (ar
+                ? "وصول API متاح في باقات Starter وأعلى"
+                : "API access is available on Starter and above")
+            : undefined}
+          >
+            <Button
+              primary
+              small
+              disabled={!apiEnabled}
+              onClick={() => {
+                if (!apiEnabled) {
+                  showToast(
+                    ar
+                      ? "وصول API غير متاح في باقتك الحاليّة. رقّ الباقة لإنشاء مفتاح."
+                      : "API access is not available in your plan. Upgrade to generate a key.",
+                    "error",
+                  );
+                  return;
+                }
+                setShowNewKey(true);
+              }}
+            >+ {ar ? "إنشاء مفتاح" : "Generate"}</Button>
+          </div>
         </div>
+        {!apiEnabled && (
+          <div style={{
+            fontSize: 11.5, color: C.t2, padding: 10,
+            background: C.inp, borderRadius: 8, marginBottom: 10, lineHeight: 1.7,
+          }}>
+            {ar
+              ? "وصول REST API متاح بدءاً من باقة Starter. مفاتيح موجودة من باقة قديمة يمكن إدارتها هنا، لكن إنشاء مفتاح جديد يحتاج ترقية."
+              : "REST API access starts on the Starter plan. Existing keys from a previous plan can be managed here, but creating a new one requires an upgrade."}
+          </div>
+        )}
         <div style={{ fontSize: 11.5, color: C.t2, marginBottom: 10, lineHeight: 1.6 }}>
           {ar
             ? "استخدم هذه المفاتيح للوصول إلى REST API. تظهر القيمة كاملة مرّة واحدة فقط عند الإنشاء."
@@ -297,8 +340,43 @@ export function ApiAndWebhooksPanel({
       <Card style={{ padding: 18 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
           <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>{ar ? "الويب هوكس" : "Webhooks"}</h3>
-          <Button primary small onClick={() => setShowNewHook(true)}>+ {ar ? "إضافة" : "Add"}</Button>
+          {/* Plan-gated: Business/Enterprise create; lower tiers
+              see the button disabled (existing hooks still manage). */}
+          <div title={!webhooksEnabled
+            ? (ar
+                ? "إضافة Webhooks متاحة في باقات Business وأعلى"
+                : "Adding Webhooks is available on Business and above")
+            : undefined}
+          >
+            <Button
+              primary
+              small
+              disabled={!webhooksEnabled}
+              onClick={() => {
+                if (!webhooksEnabled) {
+                  showToast(
+                    ar
+                      ? "إنشاء Webhooks غير متاح في باقتك الحاليّة. رقّ الباقة (Business أو Enterprise) لإضافة Webhook جديد."
+                      : "Adding webhooks is not available in your plan. Upgrade to Business or Enterprise.",
+                    "error",
+                  );
+                  return;
+                }
+                setShowNewHook(true);
+              }}
+            >+ {ar ? "إضافة" : "Add"}</Button>
+          </div>
         </div>
+        {!webhooksEnabled && (
+          <div style={{
+            fontSize: 11.5, color: C.t2, padding: 10,
+            background: C.inp, borderRadius: 8, marginBottom: 10, lineHeight: 1.7,
+          }}>
+            {ar
+              ? "Webhooks متاحة في باقات Business وأعلى. لو عندك hooks موجودة من باقة قديمة، تقدر تختبرها أو تحذفها من هنا، لكن ما تقدر تضيف جديد."
+              : "Webhooks are available on Business and above. Existing hooks from a previous plan can still be tested or deleted here, but no new ones can be added."}
+          </div>
+        )}
         <div style={{ fontSize: 11.5, color: C.t2, marginBottom: 10, lineHeight: 1.6 }}>
           {ar
             ? "كل حدث يُرسَل بتوقيع HMAC SHA-256 في الـ header X-Webhook-Signature. اختبر قبل الاعتماد."
