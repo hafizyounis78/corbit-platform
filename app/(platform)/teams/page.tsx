@@ -10,7 +10,7 @@ import { Icon } from "@/components/icons/icon";
 import { CredentialsModal } from "@/components/shared/credentials-modal";
 import { FONT_FAMILY } from "@/lib/constants/font";
 import { ProgressBar } from "@/components/charts/progress-bar";
-import { useTeams } from "@/lib/api/hooks";
+import { useTeams, usePlanUsage } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
 
 export default function TeamsPage() {
@@ -41,6 +41,12 @@ export default function TeamsPage() {
   const { data: apiData, isLoading, mutate } = useTeams();
   const members = apiData?.members || [];
   const teams = apiData?.teams || [];
+
+  // Plan gate — Basic tenants can't create multiple teams; mirror
+  // the backend flag in the UI so the "+ Create team" card is
+  // disabled with a clear hint rather than 403'ing on click.
+  const { data: planData } = usePlanUsage();
+  const teamsEnabled = (planData?.limits?.teams_enabled as boolean | undefined) ?? false;
 
   const MEMBERS_PER_PAGE = 10;
   const totalMemberPages = Math.ceil(members.length / MEMBERS_PER_PAGE);
@@ -186,6 +192,20 @@ export default function TeamsPage() {
   };
 
   const openCreateTeam = () => {
+    // Belt-and-braces: the trigger card already disables itself when
+    // teams_enabled=false, but if anything else ever calls this
+    // function (keyboard shortcut, future menu item), keep the gate
+    // honest and surface the plan message instead of opening a
+    // modal that would 403 on submit.
+    if (!teamsEnabled) {
+      showToast(
+        ar
+          ? "إنشاء فرق متعدّدة غير متاح في باقتك. رقّ الباقة لإضافة فريق جديد."
+          : "Creating multiple teams is not available in your plan. Upgrade to add a new team.",
+        "error",
+      );
+      return;
+    }
     setTeamModalTarget(null);
     setTeamForm({ name: "", name_ar: "", services: [] });
     setCustomService("");
@@ -426,12 +446,40 @@ export default function TeamsPage() {
               </div>
             </Card>
           ))}
-          <Card style={{ padding: 18, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", border: `2px dashed ${C.brd}` }} onClick={openCreateTeam}>
-            <div style={{ textAlign: "center", color: C.t2 }}>
-              <div style={{ fontSize: 24, marginBottom: 4 }}>+</div>
-              <div style={{ fontSize: 13 }}>{t("createTeam")}</div>
-            </div>
-          </Card>
+          {/* "Create team" card — disabled on Basic plans where
+              teams_enabled=false. Greyed-out + tooltip (on wrapper
+              div since <Card/> doesn't pass through title) explains
+              why rather than 403'ing after the click. */}
+          <div
+            title={!teamsEnabled
+              ? (ar
+                  ? "إنشاء فرق متعدّدة متاح في باقات Starter وأعلى"
+                  : "Creating multiple teams is available on Starter and above")
+              : undefined}
+          >
+            <Card
+              style={{
+                padding: 18,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: teamsEnabled ? "pointer" : "not-allowed",
+                border: `2px dashed ${C.brd}`,
+                opacity: teamsEnabled ? 1 : 0.55,
+              }}
+              onClick={teamsEnabled ? openCreateTeam : undefined}
+            >
+              <div style={{ textAlign: "center", color: C.t2 }}>
+                <div style={{ fontSize: 24, marginBottom: 4 }}>+</div>
+                <div style={{ fontSize: 13 }}>{t("createTeam")}</div>
+                {!teamsEnabled && (
+                  <div style={{ fontSize: 11, marginTop: 6, color: C.t2 }}>
+                    {ar ? "غير متاح في باقتك" : "Not in your plan"}
+                  </div>
+                )}
+              </div>
+            </Card>
+          </div>
         </div>
       )}
 
