@@ -13,6 +13,7 @@ import { FONT_FAMILY } from "@/lib/constants/font";
 import { GuidesPanel } from "@/components/help/guides-panel";
 import { FaqPanel } from "@/components/help/faq-panel";
 import { ContactPanel } from "@/components/help/contact-panel";
+import { PlanSupportCard } from "@/components/help/plan-support-card";
 import { LiveChatPanel } from "@/components/help/live-chat-panel";
 import { SalesPlaybookPanel } from "@/components/help/sales-playbook-panel";
 
@@ -84,7 +85,15 @@ export default function HelpCenterPage() {
       {tab === "faq" && <FaqPanel />}
       {tab === "tickets" && <TicketsTab router={router} />}
       {tab === "live-chat" && <LiveChatPanel />}
-      {tab === "contact" && <ContactPanel />}
+      {tab === "contact" && (
+        <>
+          {/* Tier-aware support SLA banner above the channel grid —
+              so the tenant sees the response-time guarantee before
+              they pick a channel. */}
+          <PlanSupportCard />
+          <ContactPanel />
+        </>
+      )}
       {tab === "playbook" && isAdmin && <SalesPlaybookPanel />}
     </div>
   );
