@@ -17,6 +17,7 @@ import { useSettings } from "@/lib/api/hooks";
 // When Partner credentials arrive, swap this back to WhatsAppConnectPartner
 // (the wizard component + service layer are still in the tree, untouched).
 import { WhatsAppConnect } from "@/components/settings/whatsapp-connect";
+import { WhatsAppNumbersList } from "@/components/settings/whatsapp-numbers-list";
 import { WhatsAppBusinessProfile } from "@/components/settings/whatsapp-business-profile";
 import { ApiAndWebhooksPanel } from "@/components/settings/api-webhooks-panel";
 import { SmsSettingsPanel } from "@/components/settings/sms-settings-panel";
@@ -1403,6 +1404,10 @@ export default function SettingsPage() {
       {tab === "whatsapp" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <WhatsAppConnect showHeader={false} />
+          {/* Multi-number panel — auto-hides itself on plans that
+              cap at one number (Basic/Starter/Business). Only
+              Enterprise (5 numbers) sees it. */}
+          <WhatsAppNumbersList />
           <WhatsAppBusinessProfile />
         </div>
       )}
