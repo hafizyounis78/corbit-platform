@@ -18,6 +18,7 @@ import { useSettings } from "@/lib/api/hooks";
 // (the wizard component + service layer are still in the tree, untouched).
 import { WhatsAppConnect } from "@/components/settings/whatsapp-connect";
 import { WhatsAppNumbersList } from "@/components/settings/whatsapp-numbers-list";
+import { TeamsPanel } from "@/components/settings/teams-panel";
 import { WhatsAppBusinessProfile } from "@/components/settings/whatsapp-business-profile";
 import { ApiAndWebhooksPanel } from "@/components/settings/api-webhooks-panel";
 import { SmsSettingsPanel } from "@/components/settings/sms-settings-panel";
@@ -1432,6 +1433,11 @@ export default function SettingsPage() {
         <div style={grid2Style}>
           {/* Roles & Permissions */}
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {/* Teams (custom teams) — gated on teams_enabled.
+                The panel renders for everyone but disables the
+                Create button + shows an explainer on Basic. */}
+            <TeamsPanel />
+
             <Card style={{ padding: 18 }}>
               <SectionTitle>{ar ? "الأدوار والصلاحيات" : "Roles & Permissions"}</SectionTitle>
               {[
