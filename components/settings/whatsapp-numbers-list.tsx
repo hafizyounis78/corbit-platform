@@ -56,6 +56,10 @@ export function WhatsAppNumbersList() {
   const [showAdd, setShowAdd] = useState(false);
   const [adding, setAdding] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  // Confirm-delete uses a custom Modal (matches the rest of the UI)
+  // instead of window.confirm — browser dialogs break theming and
+  // were ruled out as a UX standard.
+  const [confirmDelete, setConfirmDelete] = useState<WhatsappNumber | null>(null);
   const [form, setForm] = useState({ phone_number: "", display_name: "", display_name_ar: "" });
 
   const used = numbers.length;
@@ -112,18 +116,14 @@ export function WhatsAppNumbersList() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    const ok = window.confirm(
-      isAr
-        ? "حذف هذا الرقم؟ ستتوقّف Corbit عن استقباله. تاريخ المحادثات يظلّ محفوظاً."
-        : "Delete this number? Corbit will stop receiving for it. Conversation history is kept."
-    );
-    if (!ok) return;
-
+  const handleDelete = async () => {
+    if (!confirmDelete) return;
+    const id = confirmDelete.id;
     setDeletingId(id);
     try {
       await api.delete(`/settings/whatsapp/numbers/${id}`);
       showToast(isAr ? "تمّ الحذف" : "Deleted", "success");
+      setConfirmDelete(null);
       fetchNumbers();
     } catch (e: any) {
       const msg = e?.response?.data?.message || e?.message || "Delete failed";
@@ -195,7 +195,7 @@ export function WhatsAppNumbersList() {
                 </div>
               </div>
               <Button
-                onClick={() => handleDelete(n.id)}
+                onClick={() => setConfirmDelete(n)}
                 disabled={deletingId === n.id}
               >
                 {deletingId === n.id
@@ -258,6 +258,40 @@ export function WhatsAppNumbersList() {
               ? "ملاحظة: الإضافة هنا تسجّل الرقم في حسابك. اكتمال الربط مع Meta + 360dialog يتمّ عبر فريق Corbit (لا تنشأ مفاتيح API تلقائياً)."
               : "Note: adding the number registers it on your account. Full Meta + 360dialog provisioning is completed by the Corbit team (no API keys are auto-generated)."}
           </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={confirmDelete !== null}
+        onClose={() => setConfirmDelete(null)}
+        title={isAr ? "تأكيد حذف الرقم" : "Confirm Delete Number"}
+        submitLabel={
+          deletingId
+            ? (isAr ? "جاري الحذف..." : "Deleting...")
+            : (isAr ? "نعم، احذف" : "Yes, delete")
+        }
+        onSubmit={handleDelete}
+        submitLoading={deletingId !== null}
+        submitDisabled={deletingId !== null}
+      >
+        <div style={{ fontSize: 13, color: C.txt, lineHeight: 1.7 }}>
+          {isAr ? (
+            <>
+              سيتمّ حذف الرقم{" "}
+              <strong style={{ fontFamily: "monospace", direction: "ltr", display: "inline-block" }}>
+                +{confirmDelete?.phone_number}
+              </strong>{" "}
+              ({(confirmDelete && (confirmDelete.display_name_ar || confirmDelete.display_name)) ?? ""}).
+              ستتوقّف Corbit عن استقبال الرسائل عليه. تاريخ المحادثات يظلّ محفوظاً وتقدر تربطه مرّة ثانية لاحقاً.
+            </>
+          ) : (
+            <>
+              The number{" "}
+              <strong style={{ fontFamily: "monospace" }}>+{confirmDelete?.phone_number}</strong>{" "}
+              ({confirmDelete?.display_name}) will be removed. Corbit will stop receiving messages for it.
+              Conversation history is kept and you can reconnect it later.
+            </>
+          )}
         </div>
       </Modal>
     </Card>
