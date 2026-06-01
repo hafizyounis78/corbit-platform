@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { usePlanUsage } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
 import { ApiTesterModal } from "./api-tester-modal";
+import { ApiQuotaCard } from "./api-quota-card";
 
 interface ApiKey {
   id: string;
@@ -249,6 +250,13 @@ export function ApiAndWebhooksPanel({
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: isMob ? "1fr" : "1fr 1fr", gap: 14 }}>
+      {/* Monthly API usage meter — auto-hides for Basic, shows
+          progress for Starter/Business, "Unlimited" badge for
+          Enterprise. Self-polls every 60s. */}
+      <div style={{ gridColumn: "1 / -1" }}>
+        <ApiQuotaCard />
+      </div>
+
       {/* ── API Keys ── */}
       <Card style={{ padding: 18 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
