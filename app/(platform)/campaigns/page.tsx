@@ -5,6 +5,7 @@ import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-media-query";
+import { useRouter } from "next/navigation";
 import { Button, Card, CardHeader, Badge, TabBar, DataTable, Modal, SearchInput, Pagination } from "@/components/ui";
 import { Icon } from "@/components/icons/icon";
 import { getStatusColor } from "@/lib/utils/status-color";
@@ -35,7 +36,7 @@ function fieldName(v: any): string | null {
   }
   return null;
 }
-import { useCampaigns, useCampaignStats, useCampaignProgress, useTemplates as useTemplatesApi, useSegments as useSegmentsApi, useCampaignFunnel, useSmsConfig } from "@/lib/api/hooks";
+import { useCampaigns, useCampaignStats, useCampaignProgress, useTemplates as useTemplatesApi, useSegments as useSegmentsApi, useCampaignFunnel, useSmsConfig, usePlanUsage } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
 import { COLORS, GRADIENT } from "@/lib/constants/colors";
 import { FONT_FAMILY } from "@/lib/constants/font";
@@ -1404,6 +1405,16 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
   const isLive = c.st === 'active' || c.st === 'sending' || c.st === 'paused';
   const { data: progress } = useCampaignProgress(c.id as any, isLive);
 
+  const router = useRouter();
+
+  // Plan-gated advanced analytics. Basic/Starter tenants see a
+  // basic delivery summary (sent + delivered counts) instead of the
+  // full funnel + channel-breakdown sections. The numbers themselves
+  // are computed for everyone; we just decide here whether to render
+  // them as charts or as an upgrade prompt.
+  const { data: planData } = usePlanUsage();
+  const advancedAnalytics = (planData?.limits?.advanced_campaign_analytics as boolean | undefined) ?? false;
+
   // Real Behavior Funnel + segment performance + cost summary, fetched
   // from the V2 analytics endpoint. The detail view rendered mock
   // numbers from c.behavior before this — now we read live aggregates
@@ -2075,9 +2086,44 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
         </Card>
       )}
 
-      {/* Behavior Funnel \u2014 when sent count is 0 the funnel is just
-          5 empty bars which confuses operators on a fresh campaign.
-          Show a friendly empty state instead until something ships. */}
+      {/* Behavior Funnel \u2014 gated on advanced_campaign_analytics.
+          Basic/Starter get a slim upgrade banner; Business+ get the
+          full funnel. Empty-state for fresh campaigns still wins
+          over both when there's nothing to chart yet. */}
+      {!advancedAnalytics ? (
+        <Card style={{ marginBottom: 24, padding: 22, borderRight: `4px solid ${C.info}`, background: `linear-gradient(135deg, ${C.info}08, transparent)` }}>
+          <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
+            <div style={{
+              width: 44, height: 44, borderRadius: 12,
+              background: `${C.info}18`, color: C.info,
+              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+            }}>
+              <Icon name="chart" size={22} />
+            </div>
+            <div style={{ flex: 1, minWidth: 240 }}>
+              <h3 style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700, color: C.txt }}>
+                {isAr ? "\u062a\u062d\u0644\u064a\u0644 \u0627\u0644\u062d\u0645\u0644\u0627\u062a \u0627\u0644\u0645\u062a\u0642\u062f\u0651\u0645 \u2014 Business \u0648\u0623\u0639\u0644\u0649" : "Advanced campaign analytics \u2014 Business and above"}
+              </h3>
+              <p style={{ margin: 0, fontSize: 12.5, color: C.t2, lineHeight: 1.7 }}>
+                {isAr
+                  ? "\u062a\u062d\u0635\u0644 \u0639\u0644\u0649 \u0645\u0633\u0627\u0631 \u0627\u0644\u0633\u0644\u0648\u0643 \u0627\u0644\u0643\u0627\u0645\u0644 (\u0625\u0631\u0633\u0627\u0644 \u2192 \u062a\u0633\u0644\u064a\u0645 \u2192 \u0641\u062a\u062d \u2192 \u0646\u0642\u0631 \u2192 \u062a\u062d\u0648\u064a\u0644) \u0648\u062a\u0648\u0632\u064a\u0639 \u0627\u0644\u0623\u062f\u0627\u0621 \u062d\u0633\u0628 \u0627\u0644\u0642\u0646\u0627\u0629 (\u0648\u0627\u062a\u0633\u0627\u0628/SMS) \u0645\u0639 \u0627\u0644\u062a\u0631\u0642\u064a\u0629."
+                  : "Upgrade to unlock the full behavior funnel (Sent \u2192 Delivered \u2192 Opened \u2192 Clicked \u2192 Converted) plus per-channel performance breakdown."}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => router.push("/billing")}
+              style={{
+                padding: "10px 18px", borderRadius: 10, border: "none",
+                background: C.pri, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {isAr ? "\u0631\u0642\u0651 \u0627\u0644\u0628\u0627\u0642\u0629" : "Upgrade plan"}
+            </button>
+          </div>
+        </Card>
+      ) : (
       <Card style={{ marginBottom: 24 }}>
         <CardHeader title={isAr ? "\u0645\u0633\u0627\u0631 \u0627\u0644\u0633\u0644\u0648\u0643" : "Behavior Funnel"} />
         {sentLive <= 1 && (c.st === 'draft' || c.st === 'scheduled') ? (
@@ -2118,11 +2164,13 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
           </div>
         )}
       </Card>
+      )}
 
-      {/* Channel Breakdown \u2014 only when the campaign actually used >1
-          channel. wa_only campaigns hide this since the funnel above
-          already shows the full picture for the single channel. */}
-      {channelBreakdown && channelBreakdown.breakdown.length > 1 && (
+      {/* Channel Breakdown \u2014 gated on advanced_campaign_analytics
+          AND still only meaningful for multi-channel campaigns.
+          wa_only campaigns hide this since the funnel above already
+          shows the full picture for the single channel. */}
+      {advancedAnalytics && channelBreakdown && channelBreakdown.breakdown.length > 1 && (
         <Card style={{ marginBottom: 24 }}>
           <CardHeader title={isAr ? "\u0627\u0644\u062A\u0648\u0632\u064A\u0639 \u062D\u0633\u0628 \u0627\u0644\u0642\u0646\u0627\u0629" : "Channel Breakdown"} />
           <div style={{ padding: 20, display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
