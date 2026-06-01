@@ -7,6 +7,7 @@ import { FONT_FAMILY } from "@/lib/constants/font";
 import { useToast } from "@/hooks/use-toast";
 import { usePlanUsage } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
+import { ApiTesterModal } from "./api-tester-modal";
 
 interface ApiKey {
   id: string;
@@ -84,6 +85,12 @@ export function ApiAndWebhooksPanel({
   const [showNewHook, setShowNewHook] = useState(false);
   const [hookForm, setHookForm] = useState<{ url: string; events: string[] }>({ url: "", events: [] });
   const [newHookResult, setNewHookResult] = useState<Webhook | null>(null);
+
+  // API tester modal — open with optional prefilled key (used right
+  // after Generate so the operator can verify the fresh key without
+  // re-pasting it from the reveal modal).
+  const [testerOpen, setTesterOpen] = useState(false);
+  const [testerKey, setTesterKey] = useState<string | undefined>(undefined);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -312,7 +319,18 @@ export function ApiAndWebhooksPanel({
                     ? (ar ? `آخر استخدام: ${new Date(k.last_used_at).toLocaleString("ar")}` : `Last used: ${new Date(k.last_used_at).toLocaleString("en")}`)
                     : (ar ? "لم يُستخدم بعد" : "Never used")}
                 </div>
-                <div style={{ display: "flex", gap: 6 }}>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => { setTesterKey(undefined); setTesterOpen(true); }}
+                    style={{ padding: "5px 10px", borderRadius: 6, border: `1px solid ${C.info}`, background: "transparent", color: C.info, fontFamily: FONT_FAMILY, fontSize: 11, cursor: busy ? "wait" : "pointer", fontWeight: 600 }}
+                  >
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      <Icon name="target" size={11} />
+                      <span>{ar ? "اختبار" : "Test"}</span>
+                    </span>
+                  </button>
                   <button
                     type="button"
                     disabled={busy}
@@ -508,6 +526,39 @@ export function ApiAndWebhooksPanel({
                 </button>
               </div>
             </div>
+
+            {/* One-click jump into the tester with the fresh key
+                pre-filled. Saves the "copy → open tester → paste"
+                friction right when the operator has the key. */}
+            <button
+              type="button"
+              onClick={() => {
+                if (newKeyResult.key) {
+                  setTesterKey(newKeyResult.key);
+                  setTesterOpen(true);
+                  setNewKeyResult(null);
+                }
+              }}
+              style={{
+                marginTop: 4,
+                padding: "10px 14px",
+                borderRadius: 8,
+                border: `1px solid ${C.info}`,
+                background: `${C.info}10`,
+                color: C.info,
+                fontFamily: FONT_FAMILY,
+                fontSize: 12.5,
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+              }}
+            >
+              <Icon name="target" size={14} />
+              {ar ? "اختبر المفتاح الآن (بدون ترك الصفحة)" : "Test this key now (no leaving the page)"}
+            </button>
           </div>
         )}
       </Modal>
@@ -602,6 +653,14 @@ export function ApiAndWebhooksPanel({
           </div>
         )}
       </Modal>
+
+      {/* API tester — lives at panel-root so any "Test" button on any
+          key row, plus the post-create reveal modal, can pop it. */}
+      <ApiTesterModal
+        open={testerOpen}
+        onClose={() => { setTesterOpen(false); setTesterKey(undefined); }}
+        prefilledKey={testerKey}
+      />
     </div>
   );
 }
