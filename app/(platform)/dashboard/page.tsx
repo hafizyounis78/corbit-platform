@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { useDashboardStats } from "@/lib/api/hooks";
 import { OnboardingChecklist } from "@/components/onboarding/onboarding-checklist";
 import { QualityChecklistWidget } from "@/components/dashboard/quality-checklist";
+import { AdvancedAnalyticsCard } from "@/components/dashboard/advanced-analytics";
 
 
 export default function DashboardPage() {
@@ -136,6 +137,12 @@ export default function DashboardPage() {
         <h2 style={{ color: "#fff", fontSize: 26, fontWeight: 800, margin: 0, position: "relative", letterSpacing: -0.4 }}>{t("welcome")}</h2>
         <p style={{ color: "rgba(255,255,255,0.92)", margin: "8px 0 0", fontSize: 14.5, position: "relative" }}>{t("tagline")}</p>
       </div>
+
+      {/* Tier-gated analytics surface: upgrade banner on Basic/
+          Starter, advanced metrics grid on Business/Enterprise.
+          Self-hides while plan + stats load so it doesn't flash
+          the wrong shape. */}
+      <AdvancedAnalyticsCard />
 
       {/* Stats Grid */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 16, marginBottom: 24 }}>
