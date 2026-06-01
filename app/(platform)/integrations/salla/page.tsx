@@ -740,6 +740,12 @@ function SettingsTab({ ar, C }: { ar: boolean; C: any }) {
               ar={ar} C={C}
               label={ar ? "قالب: تمّ تأكيد الطلب" : "Template: Order confirmed"}
               hint={ar ? "يُرسَل عند إنشاء الطلب" : "Fires on order.created"}
+              expectedParams={[
+                { num: 1, ar: "اسم العميل", en: "Customer name" },
+                { num: 2, ar: "رقم الطلب", en: "Order number" },
+                { num: 3, ar: "المبلغ بالريال", en: "Total amount (SAR)" },
+                { num: 4, ar: "طريقة الدفع", en: "Payment method" },
+              ]}
               value={settings.order_confirmed_template_id}
               templates={templates}
               onChange={(id) => patch({ order_confirmed_template_id: id })}
@@ -748,6 +754,11 @@ function SettingsTab({ ar, C }: { ar: boolean; C: any }) {
               ar={ar} C={C}
               label={ar ? "قالب: تمّ الشحن" : "Template: Shipped"}
               hint={ar ? "يُرسَل عند تغيير الحالة إلى shipped" : "Fires when status becomes shipped"}
+              expectedParams={[
+                { num: 1, ar: "رقم الطلب", en: "Order number" },
+                { num: 2, ar: "شركة الشحن", en: "Shipping company" },
+                { num: 3, ar: "رقم التتبّع", en: "Tracking number" },
+              ]}
               value={settings.order_shipped_template_id}
               templates={templates}
               onChange={(id) => patch({ order_shipped_template_id: id })}
@@ -756,6 +767,9 @@ function SettingsTab({ ar, C }: { ar: boolean; C: any }) {
               ar={ar} C={C}
               label={ar ? "قالب: تمّ التسليم" : "Template: Delivered"}
               hint={ar ? "يُرسَل عند تغيير الحالة إلى delivered" : "Fires when status becomes delivered"}
+              expectedParams={[
+                { num: 1, ar: "رقم الطلب", en: "Order number" },
+              ]}
               value={settings.order_delivered_template_id}
               templates={templates}
               onChange={(id) => patch({ order_delivered_template_id: id })}
@@ -808,6 +822,10 @@ function SettingsTab({ ar, C }: { ar: boolean; C: any }) {
               ar={ar} C={C}
               label={ar ? "قالب: تذكير العربة" : "Template: Cart reminder"}
               hint={ar ? "يحتاج موافقة تسويقيّة على جهة الاتصال" : "Requires marketing opt-in on the contact"}
+              expectedParams={[
+                { num: 1, ar: "اسم العميل", en: "Customer name" },
+                { num: 2, ar: "قيمة العربة بالريال", en: "Cart total (SAR)" },
+              ]}
               value={settings.cart_recovery_template_id}
               templates={templates}
               onChange={(id) => patch({ cart_recovery_template_id: id })}
@@ -862,13 +880,16 @@ function Toggle({
   );
 }
 
+interface ExpectedParam { num: number; ar: string; en: string; }
+
 function TemplatePicker({
-  ar, C, label, hint, value, templates, onChange,
+  ar, C, label, hint, value, templates, onChange, expectedParams,
 }: {
   ar: boolean; C: any; label: string; hint: string;
   value: string | null;
   templates: SallaTemplate[];
   onChange: (id: string | null) => void;
+  expectedParams?: ExpectedParam[];
 }) {
   return (
     <div>
@@ -891,6 +912,32 @@ function TemplatePicker({
         ))}
       </select>
       <div style={{ fontSize: 11, color: C.t3, marginTop: 4 }}>{hint}</div>
+
+      {/* Required-placeholder hint. Meta returns #132000 when a
+          template's actual placeholder count doesn't match what we
+          ship — so the tenant has to author a template with EXACTLY
+          these {{N}} slots in this order. Showing the mapping
+          inline is the cheapest way to prevent the rejection. */}
+      {expectedParams && expectedParams.length > 0 && (
+        <div style={{
+          marginTop: 8, padding: "8px 10px", borderRadius: 8,
+          background: `${C.info}10`, border: `1px solid ${C.info}30`,
+          fontSize: 11, color: C.t2, lineHeight: 1.7,
+        }}>
+          <div style={{ fontWeight: 700, color: C.info, marginBottom: 4 }}>
+            {ar
+              ? `يجب أن يحوي القالب ${expectedParams.length} متغيّر${expectedParams.length > 1 ? "اً" : ""}:`
+              : `Template must contain ${expectedParams.length} placeholder${expectedParams.length > 1 ? "s" : ""}:`}
+          </div>
+          {expectedParams.map((p) => (
+            <div key={p.num} style={{ fontFamily: "monospace", direction: "ltr", textAlign: ar ? "right" : "left" }}>
+              <strong>{`{{${p.num}}}`}</strong>
+              {" "}
+              <span style={{ fontFamily: "inherit" }}>— {ar ? p.ar : p.en}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
