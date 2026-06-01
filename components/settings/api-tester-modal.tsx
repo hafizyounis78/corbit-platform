@@ -28,8 +28,15 @@ import { Icon } from "@/components/icons/icon";
 import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, "")
-  ?? "https://corbit-whatsapp-backend.corbit.sa";
+// Public API host — branded subdomain that fronts the same backend.
+// Kept distinct from NEXT_PUBLIC_API_URL (the internal SPA<->Laravel
+// channel) because we want tenants to see and document the clean
+// `api.whatsbit.corbit.sa` URL, not the implementation-detail
+// backend hostname. Env override (NEXT_PUBLIC_PUBLIC_API_URL) lets
+// staging/preview environments point at a different host without
+// a code change.
+const API_BASE = process.env.NEXT_PUBLIC_PUBLIC_API_URL
+  ?? "https://api.whatsbit.corbit.sa";
 
 type EndpointKey = "get_contacts" | "get_conversations" | "post_message";
 

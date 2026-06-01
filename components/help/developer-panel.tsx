@@ -20,7 +20,13 @@ import { useTheme } from "@/lib/theme/theme-provider";
 import { useLocale } from "@/lib/i18n/locale-provider";
 import { usePlanUsage } from "@/lib/api/hooks";
 
-const API_BASE = "https://corbit-whatsapp-backend.corbit.sa";
+// Branded public-API host. The same backend serves the internal SPA
+// (corbit-whatsapp-backend.corbit.sa) but tenants should only ever
+// see and copy-paste the api.whatsbit subdomain — that's the URL we
+// promise to keep stable. Env override mirrors the tester so staging
+// docs can point elsewhere without a code change.
+const API_BASE = process.env.NEXT_PUBLIC_PUBLIC_API_URL
+  ?? "https://api.whatsbit.corbit.sa";
 
 const EVENTS = [
   { key: "message.received",    desc_ar: "رسالة جديدة من عميل وصلت لرقمك",            desc_en: "A new inbound message from a customer" },
