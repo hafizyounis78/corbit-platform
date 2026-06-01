@@ -16,6 +16,7 @@ import {
   disconnectSalla,
   triggerSallaSync,
 } from "@/lib/api/salla";
+import api from "@/lib/api/client";
 
 /**
  * /integrations/salla — the Salla integration management page.
@@ -295,7 +296,7 @@ function ConnectedPanel({
   integration: any; ar: boolean; C: any; busy: string;
   onDisconnect: () => void; onSync: () => void;
 }) {
-  const [tab, setTab] = useState<"overview" | "conversions" | "events">("overview");
+  const [tab, setTab] = useState<"overview" | "conversions" | "events" | "settings">("overview");
 
   const statusColor = integration.status === "active" ? C.ok :
     integration.status === "expired" ? C.warn : C.danger;
@@ -369,6 +370,7 @@ function ConnectedPanel({
           { key: "overview", labelAr: "نظرة عامّة", labelEn: "Overview" },
           { key: "conversions", labelAr: "التحويلات", labelEn: "Conversions" },
           { key: "events", labelAr: "سجل الأحداث", labelEn: "Events log" },
+          { key: "settings", labelAr: "الإعدادات", labelEn: "Settings" },
         ].map((tt) => (
           <button
             key={tt.key}
@@ -394,6 +396,7 @@ function ConnectedPanel({
         {tab === "overview" && <OverviewTab integration={integration} ar={ar} C={C} />}
         {tab === "conversions" && <ConversionsTab ar={ar} C={C} />}
         {tab === "events" && <EventsTab ar={ar} C={C} />}
+        {tab === "settings" && <SettingsTab ar={ar} C={C} />}
       </div>
     </div>
   );
@@ -621,5 +624,273 @@ function EventsTab({ ar, C }: { ar: boolean; C: any }) {
         })}
       </div>
     </Card>
+  );
+}
+
+// ─── SettingsTab ──────────────────────────────────────────────────
+//
+// Order/cart notification settings. Without these toggles the
+// SendOrderStatusNotificationJob silently no-ops — every Salla
+// webhook gets processed but the customer never receives a
+// WhatsApp message. The template picker is filtered server-side to
+// approved utility/authentication templates only, so the operator
+// can't accidentally pair a marketing template with an automatic
+// (non-opt-in) order notification.
+
+interface SallaTemplate {
+  id: string;
+  name: string;
+  category: string;
+  language: string;
+}
+
+interface SallaSettings {
+  order_notifications_enabled: boolean;
+  order_confirmed_template_id: string | null;
+  order_shipped_template_id: string | null;
+  order_delivered_template_id: string | null;
+  cart_recovery_enabled: boolean;
+  cart_recovery_delay_minutes: number;
+  cart_recovery_template_id: string | null;
+}
+
+function SettingsTab({ ar, C }: { ar: boolean; C: any }) {
+  const { showToast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [settings, setSettings] = useState<SallaSettings | null>(null);
+  const [templates, setTemplates] = useState<SallaTemplate[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api.get("/integrations/salla/settings");
+        setSettings(res.data.settings as SallaSettings);
+        setTemplates((res.data.templates ?? []) as SallaTemplate[]);
+      } catch {
+        showToast(ar ? "تعذّر تحميل الإعدادات" : "Failed to load settings", "error");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const patch = async (changes: Partial<SallaSettings>) => {
+    if (!settings) return;
+    const next = { ...settings, ...changes };
+    setSettings(next); // optimistic — feels live even on slow links
+    setSaving(true);
+    try {
+      const res = await api.patch("/integrations/salla/settings", changes);
+      setSettings(res.data.settings as SallaSettings);
+    } catch (e: any) {
+      // Roll back to the server's view on error so the UI never
+      // claims to have saved something it didn't.
+      setSettings(settings);
+      showToast(e?.response?.data?.message ?? (ar ? "فشل الحفظ" : "Save failed"), "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading || !settings) {
+    return (
+      <Card style={{ padding: 32, textAlign: "center", fontSize: 13, color: C.t2 }}>
+        {ar ? "جاري التحميل..." : "Loading..."}
+      </Card>
+    );
+  }
+
+  const hasNoTemplates = templates.length === 0;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {hasNoTemplates && (
+        <Card style={{ padding: 14, borderRight: `4px solid ${C.warn}`, background: `${C.warn}08` }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+            <span style={{ color: C.warn, display: "inline-flex" }}><Icon name="alert" size={18} /></span>
+            <div style={{ fontSize: 12.5, color: C.t2, lineHeight: 1.7 }}>
+              {ar
+                ? "لا توجد قوالب معتمدة من نوع Utility في حسابك. أنشئ قالباً معتمداً من Meta لاستخدامه كرسالة تأكيد الطلب."
+                : "You don't have any approved Utility templates yet. Create a Meta-approved template to use for order confirmations."}
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Order notifications block */}
+      <Card style={{ padding: 18 }}>
+        <SettingsHeader
+          ar={ar} C={C}
+          title={ar ? "إشعارات الطلبات" : "Order notifications"}
+          desc={ar
+            ? "تُرسَل تلقائياً عند كل طلب جديد أو تحديث حالة. هذه رسائل خدميّة (utility) — لا تتطلب موافقة تسويقيّة من العميل."
+            : "Sent automatically on each new order or status change. These are utility messages — no marketing opt-in required."}
+        />
+        <Toggle
+          ar={ar} C={C}
+          checked={settings.order_notifications_enabled}
+          onChange={(v) => patch({ order_notifications_enabled: v })}
+          label={ar ? "تفعيل إشعارات الطلبات" : "Enable order notifications"}
+        />
+
+        {settings.order_notifications_enabled && (
+          <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 12 }}>
+            <TemplatePicker
+              ar={ar} C={C}
+              label={ar ? "قالب: تمّ تأكيد الطلب" : "Template: Order confirmed"}
+              hint={ar ? "يُرسَل عند إنشاء الطلب" : "Fires on order.created"}
+              value={settings.order_confirmed_template_id}
+              templates={templates}
+              onChange={(id) => patch({ order_confirmed_template_id: id })}
+            />
+            <TemplatePicker
+              ar={ar} C={C}
+              label={ar ? "قالب: تمّ الشحن" : "Template: Shipped"}
+              hint={ar ? "يُرسَل عند تغيير الحالة إلى shipped" : "Fires when status becomes shipped"}
+              value={settings.order_shipped_template_id}
+              templates={templates}
+              onChange={(id) => patch({ order_shipped_template_id: id })}
+            />
+            <TemplatePicker
+              ar={ar} C={C}
+              label={ar ? "قالب: تمّ التسليم" : "Template: Delivered"}
+              hint={ar ? "يُرسَل عند تغيير الحالة إلى delivered" : "Fires when status becomes delivered"}
+              value={settings.order_delivered_template_id}
+              templates={templates}
+              onChange={(id) => patch({ order_delivered_template_id: id })}
+            />
+          </div>
+        )}
+      </Card>
+
+      {/* Cart recovery block */}
+      <Card style={{ padding: 18 }}>
+        <SettingsHeader
+          ar={ar} C={C}
+          title={ar ? "استرداد العربات المتروكة" : "Abandoned cart recovery"}
+          desc={ar
+            ? "رسالة تذكير تلقائيّة عند ترك العميل عربة الشراء. تحترم خيار التسويق (opt-in) في جهة الاتصال."
+            : "Auto-reminder when a customer leaves their cart. Respects the contact's marketing opt-in flag."}
+        />
+        <Toggle
+          ar={ar} C={C}
+          checked={settings.cart_recovery_enabled}
+          onChange={(v) => patch({ cart_recovery_enabled: v })}
+          label={ar ? "تفعيل استرداد العربات" : "Enable cart recovery"}
+        />
+
+        {settings.cart_recovery_enabled && (
+          <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 12 }}>
+            <div>
+              <label style={{ display: "block", fontSize: 12.5, color: C.t2, marginBottom: 6, fontWeight: 600 }}>
+                {ar ? "التأخير قبل الإرسال (بالدقائق)" : "Delay before sending (minutes)"}
+              </label>
+              <input
+                type="number"
+                min={5}
+                max={1440}
+                value={settings.cart_recovery_delay_minutes}
+                onChange={(e) => {
+                  const v = Math.max(5, Math.min(1440, parseInt(e.target.value || "30", 10)));
+                  patch({ cart_recovery_delay_minutes: v });
+                }}
+                style={{
+                  width: 140, padding: "8px 12px", borderRadius: 8,
+                  border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 13,
+                }}
+              />
+              <div style={{ fontSize: 11, color: C.t3, marginTop: 4 }}>
+                {ar ? "بين 5 و 1440 دقيقة (24 ساعة)" : "Between 5 and 1440 minutes (24 hours)"}
+              </div>
+            </div>
+            <TemplatePicker
+              ar={ar} C={C}
+              label={ar ? "قالب: تذكير العربة" : "Template: Cart reminder"}
+              hint={ar ? "يحتاج موافقة تسويقيّة على جهة الاتصال" : "Requires marketing opt-in on the contact"}
+              value={settings.cart_recovery_template_id}
+              templates={templates}
+              onChange={(id) => patch({ cart_recovery_template_id: id })}
+            />
+          </div>
+        )}
+      </Card>
+
+      {saving && (
+        <div style={{ fontSize: 11.5, color: C.t3, textAlign: "center" }}>
+          {ar ? "جاري الحفظ..." : "Saving..."}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SettingsHeader({ ar, C, title, desc }: { ar: boolean; C: any; title: string; desc: string }) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <h3 style={{ margin: "0 0 4px", fontSize: 14.5, fontWeight: 700, color: C.txt }}>{title}</h3>
+      <p style={{ margin: 0, fontSize: 12, color: C.t2, lineHeight: 1.7 }}>{desc}</p>
+    </div>
+  );
+}
+
+function Toggle({
+  ar, C, checked, onChange, label,
+}: { ar: boolean; C: any; checked: boolean; onChange: (v: boolean) => void; label: string }) {
+  return (
+    <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        style={{
+          width: 40, height: 22, borderRadius: 11,
+          background: checked ? "#10b981" : C.brd,
+          border: "none", cursor: "pointer", position: "relative",
+          transition: "background 200ms",
+        }}
+      >
+        <span style={{
+          position: "absolute", top: 2,
+          [ar ? "right" : "left"]: checked ? 20 : 2,
+          width: 18, height: 18, borderRadius: 9,
+          background: "#fff",
+          transition: ar ? "right 200ms" : "left 200ms",
+        }} />
+      </button>
+      <span style={{ fontSize: 13, color: C.txt }}>{label}</span>
+    </label>
+  );
+}
+
+function TemplatePicker({
+  ar, C, label, hint, value, templates, onChange,
+}: {
+  ar: boolean; C: any; label: string; hint: string;
+  value: string | null;
+  templates: SallaTemplate[];
+  onChange: (id: string | null) => void;
+}) {
+  return (
+    <div>
+      <label style={{ display: "block", fontSize: 12.5, color: C.t2, marginBottom: 6, fontWeight: 600 }}>
+        {label}
+      </label>
+      <select
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value || null)}
+        style={{
+          width: "100%", padding: "9px 12px", borderRadius: 8,
+          border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 13,
+        }}
+      >
+        <option value="">{ar ? "— لم يُحدَّد —" : "— Not selected —"}</option>
+        {templates.map((t) => (
+          <option key={t.id} value={t.id}>
+            {t.name} ({t.category} · {t.language})
+          </option>
+        ))}
+      </select>
+      <div style={{ fontSize: 11, color: C.t3, marginTop: 4 }}>{hint}</div>
+    </div>
   );
 }
