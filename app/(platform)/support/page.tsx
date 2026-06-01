@@ -14,14 +14,16 @@ import { GuidesPanel } from "@/components/help/guides-panel";
 import { FaqPanel } from "@/components/help/faq-panel";
 import { ContactPanel } from "@/components/help/contact-panel";
 import { PlanSupportCard } from "@/components/help/plan-support-card";
+import { DeveloperPanel } from "@/components/help/developer-panel";
+import { usePlanUsage } from "@/lib/api/hooks";
 import { LiveChatPanel } from "@/components/help/live-chat-panel";
 import { SalesPlaybookPanel } from "@/components/help/sales-playbook-panel";
 
 const STATUSES = ["all", "open", "in_progress", "awaiting_user", "resolved", "closed"] as const;
 
-type Tab = "guides" | "faq" | "tickets" | "live-chat" | "contact" | "playbook";
+type Tab = "guides" | "faq" | "tickets" | "live-chat" | "contact" | "developers" | "playbook";
 
-const VALID_TABS: Tab[] = ["guides", "faq", "tickets", "live-chat", "contact", "playbook"];
+const VALID_TABS: Tab[] = ["guides", "faq", "tickets", "live-chat", "contact", "developers", "playbook"];
 
 /**
  * Help Center — replaces the old single-purpose Tickets page with
@@ -38,6 +40,13 @@ export default function HelpCenterPage() {
   // Internal Sales Playbook surfaces only to admin role — never to
   // end-tenant agents. Same gate as the role-based nav in layout.tsx.
   const isAdmin = user?.role === "admin";
+
+  // Developer tab is only useful to tenants whose plan exposes API
+  // or Webhooks. Hide it for Basic so the help center stays focused.
+  const { data: planData } = usePlanUsage();
+  const apiEnabled      = (planData?.limits?.api_enabled      as boolean | undefined) ?? false;
+  const webhooksEnabled = (planData?.limits?.webhooks_enabled as boolean | undefined) ?? false;
+  const showDevelopers  = apiEnabled || webhooksEnabled;
 
   const initialTab = (searchParams?.get("tab") as Tab) ?? "guides";
   const [tab, setTab] = useState<Tab>(
@@ -61,6 +70,7 @@ export default function HelpCenterPage() {
     { key: "tickets",   label: isAr ? "التذاكر" : "Tickets", icon: "ticket" },
     { key: "live-chat", label: isAr ? "محادثة الدعم" : "Live Chat", icon: "msg" },
     { key: "contact",   label: isAr ? "تواصل معنا" : "Contact", icon: "phone" },
+    ...(showDevelopers ? [{ key: "developers", label: isAr ? "للمطوّرين" : "Developers", icon: "code" }] : []),
     ...(isAdmin ? [{ key: "playbook", label: isAr ? "دليل المبيعات" : "Sales Playbook", icon: "book" }] : []),
   ];
 
@@ -94,6 +104,7 @@ export default function HelpCenterPage() {
           <ContactPanel />
         </>
       )}
+      {tab === "developers" && <DeveloperPanel />}
       {tab === "playbook" && isAdmin && <SalesPlaybookPanel />}
     </div>
   );
