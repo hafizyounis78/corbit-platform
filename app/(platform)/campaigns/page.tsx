@@ -6,6 +6,7 @@ import { useLocale } from "@/lib/i18n/locale-provider";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-media-query";
 import { useRouter } from "next/navigation";
+import { ExportButtons } from "@/components/shared/export-buttons";
 import { Button, Card, CardHeader, Badge, TabBar, DataTable, Modal, SearchInput, Pagination } from "@/components/ui";
 import { Icon } from "@/components/icons/icon";
 import { getStatusColor } from "@/lib/utils/status-color";
@@ -1733,14 +1734,12 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
               <Icon name="copy" size={13} />
               {isAr ? "\u062A\u0643\u0631\u0627\u0631" : "Duplicate"}
             </Button>
-            <Button primary onClick={() => {
-              api.post(`/campaigns/${c.id}/export`).then(() => {
-                showToast(isAr ? "\u062A\u0645 \u062A\u0635\u062F\u064A\u0631 \u0627\u0644\u062A\u0642\u0631\u064A\u0631" : "Report exported");
-              }).catch(() => showToast(isAr ? "\u062A\u0635\u062F\u064A\u0631 \u0627\u0644\u062A\u0642\u0631\u064A\u0631" : "Export report"));
-            }}>
-              <Icon name="sheet" size={13} />
-              {isAr ? "\u062A\u0635\u062F\u064A\u0631" : "Export"}
-            </Button>
+            {/* Plan-gated CSV + Excel — Basic sees them disabled. */}
+            <ExportButtons
+              endpoint={`/campaigns/${c.id}/export`}
+              filenamePrefix={`campaign-${c.id}-report`}
+              size="normal"
+            />
           </div>
         </div>
       </div>

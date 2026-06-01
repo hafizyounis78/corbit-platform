@@ -11,6 +11,7 @@ import { Icon } from "@/components/icons/icon";
 import type { Contact } from "@/data/contacts";
 import { useContacts, useContactStats, useContactTags, useSegments, useAiSegments } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
+import { ExportButtons } from "@/components/shared/export-buttons";
 import { SmartSegmentsBar } from "@/components/contacts/smart-segments-bar";
 import { CustomerInsightsBar } from "@/components/contacts/customer-insights-bar";
 import { ContactDetailDrawer } from "@/components/contacts/contact-detail-drawer";
@@ -547,23 +548,12 @@ export default function ContactsPage() {
             <Icon name="pkg" size={14} />
             {isAr ? "\u0627\u0633\u062A\u064A\u0631\u0627\u062F" : "Import"}
           </Button>
-          <Button outline onClick={async () => {
-            try {
-              const res = await api.get('/contacts/export', { responseType: 'blob' });
-              const url = window.URL.createObjectURL(new Blob([res.data]));
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `contacts_${new Date().toISOString().split('T')[0]}.csv`;
-              a.click();
-              window.URL.revokeObjectURL(url);
-              showToast(isAr ? "تم تصدير جهات الاتصال" : "Contacts exported");
-            } catch {
-              showToast(isAr ? "فشل التصدير" : "Export failed");
-            }
-          }}>
-            <Icon name="sheet" size={14} />
-            {isAr ? "\u062A\u0635\u062F\u064A\u0631" : "Export"}
-          </Button>
+          {/* Plan-gated CSV + Excel — Basic sees them disabled. */}
+          <ExportButtons
+            endpoint="/contacts/export"
+            filenamePrefix="contacts"
+            size="normal"
+          />
           <Button onClick={() => { setNewSegment({ name: "", status: "all", tags: [], scoreMin: 0, scoreMax: 100, cityFilter: "", orderMin: 0 }); setShowSegmentModal(true); }}>
             <Icon name="pie" size={14} />
             {isAr ? "\u0625\u0646\u0634\u0627\u0621 \u0634\u0631\u064A\u062D\u0629" : "Create Segment"}

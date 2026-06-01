@@ -14,6 +14,7 @@ import { ProgressBar } from "@/components/charts/progress-bar";
 import { FONT_FAMILY } from "@/lib/constants/font";
 import { useAnalytics } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
+import { ExportButtons } from "@/components/shared/export-buttons";
 
 export default function AnalyticsPage() {
   const { colors: C } = useTheme();
@@ -83,14 +84,17 @@ export default function AnalyticsPage() {
           <h2 style={{ margin: "0 0 4px", fontSize: 20, fontWeight: 700 }}>{t("analytics")}</h2>
           <p style={{ fontSize: 13, color: C.t2, margin: 0 }}>{ar ? "\u062a\u062d\u0644\u064a\u0644\u0627\u062a \u0627\u0644\u0623\u062f\u0627\u0621" : "Performance analytics"}</p>
         </div>
-        <div style={{ display: "flex", gap: 6 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <TabBar tabs={[{ key: "daily", label: t("daily") }, { key: "weekly", label: t("weekly") }, { key: "monthly", label: t("monthly") }]} active={range} onChange={setRange} />
-          <Button outline small onClick={async () => {
-            try {
-              await api.post("/analytics/export", { tab, range, format: "csv" });
-            } catch {}
-            showToast("\u2713");
-          }}>{t("expCSV")}</Button>
+          {/* Plan-gated CSV + Excel buttons. Reads csv_export_enabled
+              / excel_export_enabled from PlanService so Basic sees
+              disabled buttons with a tooltip rather than 403'ing
+              after the click. */}
+          <ExportButtons
+            endpoint="/analytics/export"
+            params={{ type: tab, range }}
+            filenamePrefix={`analytics-${tab}`}
+          />
         </div>
       </div>
       <div style={{ marginBottom: 16 }}>
