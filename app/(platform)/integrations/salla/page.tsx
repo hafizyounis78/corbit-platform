@@ -155,7 +155,10 @@ function SallaIntegrationInner() {
     );
   }
 
-  // Connected state
+  // Connected state — always honour this regardless of plan_enabled.
+  // A tenant who downgraded to Basic with a live integration keeps
+  // the management UI (and the disconnect button) intact; the gate
+  // only refuses NEW connections.
   if (data?.connected && data.integration) {
     return (
       <ConnectedPanel
@@ -169,6 +172,13 @@ function SallaIntegrationInner() {
     );
   }
 
+  // Plan-level disable — shown when the org has no integration AND
+  // their plan doesn't include Salla. Swaps in for the Connect CTA
+  // with a clear upgrade prompt; never appears for Starter+.
+  if (data && data.plan_enabled === false) {
+    return <PlanGatedPanel ar={ar} C={C} />;
+  }
+
   // Not connected — show CTA
   return (
     <NotConnectedPanel
@@ -177,6 +187,44 @@ function SallaIntegrationInner() {
       busy={busy}
       onConnect={handleConnect}
     />
+  );
+}
+
+function PlanGatedPanel({ ar, C }: { ar: boolean; C: any }) {
+  return (
+    <div style={{ padding: "0 24px 24px", maxWidth: 720, margin: "0 auto" }}>
+      <BackLink ar={ar} C={C} />
+      <Card style={{
+        padding: 28, marginTop: 16, textAlign: "center",
+        borderRight: `4px solid ${C.info}`,
+        background: `linear-gradient(135deg, ${C.info}08, transparent)`,
+      }}>
+        <div style={{ fontSize: 36, marginBottom: 12 }}>🛒</div>
+        <h2 style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 700, color: C.txt }}>
+          {ar ? "تكامل سلّة — متاح من Starter وأعلى" : "Salla — available on Starter and above"}
+        </h2>
+        <p style={{ margin: "0 0 18px", fontSize: 13, color: C.t2, lineHeight: 1.7 }}>
+          {ar
+            ? "لتمكين الربط مع متجر سلّة، استقبال الطلبات تلقائياً، وإرسال رسائل تأكيد للعملاء، رقّ باقتك."
+            : "Connect a Salla store, receive orders automatically, and send confirmation messages to customers by upgrading your plan."}
+        </p>
+        <a
+          href="/billing"
+          style={{
+            display: "inline-block",
+            padding: "10px 22px",
+            borderRadius: 10,
+            background: C.pri,
+            color: "#fff",
+            textDecoration: "none",
+            fontSize: 13,
+            fontWeight: 700,
+          }}
+        >
+          {ar ? "رقّ الباقة" : "Upgrade plan"}
+        </a>
+      </Card>
+    </div>
   );
 }
 
@@ -705,6 +753,7 @@ function SettingsTab({ ar, C }: { ar: boolean; C: any }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <SallaQuickGuide ar={ar} C={C} />
       {hasNoTemplates && (
         <Card style={{ padding: 14, borderRight: `4px solid ${C.warn}`, background: `${C.warn}08` }}>
           <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
@@ -877,6 +926,100 @@ function Toggle({
       </button>
       <span style={{ fontSize: 13, color: C.txt }}>{label}</span>
     </label>
+  );
+}
+
+// ─── SallaQuickGuide ──────────────────────────────────────────────
+//
+// Collapsible step-by-step at the top of Settings tab. Tells the
+// operator EXACTLY how to get an order-confirmation notification
+// shipping, without sending them to the Help Center for a separate
+// page. Reads as a quickstart, not a manual — the deep details
+// live next to each field in the form itself.
+function SallaQuickGuide({ ar, C }: { ar: boolean; C: any }) {
+  const [open, setOpen] = useState(true);
+
+  const steps = ar
+    ? [
+        {
+          title: "1. أنشئ قالب واتساب من نوع Utility",
+          body: "روح إلى تبويب \"القوالب\" → إنشاء قالب جديد. اختر النوع Utility (مش Marketing — رسائل الطلبات تلقائيّة بدون موافقة تسويقيّة). أرسلها لـ Meta للموافقة (دقائق إلى ساعات).",
+        },
+        {
+          title: "2. اكتب القالب بالمتغيّرات المطلوبة",
+          body: "كل مرحلة (تأكيد/شحن/تسليم) تحتاج عدد متغيّرات محدّد. القسم التالي يعرض المتغيّرات المطلوبة لكل مرحلة — انسخها بنفس الترتيب وإلّا Meta سترفض الإرسال.",
+        },
+        {
+          title: "3. فعّل التبديل + اختر القالب",
+          body: "بعد ما Meta تعتمد القالب، فعّل \"إشعارات الطلبات\" أعلاه واختر القالب المناسب لكل مرحلة من القائمة المنسدلة.",
+        },
+        {
+          title: "4. اعمل طلب اختبار من متجر سلّة",
+          body: "بنفس رقم جوّال موجود في جهات الاتصال. ستصل رسالة الواتساب خلال ثوانٍ — يمكن مراجعة الحالة في تبويب \"سجل الأحداث\".",
+        },
+      ]
+    : [
+        {
+          title: "1. Create a Utility WhatsApp template",
+          body: "Go to Templates → Create new. Pick Utility (not Marketing — order notifications fire automatically without an opt-in). Submit to Meta for approval (minutes to hours).",
+        },
+        {
+          title: "2. Match the required placeholders",
+          body: "Each stage (confirmed/shipped/delivered) needs a specific {{N}} count. The section below shows the required mapping per stage — copy it exactly or Meta will reject the send.",
+        },
+        {
+          title: "3. Toggle on + pick the template",
+          body: "Once Meta approves, switch \"Order notifications\" above on and select the matching template for each stage from the dropdown.",
+        },
+        {
+          title: "4. Place a test order in Salla",
+          body: "Use a phone number that exists in your contacts. The WhatsApp message arrives within seconds — verify in the Events log tab.",
+        },
+      ];
+
+  return (
+    <Card style={{ padding: 0, overflow: "hidden" }}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        style={{
+          width: "100%", padding: "14px 18px",
+          background: "transparent", border: "none",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          cursor: "pointer", fontFamily: "inherit",
+        }}
+      >
+        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 18 }}>📖</span>
+          <strong style={{ fontSize: 14, color: C.txt }}>
+            {ar ? "كيف تشغّل الإشعارات؟ (دليل سريع)" : "How to turn notifications on (quick guide)"}
+          </strong>
+        </span>
+        <span style={{ fontSize: 18, color: C.t2, transform: open ? "rotate(180deg)" : "none", transition: "transform 150ms" }}>⌃</span>
+      </button>
+
+      {open && (
+        <div style={{ padding: "0 18px 18px" }}>
+          <ol style={{ margin: 0, paddingInlineStart: 18, fontSize: 12.5, color: C.t2, lineHeight: 1.8 }}>
+            {steps.map((s, i) => (
+              <li key={i} style={{ marginBottom: 10 }}>
+                <div style={{ fontWeight: 700, color: C.txt, marginBottom: 2 }}>{s.title}</div>
+                <div>{s.body}</div>
+              </li>
+            ))}
+          </ol>
+          <div style={{
+            marginTop: 12, padding: 10,
+            background: C.inp, borderRadius: 8,
+            fontSize: 11.5, color: C.t2, lineHeight: 1.7,
+          }}>
+            {ar
+              ? "💡 ملاحظة: الإشعارات تُرسَل فقط إلى أرقام موجودة في جهات الاتصال. لو زبون سلّة جديد، يُنشأ contact تلقائياً عند ربط متجره — لا يلزم استيراد يدوي."
+              : "💡 Tip: notifications only fire to numbers that exist in Contacts. New Salla customers are auto-synced — no manual import needed."}
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }
 

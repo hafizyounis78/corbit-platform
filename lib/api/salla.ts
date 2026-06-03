@@ -31,6 +31,12 @@ export interface SallaIntegration {
 
 export interface SallaStatusResponse {
   enabled: boolean;
+  // Plan-level flag. Distinct from `enabled` (which is the
+  // platform-wide kill switch). When false, the page shows an
+  // upgrade banner instead of the Connect CTA — but only when
+  // there's no existing integration; live integrations stay
+  // visible regardless so a downgrade never breaks ongoing use.
+  plan_enabled?: boolean;
   connected: boolean;
   integration: SallaIntegration | null;
   message?: string;
