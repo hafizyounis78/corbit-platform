@@ -45,14 +45,22 @@ export function DeveloperPanel() {
 
   const apiEnabled      = (planData?.limits?.api_enabled       as boolean | undefined) ?? false;
   const webhooksEnabled = (planData?.limits?.webhooks_enabled  as boolean | undefined) ?? false;
+  const makeEnabled     = (planData?.limits?.make_enabled      as boolean | undefined) ?? false;
 
-  const [section, setSection] = useState<"intro" | "api" | "webhooks" | "events" | "security">("intro");
+  const [section, setSection] = useState<"intro" | "api" | "webhooks" | "events" | "security" | "make">("intro");
 
   const sections: Array<{ key: typeof section; label_ar: string; label_en: string; show: boolean }> = [
     { key: "intro",    label_ar: "نظرة عامّة", label_en: "Overview",   show: true },
     { key: "api",      label_ar: "REST API",   label_en: "REST API",   show: apiEnabled },
     { key: "webhooks", label_ar: "Webhooks",   label_en: "Webhooks",   show: webhooksEnabled },
     { key: "events",   label_ar: "الأحداث",    label_en: "Events",     show: webhooksEnabled },
+    // Make.com is a no-code automation runner that subscribes to
+    // any HTTPS endpoint as a webhook trigger — Corbit's webhook
+    // engine speaks to it natively. Show the tutorial whenever
+    // either Webhooks (the engine that powers it) or Make is
+    // enabled on the plan; the tutorial section itself explains
+    // when each path applies.
+    { key: "make",     label_ar: "Make.com",   label_en: "Make.com",   show: webhooksEnabled || makeEnabled },
     { key: "security", label_ar: "التحقّق + الأمان", label_en: "Security",  show: webhooksEnabled || apiEnabled },
   ];
 
@@ -106,6 +114,7 @@ export function DeveloperPanel() {
         {section === "api"      && <ApiSection />}
         {section === "webhooks" && <WebhooksSection />}
         {section === "events"   && <EventsSection />}
+        {section === "make"     && <MakeSection />}
         {section === "security" && <SecuritySection />}
       </div>
     </div>
@@ -294,6 +303,118 @@ function EventsSection() {
           ))}
         </tbody>
       </table>
+    </Card>
+  );
+}
+
+function MakeSection() {
+  const { colors: C } = useTheme();
+  const { isAr } = useLocale();
+  return (
+    <Card style={{ padding: 22 }}>
+      <h2 style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 700 }}>
+        {isAr ? "ربط Corbit مع Make.com" : "Connect Corbit to Make.com"}
+      </h2>
+      <p style={{ fontSize: 13, marginBottom: 16, lineHeight: 1.7 }}>
+        {isAr
+          ? "Make.com (سابقاً Integromat) منصّة أتمتة بدون كود. لا يحتاج تكامل مخصّص — استخدم webhooks Corbit الموجودة كـ trigger داخل أيّ scenario."
+          : "Make.com (formerly Integromat) is a no-code automation platform. No custom integration needed — use Corbit's existing webhooks as a trigger in any scenario."}
+      </p>
+
+      <h3 style={{ margin: "20px 0 8px", fontSize: 14.5, fontWeight: 700 }}>
+        {isAr ? "الخطوات" : "Steps"}
+      </h3>
+      <ol style={{ paddingInlineStart: 18, fontSize: 13, lineHeight: 1.9, margin: 0 }}>
+        <li>
+          {isAr
+            ? "في Make.com → أنشئ scenario جديد. أضف وحدة \"Webhooks → Custom webhook\" كنقطة البداية."
+            : "In Make.com → create a new scenario. Add a \"Webhooks → Custom webhook\" module as the starting trigger."}
+        </li>
+        <li>
+          {isAr
+            ? "اضغط \"Add\" → \"Save\" → انسخ الـ URL الناتج (يبدأ بـ hook.eu1.make.com أو us1.make.com)."
+            : "Click \"Add\" → \"Save\" → copy the resulting URL (starts with hook.eu1.make.com or us1.make.com)."}
+        </li>
+        <li>
+          {isAr
+            ? "في Corbit → الإعدادات → واجهة API → الويب هوكس → \"+ إضافة\". الصق الـ URL واختر الأحداث (مثلاً message.received)."
+            : "In Corbit → Settings → API → Webhooks → \"+ Add\". Paste the URL and pick the events you want (e.g. message.received)."}
+        </li>
+        <li>
+          {isAr
+            ? "احفظ الـ HMAC secret الذي يظهر مرّة واحدة — ستحتاجه في Make للتحقّق من التوقيع."
+            : "Save the one-time HMAC secret — you'll need it in Make to verify the signature."}
+        </li>
+        <li>
+          {isAr
+            ? "في Corbit → ابعت رسالة واتساب test → Make.com سيظهر الـ payload في تبويب \"Run history\". وحدة الـ webhook الآن تستلم بنية بيانات Corbit الكاملة."
+            : "In Corbit → send a test WhatsApp message → Make.com will show the payload in the \"Run history\" tab. The webhook module now has Corbit's full data structure."}
+        </li>
+        <li>
+          {isAr
+            ? "أضف وحدات تالية في الـ scenario — Google Sheets / Slack / HubSpot / أيّ تطبيق من 1500+ تطبيق يدعمه Make."
+            : "Chain more modules in the scenario — Google Sheets / Slack / HubSpot / any of Make's 1,500+ apps."}
+        </li>
+      </ol>
+
+      <h3 style={{ margin: "24px 0 8px", fontSize: 14.5, fontWeight: 700 }}>
+        {isAr ? "أمثلة سيناريوهات شائعة" : "Common scenarios"}
+      </h3>
+      <ul style={{ paddingInlineStart: 18, fontSize: 13, lineHeight: 1.9, margin: 0 }}>
+        <li>
+          <strong>{isAr ? "تنبيه Slack" : "Slack alert"}:</strong>{" "}
+          {isAr
+            ? "كل message.received من عميل VIP → رسالة فوريّة في قناة Slack المبيعات."
+            : "Every message.received from a VIP customer → instant message to a Slack sales channel."}
+        </li>
+        <li>
+          <strong>{isAr ? "Google Sheets log" : "Google Sheets log"}:</strong>{" "}
+          {isAr
+            ? "كل conversation.closed → صفّ جديد في Sheet يحوي العميل + الوكيل + المدّة + الـ tags."
+            : "Every conversation.closed → new row in a Sheet with customer + agent + duration + tags."}
+        </li>
+        <li>
+          <strong>{isAr ? "HubSpot CRM sync" : "HubSpot CRM sync"}:</strong>{" "}
+          {isAr
+            ? "كل contact.created → بحث في HubSpot — إنشاء contact إن لم يكن موجوداً، أو تحديث آخر تواصل."
+            : "Every contact.created → search HubSpot — create the contact if missing, or update last-contacted."}
+        </li>
+        <li>
+          <strong>{isAr ? "Notion / ClickUp ticket" : "Notion / ClickUp ticket"}:</strong>{" "}
+          {isAr
+            ? "كل message.received بكلمة \"شكوى\" → ticket جديد تلقائياً في نظام المهام عندك."
+            : "Every message.received containing \"complaint\" → new ticket in your task system automatically."}
+        </li>
+      </ul>
+
+      <div style={{
+        marginTop: 20, padding: 14, borderRadius: 10,
+        background: `${C.info}10`, border: `1px solid ${C.info}30`,
+        fontSize: 12.5, color: C.t2, lineHeight: 1.7,
+      }}>
+        <strong style={{ color: C.info }}>
+          {isAr ? "💡 نصيحة:" : "💡 Tip:"}
+        </strong>{" "}
+        {isAr
+          ? "Make.com مجاني حتى 1000 عمليّة شهرياً — كافٍ لمعظم الـ scenarios. خطّة Core $9/شهر للحجم الأكبر. أحد أرخص طرق ربط Corbit مع باقي أدواتك بدون مطوّر."
+          : "Make.com is free up to 1,000 operations/month — enough for most scenarios. Core plan starts at $9/mo for higher volume. Cheapest way to connect Corbit to your other tools without a developer."}
+      </div>
+
+      <h3 style={{ margin: "24px 0 8px", fontSize: 14.5, fontWeight: 700 }}>
+        {isAr ? "التحقّق من توقيع HMAC في Make" : "Verify HMAC signature in Make"}
+      </h3>
+      <p style={{ fontSize: 13, marginBottom: 10, lineHeight: 1.7 }}>
+        {isAr
+          ? "أضف وحدة \"Tools → Set variable\" بعد الـ webhook. احسب HMAC وقارنه بـ X-Webhook-Signature header. لو لا يطابق، استخدم \"Router\" + filter لـ تجاهل الـ request."
+          : "After the webhook module, add a \"Tools → Set variable\" step. Compute HMAC and compare to the X-Webhook-Signature header. If they differ, use a \"Router\" + filter to discard the request."}
+      </p>
+      <DocBlock code={`// Make.com formula for HMAC SHA-256 verification
+{{sha256(1.body; "YOUR_WEBHOOK_SECRET")}}
+
+// Compare to:
+{{1.headers.\`x-webhook-signature\`}}
+
+// Filter (next module): pass only when equal`} />
     </Card>
   );
 }
