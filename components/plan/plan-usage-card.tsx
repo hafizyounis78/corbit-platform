@@ -21,6 +21,7 @@ const FEATURES: FeatureRow[] = [
   { key: "templates",     labelAr: "القوالب",            labelEn: "Templates",          usageKey: "templates",         limitKey: "max_templates" },
   { key: "contacts",      labelAr: "جهات الاتصال",       labelEn: "Contacts",           usageKey: "contacts",          limitKey: "max_contacts" },
   { key: "bots",          labelAr: "البوتات",            labelEn: "Bots",               usageKey: "bots",              limitKey: "max_bots" },
+  { key: "bot_messages",  labelAr: "رسائل البوت هذا الشهر", labelEn: "Bot Messages (mo)", usageKey: "bot_messages_monthly", limitKey: "bot_messages_monthly" },
   { key: "kb",            labelAr: "ملفات قاعدة المعرفة", labelEn: "KB Docs",            usageKey: "kb_docs",           limitKey: "kb_docs_max" },
 ];
 

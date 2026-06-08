@@ -132,7 +132,13 @@ export function Sidebar({ open, onToggle, isMobile = false }: SidebarProps) {
 
       {/* Nav */}
       <nav style={{ flex: 1, padding: "12px 8px", overflowY: "auto" }}>
-        {navItems.filter((n) => canAccessNav(n, user?.role)).map((n) => {
+        {navItems
+          .filter((n) => canAccessNav(n, user?.role))
+          // Plan-gated links (multi-agent, sandbox) only show when the
+          // tenant's plan carries the flag — keeps Enterprise-only items
+          // hidden from lower tiers instead of leading to an upgrade wall.
+          .filter((n) => !n.planFlag || limits[n.planFlag] === true)
+          .map((n) => {
           const isActive = pathname === n.path;
           const badgeCount = getBadge(n);
           return (
