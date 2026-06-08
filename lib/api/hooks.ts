@@ -433,6 +433,32 @@ export function usePlanUsage() {
   }>('/billing/plan-usage');
 }
 
+// ─── Sandbox (Enterprise) ─────────────────────────────────
+export function useSandbox() {
+  return useApi<{
+    enabled: boolean;
+    provisioned: boolean;
+    sandbox: { id: string; name: string; created_at: string | null; contacts: number; conversations: number } | null;
+  }>('/sandbox');
+}
+
+// ─── AI Agents (Enterprise multi-agent) ───────────────────
+export function useAiAgents() {
+  return useApi<Array<{
+    id: string;
+    name: string;
+    name_ar: string | null;
+    description: string | null;
+    system_prompt: string;
+    routing_keywords: string[] | null;
+    is_default: boolean;
+    is_active: boolean;
+    use_knowledge_base: boolean;
+    kb_top_k: number;
+    sort_order: number;
+  }>>('/ai-agents');
+}
+
 // ─── Notifications ────────────────────────────────────────
 export function useNotifications() {
   return useApi('/notifications');

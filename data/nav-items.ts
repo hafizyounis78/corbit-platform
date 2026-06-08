@@ -20,11 +20,13 @@ export const navItems: NavItem[] = [
   { key: "templates",    path: "/templates",    labelKey: "templates",    icon: "file", roles: ["admin"] },
   { key: "bot-builder",  path: "/bot-builder",  labelKey: "botBuilder",   icon: "bot", roles: ["admin"] },
   { key: "ai-center",    path: "/ai-center",    labelKey: "aiCenter",     icon: "brain", roles: ["admin"] },
+  { key: "ai-agents",    path: "/ai-agents",    labelKey: "aiAgents",     icon: "sparkles", roles: ["admin"] },
   { key: "analytics",    path: "/analytics",    labelKey: "analytics",    icon: "chart", roles: ["admin", "supervisor"] },
   { key: "integrations", path: "/integrations", labelKey: "integrations", icon: "link", roles: ["admin"] },
   { key: "teams",        path: "/teams",        labelKey: "teams",        icon: "team", roles: ["admin", "supervisor"] },
   { key: "billing",      path: "/billing",      labelKey: "billing",      icon: "card", roles: ["admin"] },
   { key: "support",      path: "/support",      labelKey: "support",      icon: "book" },
+  { key: "sandbox",      path: "/sandbox",      labelKey: "sandbox",      icon: "code", roles: ["admin"] },
   { key: "settings",     path: "/settings",     labelKey: "settings",     icon: "gear", roles: ["admin"] },
 ];
 
