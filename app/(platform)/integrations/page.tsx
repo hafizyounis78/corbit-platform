@@ -188,7 +188,7 @@ export default function IntegrationsPage() {
         {filtered.map((app: any) => {
           const conn = isConnected(app.id);
           return (
-            <Card key={app.id} style={{ cursor: "pointer", border: conn ? `1.5px solid ${C.ok}30` : (app.id === "salla" ? `1.5px solid ${app.color}40` : "1.5px solid transparent") }} onClick={() => { if (app.id === "salla") { window.location.href = "/integrations/salla"; } else { setViewApp(app.id); } }}>
+            <Card key={app.id} style={{ cursor: "pointer", border: conn ? `1.5px solid ${C.ok}30` : ((app.id === "salla" || app.id === "shopify") ? `1.5px solid ${app.color}40` : "1.5px solid transparent") }} onClick={() => { if (app.id === "salla") { window.location.href = "/integrations/salla"; } else if (app.id === "shopify") { window.location.href = "/integrations/shopify"; } else { setViewApp(app.id); } }}>
               <div style={{ padding: 16 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
                   <div style={{ width: 42, height: 42, borderRadius: 12, background: `${app.color}15`, display: "flex", alignItems: "center", justifyContent: "center", color: app.color }}>
@@ -206,7 +206,7 @@ export default function IntegrationsPage() {
                   {/* Salla is the one integration that's actually live \u2014
                       it shows an Available badge + Connect CTA. Every
                       other integration is still Coming Soon. */}
-                  {app.id === "salla" ? (
+                  {(app.id === "salla" || app.id === "shopify") ? (
                     <>
                       <Badge color={C.ok}>{ar ? "\u0645\u062a\u0627\u062d" : "Available"}</Badge>
                       <span style={{ fontSize: 11, color: C.pri, fontWeight: 600 }}>
