@@ -61,69 +61,7 @@ export function WhatsAppConnect({ showHeader = true }: { showHeader?: boolean })
   const { data: statusData, mutate } = useWhatsAppStatus();
   const status: Status = (statusData as any) || { connected: false };
 
-  const [showForm, setShowForm] = useState(false);
   const [showDisconnect, setShowDisconnect] = useState(false);
-  const [testing, setTesting] = useState(false);
-  const [connecting, setConnecting] = useState(false);
-  const [testResult, setTestResult] = useState<{ phone?: string; display_name?: string } | null>(null);
-
-  const [form, setForm] = useState({
-    api_key: "",
-    phone_number_id: "",
-    waba_id: "",
-    phone_number: "",
-  });
-
-  const reset = () => {
-    setForm({ api_key: "", phone_number_id: "", waba_id: "", phone_number: "" });
-    setTestResult(null);
-  };
-
-  const handleTest = async () => {
-    if (!form.api_key || !form.phone_number_id) {
-      showToast(isAr ? "أدخل الـ API Key و Phone Number ID" : "Enter API Key and Phone Number ID", "error");
-      return;
-    }
-    setTesting(true);
-    setTestResult(null);
-    try {
-      const res = await api.post('/onboarding/whatsapp/test', {
-        api_key: form.api_key,
-        phone_number_id: form.phone_number_id,
-      });
-      setTestResult(res.data?.data || {});
-      showToast(isAr ? "✅ المفاتيح صالحة" : "✅ Credentials valid", "success");
-    } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message;
-      showToast((isAr ? "فشل التحقّق: " : "Test failed: ") + msg, "error");
-    } finally {
-      setTesting(false);
-    }
-  };
-
-  const handleConnect = async () => {
-    if (!testResult) {
-      showToast(isAr ? "اختبر المفاتيح أوّلاً" : "Test credentials first", "error");
-      return;
-    }
-    if (!form.phone_number) {
-      showToast(isAr ? "أدخل رقم الجوال" : "Enter the phone number", "error");
-      return;
-    }
-    setConnecting(true);
-    try {
-      await api.post('/onboarding/whatsapp/connect', form);
-      showToast(isAr ? "🎉 تمّ الربط بنجاح!" : "🎉 Connected successfully!", "success");
-      setShowForm(false);
-      reset();
-      mutate();
-    } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message;
-      showToast((isAr ? "فشل الربط: " : "Connect failed: ") + msg, "error");
-    } finally {
-      setConnecting(false);
-    }
-  };
 
   const handleDisconnect = async () => {
     try {
@@ -134,13 +72,6 @@ export function WhatsAppConnect({ showHeader = true }: { showHeader?: boolean })
     } catch (e: any) {
       showToast(isAr ? "فشل الفصل" : "Disconnect failed", "error");
     }
-  };
-
-  const labelStyle: React.CSSProperties = { display: "block", fontSize: 12.5, fontWeight: 600, color: C.t2, marginBottom: 6 };
-  const inputStyle: React.CSSProperties = {
-    width: "100%", padding: "10px 12px", borderRadius: 8,
-    border: `1px solid ${C.brd}`, background: C.inp, color: C.txt,
-    fontSize: 13, fontFamily: "monospace", outline: "none",
   };
 
   return (
@@ -265,123 +196,8 @@ export function WhatsAppConnect({ showHeader = true }: { showHeader?: boolean })
               360dialog partner — no Hub visit, no manual keys. The
               partner id comes from the status endpoint at runtime. */}
           <WhatsAppConnectEmbedded partnerId={status.partner_id} onConnected={mutate} />
-
-          {/* Secondary path: manual paste-the-keys flow, kept for BYO
-              numbers and as a fallback when a tenant already holds their
-              own 360dialog credentials. */}
-          <Card style={{ padding: 18, marginBottom: 18, borderRight: `4px solid #f59e0b` }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-              <Badge color="#f59e0b">{isAr ? "غير متصل" : "Not Connected"}</Badge>
-            </div>
-            <p style={{ fontSize: 13, color: C.t2, margin: "6px 0 12px" }}>
-              {isAr
-                ? "تملك مفاتيح 360dialog خاصّة بك؟ اربط يدويّاً بلصق المفاتيح (للحسابات الخاصّة BYO)."
-                : "Already have your own 360dialog keys? Connect manually by pasting them (for BYO accounts)."}
-            </p>
-            <Button onClick={() => { reset(); setShowForm(true); }}>
-              {isAr ? "ربط يدوي (متقدّم)" : "Manual connect (advanced)"}
-            </Button>
-          </Card>
         </>
       )}
-
-      <Card style={{ padding: 20, marginBottom: 18 }}>
-        <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 700 }}>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-            <Icon name="list" size={15} />
-            <span>{isAr ? "خطوات الربط (مرّة واحدة)" : "Connection Steps (one-time)"}</span>
-          </span>
-        </h3>
-
-        <Step n={1}
-          title={isAr ? "اربط رقم واتساب أعمالك" : "Connect your WhatsApp Business number"}
-          body={isAr
-            ? "في الـ Hub: اضغط Add Channel، أدخل رقم جوال خاص للأعمال (لا يكون مستخدماً في WhatsApp شخصي). اربطه مع Meta Business Manager. ستحتاج التحقّق من رقمك بكود SMS."
-            : "In the Hub: click Add Channel, enter a dedicated business number (must NOT be in personal WhatsApp). Link it to your Meta Business Manager. You'll verify the number with an SMS code."}
-        />
-        <Step n={2}
-          title={isAr ? "انتظر موافقة Meta" : "Wait for Meta approval"}
-          body={isAr
-            ? "Meta تتحقّق من نشاطك التجاري. تستغرق من ساعة لعدّة أيّام. ستحتاج صورة من السجل التجاري + ربط نطاق شركتك. ستصلك رسالة لمّا يُعتمد."
-            : "Meta verifies your business. Takes hours to days. You'll need a copy of your commercial registration + linking your domain. You'll get a notification when approved."}
-        />
-        <Step n={3}
-          title={isAr ? "الصق المفاتيح هنا" : "Paste the keys here"}
-          body={isAr
-            ? 'اضغط زرّ "ابدأ الربط" أعلى الصفحة، الصق الـ 4 معلومات، اضغط "اختبار الاتّصال" للتأكّد، ثم "حفظ وتفعيل". ستبدأ تستقبل الرسائل في صندوق الوارد فوراً.'
-            : 'Click "Start Connection" above, paste the 4 fields, click "Test Connection" to verify, then "Save & Activate". Messages will start arriving in your Inbox immediately.'}
-        />
-      </Card>
-
-      <Modal open={showForm} onClose={() => { setShowForm(false); reset(); }}
-        title={isAr ? "ربط رقم واتساب" : "Connect WhatsApp Number"}
-        submitLabel={connecting ? (isAr ? "جاري الحفظ..." : "Saving...") : (isAr ? "حفظ وتفعيل" : "Save & Activate")}
-        onSubmit={handleConnect} submitLoading={connecting} submitDisabled={!testResult || connecting}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div>
-            <label style={labelStyle}>API Key <span style={{ color: "#ef4444" }}>*</span></label>
-            <input type="password" value={form.api_key}
-              onChange={(e) => { setForm({ ...form, api_key: e.target.value }); setTestResult(null); }}
-              placeholder="D7sAB..." style={inputStyle} />
-            <div style={{ fontSize: 11, color: C.t2, marginTop: 4 }}>
-              {isAr ? "من لوحة المزوّد → API Keys" : "From the provider Hub → API Keys"}
-            </div>
-          </div>
-          <div>
-            <label style={labelStyle}>Phone Number ID <span style={{ color: "#ef4444" }}>*</span></label>
-            <input type="text" value={form.phone_number_id}
-              onChange={(e) => { setForm({ ...form, phone_number_id: e.target.value }); setTestResult(null); }}
-              placeholder="1056090950928231" style={inputStyle} />
-            <div style={{ fontSize: 11, color: C.t2, marginTop: 4 }}>
-              {isAr ? "من لوحة المزوّد → Channels (الرقم الطويل)" : "From the provider Hub → Channels (the long ID)"}
-            </div>
-          </div>
-          <div>
-            <label style={labelStyle}>WABA ID</label>
-            <input type="text" value={form.waba_id}
-              onChange={(e) => setForm({ ...form, waba_id: e.target.value })}
-              placeholder="2793198167707516" style={inputStyle} />
-            <div style={{ fontSize: 11, color: C.t2, marginTop: 4 }}>
-              {isAr ? "من لوحة المزوّد → WhatsApp Business Account ID" : "From the provider Hub → WhatsApp Business Account ID"}
-            </div>
-          </div>
-          <div>
-            <label style={labelStyle}>{isAr ? "رقم الجوال" : "Phone Number"} <span style={{ color: "#ef4444" }}>*</span></label>
-            <input type="text" value={form.phone_number}
-              onChange={(e) => setForm({ ...form, phone_number: e.target.value })}
-              placeholder="966148213721" style={inputStyle} />
-            <div style={{ fontSize: 11, color: C.t2, marginTop: 4 }}>
-              {isAr ? "بدون + أو 00 (الرقم اللي يظهر في الـ Hub أعلى صفحة Channel)" : "Without + or 00 (the number shown at the top of the Hub Channel page)"}
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <Button onClick={handleTest} disabled={testing}>
-              {testing ? (isAr ? "جاري الاختبار..." : "Testing...") : (isAr ? "اختبار الاتّصال" : "Test Connection")}
-            </Button>
-            {testResult && (
-              <div style={{ fontSize: 12, color: "#10b981" }}>
-                ✅ {testResult.display_name || testResult.phone}
-              </div>
-            )}
-          </div>
-          {testResult && (
-            <div style={{ padding: 12, borderRadius: 8, background: "#10b98115", border: "1px solid #10b98140", fontSize: 12 }}>
-              <div style={{ marginBottom: 4, fontWeight: 600, color: "#10b981" }}>
-                {isAr ? "تمّ التحقّق:" : "Verified:"}
-              </div>
-              <div style={{ color: C.txt }}>
-                {isAr ? "الرقم: " : "Phone: "}<strong style={{ fontFamily: "monospace" }}>+{testResult.phone}</strong>
-              </div>
-              {testResult.display_name && (
-                <div style={{ color: C.txt }}>
-                  {isAr ? "الاسم: " : "Name: "}<strong>{testResult.display_name}</strong>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </Modal>
 
       <Modal open={showDisconnect} onClose={() => setShowDisconnect(false)}
         title={isAr ? "تأكيد فصل الربط" : "Confirm Disconnect"}
@@ -393,24 +209,6 @@ export function WhatsAppConnect({ showHeader = true }: { showHeader?: boolean })
             : "After disconnecting, Corbit will stop receiving and sending messages on this number. Conversation history is kept, and you can reconnect anytime."}
         </p>
       </Modal>
-    </div>
-  );
-}
-
-function Step({ n, title, body }: { n: number; title: string; body: string }) {
-  const { colors: C } = useTheme();
-  return (
-    <div style={{ display: "flex", gap: 12, marginBottom: 16, paddingBottom: 16, borderBottom: `1px solid ${C.brd}` }}>
-      <div style={{
-        flexShrink: 0, width: 30, height: 30, borderRadius: "50%",
-        background: C.pri, color: "#fff", display: "flex",
-        alignItems: "center", justifyContent: "center",
-        fontWeight: 700, fontSize: 13,
-      }}>{n}</div>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: C.txt, marginBottom: 6 }}>{title}</div>
-        <div style={{ fontSize: 12.5, color: C.t2, lineHeight: 1.7, whiteSpace: "pre-line" }}>{body}</div>
-      </div>
     </div>
   );
 }
