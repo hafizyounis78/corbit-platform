@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, Button, Badge, Modal } from "@/components/ui";
 import { Icon } from "@/components/icons/icon";
 import { useWhatsAppStatus } from "@/lib/api/hooks";
+import { WhatsAppConnectEmbedded } from "@/components/settings/whatsapp-connect-embedded";
 import api from "@/lib/api/client";
 
 type Status = {
@@ -255,19 +256,28 @@ export function WhatsAppConnect({ showHeader = true }: { showHeader?: boolean })
           )}
         </Card>
       ) : (
-        <Card style={{ padding: 18, marginBottom: 18, borderRight: `4px solid #f59e0b` }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-            <Badge color="#f59e0b">{isAr ? "غير متصل" : "Not Connected"}</Badge>
-          </div>
-          <p style={{ fontSize: 13, color: C.t2, margin: "6px 0 12px" }}>
-            {isAr
-              ? "اتّبع الخطوات أدناه لربط رقمك. الربط يستغرق ~5 دقائق إذا كانت مفاتيحك جاهزة."
-              : "Follow the steps below to connect your number. Takes ~5 minutes once your keys are ready."}
-          </p>
-          <Button primary onClick={() => { reset(); setShowForm(true); }}>
-            {isAr ? "ابدأ الربط" : "Start Connection"}
-          </Button>
-        </Card>
+        <>
+          {/* Primary path: one-step Embedded Signup under Corbit's
+              360dialog partner — no Hub visit, no manual keys. */}
+          <WhatsAppConnectEmbedded onConnected={mutate} />
+
+          {/* Secondary path: manual paste-the-keys flow, kept for BYO
+              numbers and as a fallback when a tenant already holds their
+              own 360dialog credentials. */}
+          <Card style={{ padding: 18, marginBottom: 18, borderRight: `4px solid #f59e0b` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+              <Badge color="#f59e0b">{isAr ? "غير متصل" : "Not Connected"}</Badge>
+            </div>
+            <p style={{ fontSize: 13, color: C.t2, margin: "6px 0 12px" }}>
+              {isAr
+                ? "تملك مفاتيح 360dialog خاصّة بك؟ اربط يدويّاً بلصق المفاتيح (للحسابات الخاصّة BYO)."
+                : "Already have your own 360dialog keys? Connect manually by pasting them (for BYO accounts)."}
+            </p>
+            <Button onClick={() => { reset(); setShowForm(true); }}>
+              {isAr ? "ربط يدوي (متقدّم)" : "Manual connect (advanced)"}
+            </Button>
+          </Card>
+        </>
       )}
 
       <Card style={{ padding: 20, marginBottom: 18 }}>
