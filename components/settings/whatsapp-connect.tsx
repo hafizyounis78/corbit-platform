@@ -31,6 +31,10 @@ type Status = {
   daily_send_cap?: number | null;
   used_today?: number | null;
   metrics_updated_at?: string | null;
+  // Partner config surfaced by the backend so the embedded Connect
+  // Button gets the partner id at runtime (no build-time env needed).
+  partner_enabled?: boolean;
+  partner_id?: string;
 };
 
 const QUALITY_COLOR: Record<string, string> = {
@@ -258,8 +262,9 @@ export function WhatsAppConnect({ showHeader = true }: { showHeader?: boolean })
       ) : (
         <>
           {/* Primary path: one-step Embedded Signup under Corbit's
-              360dialog partner — no Hub visit, no manual keys. */}
-          <WhatsAppConnectEmbedded onConnected={mutate} />
+              360dialog partner — no Hub visit, no manual keys. The
+              partner id comes from the status endpoint at runtime. */}
+          <WhatsAppConnectEmbedded partnerId={status.partner_id} onConnected={mutate} />
 
           {/* Secondary path: manual paste-the-keys flow, kept for BYO
               numbers and as a fallback when a tenant already holds their

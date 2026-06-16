@@ -17,7 +17,7 @@ const ConnectButton = dynamic(
   { ssr: false }
 );
 
-const PARTNER_ID = process.env.NEXT_PUBLIC_DIALOG360_PARTNER_ID || "";
+const ENV_PARTNER_ID = process.env.NEXT_PUBLIC_DIALOG360_PARTNER_ID || "";
 
 type CallbackObject = {
   client?: string;
@@ -37,9 +37,11 @@ type CallbackObject = {
  * number for this org.
  */
 export function WhatsAppConnectEmbedded({
+  partnerId,
   requestedNumber,
   onConnected,
 }: {
+  partnerId?: string;
   requestedNumber?: string;
   onConnected?: () => void;
 }) {
@@ -47,6 +49,11 @@ export function WhatsAppConnectEmbedded({
   const { isAr } = useLocale();
   const { showToast } = useToast();
   const [finalizing, setFinalizing] = useState(false);
+
+  // Prefer the partner id the backend hands us at runtime (single source
+  // of truth, always present once DIALOG360_PARTNER_ID is set on the
+  // server). Fall back to the build-time NEXT_PUBLIC var if provided.
+  const resolvedPartnerId = partnerId || ENV_PARTNER_ID;
 
   const handleCallback = async (cb: CallbackObject) => {
     const channels = (cb?.channels || []).filter(Boolean);
@@ -73,13 +80,13 @@ export function WhatsAppConnectEmbedded({
     }
   };
 
-  if (!PARTNER_ID) {
+  if (!resolvedPartnerId) {
     return (
       <Card style={{ padding: 16, marginBottom: 14, borderRight: `4px solid #f59e0b` }}>
         <div style={{ fontSize: 13, color: C.t2 }}>
           {isAr
-            ? "الربط التلقائي غير مهيّأ (NEXT_PUBLIC_DIALOG360_PARTNER_ID مفقود)."
-            : "Automatic connection is not configured (NEXT_PUBLIC_DIALOG360_PARTNER_ID missing)."}
+            ? "الربط التلقائي غير مهيّأ (لم يصل معرّف الشريك من الخادم)."
+            : "Automatic connection is not configured (partner id not provided by the server)."}
         </div>
       </Card>
     );
@@ -101,7 +108,7 @@ export function WhatsAppConnectEmbedded({
 
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <ConnectButton
-          partnerId={PARTNER_ID}
+          partnerId={resolvedPartnerId}
           {...(requestedNumber ? { requestedNumber } : {})}
           callback={handleCallback}
           label={isAr ? "ربط واتساب الأعمال" : "Connect WhatsApp Business"}
