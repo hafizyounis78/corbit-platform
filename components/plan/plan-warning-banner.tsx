@@ -27,13 +27,15 @@ const WARN_PCT = 70;
 const DANGER_PCT = 90;
 
 type Banner = {
-  variant: 'expired' | 'expiring' | 'overflow' | 'danger' | 'warn';
+  variant: 'expired' | 'expiring' | 'overflow' | 'danger' | 'warn' | 'trial';
   messageAr: string;
   messageEn: string;
   /** Expired banners can't be dismissed — the operator must see it */
   dismissible: boolean;
   ctaAr: string;
   ctaEn: string;
+  /** CTA target; defaults to /billing when omitted */
+  href?: string;
 };
 
 export function PlanWarningBanner() {
@@ -45,6 +47,11 @@ export function PlanWarningBanner() {
   const usage  = ((data as any)?.usage  ?? {}) as Record<string, number>;
   const limits = ((data as any)?.limits ?? {}) as Record<string, number>;
   const expiry = (data as any)?.expiry as { expiresAt: string|null; daysLeft: number|null; isActive: boolean; expiringSoon: boolean } | undefined;
+  const isTrial = Boolean((data as any)?.is_trial);
+  // During a trial the org has no real (keyed) number yet — sends are
+  // simulated. whatsapp_numbers counts the seeded dummy number, so we
+  // never use it to claim a real connection here.
+  const trialDaysLeft = expiry?.daysLeft ?? null;
 
   // Banner priority is intentional: expiry > overflow > danger > warn.
   // Expiry trumps usage because an expired plan locks every premium
@@ -54,7 +61,14 @@ export function PlanWarningBanner() {
   const banner: Banner | null = (() => {
     // 1) Plan expired — non-dismissible, takes the screen.
     if (expiry && expiry.isActive === false) {
-      return {
+      return isTrial ? {
+        variant: 'expired',
+        messageAr: 'انتهت تجربتك المجانيّة. لتفعيل حسابك وإرسال الرسائل، اشترك في باقة واربط رقمك.',
+        messageEn: 'Your free trial has ended. Subscribe to a plan and connect your number to activate sending.',
+        dismissible: false,
+        ctaAr: 'اشترك الآن',
+        ctaEn: 'Subscribe',
+      } : {
         variant: 'expired',
         messageAr: 'انتهت صلاحيّة باقتك. الإرسال عبر واتساب موقوف. لتجديد الاشتراك تواصل مع المبيعات.',
         messageEn: 'Your plan has expired. WhatsApp sending is suspended. Contact sales to renew.',
@@ -69,7 +83,14 @@ export function PlanWarningBanner() {
       const days = expiry.daysLeft;
       const dayWordAr = days === 1 ? 'يوم' : 'أيّام';
       const dayWordEn = days === 1 ? 'day' : 'days';
-      return {
+      return isTrial ? {
+        variant: 'expiring',
+        messageAr: `تنتهي تجربتك المجانيّة خلال ${days} ${dayWordAr}. اشترك واربط رقمك قبل أن يُقفل الحساب.`,
+        messageEn: `Your free trial ends in ${days} ${dayWordEn}. Subscribe and connect your number before the account locks.`,
+        dismissible: true,
+        ctaAr: 'اشترك الآن',
+        ctaEn: 'Subscribe',
+      } : {
         variant: 'expiring',
         messageAr: `ستنتهي صلاحيّة باقتك خلال ${days} ${dayWordAr}. جدّد الآن لتجنّب توقّف الخدمة.`,
         messageEn: `Your plan expires in ${days} ${dayWordEn}. Renew now to avoid service interruption.`,
@@ -91,7 +112,26 @@ export function PlanWarningBanner() {
       .filter((x): x is NonNullable<typeof x> => x !== null && x.pct >= WARN_PCT)
       .sort((a, b) => b.pct - a.pct);
 
-    if (breaches.length === 0) return null;
+    // 3.5) Active trial, no usage pressure → a steady reminder that
+    // sending is in simulation until they subscribe + connect a number.
+    if (breaches.length === 0) {
+      if (isTrial && expiry?.isActive !== false) {
+        const days = trialDaysLeft;
+        const dayWordAr = days === 1 ? 'يوم' : 'أيّام';
+        const dayWordEn = days === 1 ? 'day' : 'days';
+        const leftAr = days !== null ? ` (${days} ${dayWordAr} متبقّية)` : '';
+        const leftEn = days !== null ? ` (${days} ${dayWordEn} left)` : '';
+        return {
+          variant: 'trial',
+          messageAr: `أنت في وضع التجربة — الإرسال محاكى${leftAr}. اشترك واربط رقم واتساب لتفعيل الإرسال والاستقبال الحقيقي.`,
+          messageEn: `You're in trial mode — sending is simulated${leftEn}. Subscribe and connect a WhatsApp number to go live.`,
+          dismissible: true,
+          ctaAr: 'اشترك الآن',
+          ctaEn: 'Subscribe',
+        };
+      }
+      return null;
+    }
 
     const top = breaches[0];
     const overflowed = top.pct >= 100;
@@ -131,11 +171,12 @@ export function PlanWarningBanner() {
   if (!banner) return null;
   if (dismissed && banner.dismissible) return null;
 
-  const isRed = banner.variant === 'expired' || banner.variant === 'overflow' || banner.variant === 'danger';
-  const color = isRed ? '#ef4444' : '#f59e0b';
-  const bg    = isRed ? '#fee2e2' : '#fef3c7';
-  const txt   = isRed ? '#991b1b' : '#92400e';
-  const iconName = banner.variant === 'expired' ? 'ban' : isRed ? 'siren' : 'alert';
+  const isRed  = banner.variant === 'expired' || banner.variant === 'overflow' || banner.variant === 'danger';
+  const isInfo = banner.variant === 'trial';
+  const color = isInfo ? '#3b82f6' : isRed ? '#ef4444' : '#f59e0b';
+  const bg    = isInfo ? '#dbeafe' : isRed ? '#fee2e2' : '#fef3c7';
+  const txt   = isInfo ? '#1e40af' : isRed ? '#991b1b' : '#92400e';
+  const iconName = banner.variant === 'expired' ? 'ban' : isInfo ? 'info' : isRed ? 'siren' : 'alert';
 
   return (
     <div
@@ -156,7 +197,7 @@ export function PlanWarningBanner() {
         {isAr ? banner.messageAr : banner.messageEn}
       </span>
       <Link
-        href="/billing"
+        href={banner.href ?? "/billing"}
         style={{
           padding: "6px 14px",
           borderRadius: 8,

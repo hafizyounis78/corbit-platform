@@ -421,6 +421,8 @@ export function useWhatsAppProvisioning() {
 
 export function usePlanUsage() {
   return useApi<{
+    is_sandbox: boolean;
+    is_trial: boolean;
     plan: { name: string; name_ar: string; price: number } | null;
     expiry: {
       expiresAt: string | null;
