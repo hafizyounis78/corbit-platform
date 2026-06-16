@@ -20,7 +20,7 @@ export interface NavItem {
 
 export const navItems: NavItem[] = [
   { key: "dashboard",    path: "/dashboard",    labelKey: "dashboard",    icon: "dashboard" },
-  { key: "inbox",        path: "/inbox",        labelKey: "inbox",        icon: "inbox", badge: 16 },
+  { key: "inbox",        path: "/inbox",        labelKey: "inbox",        icon: "inbox", badge: 0 },
   { key: "campaigns",    path: "/campaigns",    labelKey: "campaigns",    icon: "megaphone", roles: ["admin", "supervisor"] },
   { key: "contacts",     path: "/contacts",     labelKey: "contacts",     icon: "users" },
   { key: "templates",    path: "/templates",    labelKey: "templates",    icon: "file", roles: ["admin"] },
