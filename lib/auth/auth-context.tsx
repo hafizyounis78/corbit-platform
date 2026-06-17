@@ -18,6 +18,14 @@ interface User {
   status: string;
   team: string | null;
   teamId: string | null;
+  /**
+   * Per-agent data scoping. When true AND role === 'agent', the agent
+   * only sees/acts on data within their own team — the backend enforces
+   * this; the frontend just hides controls that would 403. Absent/false
+   * for all existing tenants and for admins/supervisors, so the UI is
+   * unchanged for everyone else.
+   */
+  dataScopingEnabled?: boolean;
   org: {
     id: string;
     name: string;

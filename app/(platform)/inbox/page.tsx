@@ -12,6 +12,7 @@ import { Icon } from "@/components/icons/icon";
 import { getStatusColor, getPriorityColor } from "@/lib/utils/status-color";
 import type { Conversation, ChatMessage } from "@/data/conversations";
 import { useConversations, useMessages, useWindowStatus, useTeams, useQuickReplies } from "@/lib/api/hooks";
+import { useAuth } from "@/lib/auth/auth-context";
 import api from "@/lib/api/client";
 import { COLORS } from "@/lib/constants/colors";
 import { TemplatePicker } from "@/components/shared/template-picker";
@@ -178,6 +179,11 @@ export default function InboxPage() {
   const [assignSearch, setAssignSearch] = useState("");
   const [assigning, setAssigning] = useState(false);
   const { data: teamsData } = useTeams();
+  // Per-agent data scoping: a scoped agent can't reassign conversations
+  // (backend returns 403), so we hide the reassign control entirely for
+  // them. False for everyone else — UI is unchanged.
+  const { user } = useAuth();
+  const isScopedAgent = user?.role === "agent" && !!user?.dataScopingEnabled;
 
   // "Report this message" modal — captures the message id + a preview
   // so support sees what the user was complaining about even if the
@@ -988,8 +994,8 @@ export default function InboxPage() {
                 <Icon name="users" size={13} /> {isAr ? "استلام" : "Take Over"}
               </Button>
             )}
-            {/* Assign */}
-            {!isAiOn && (
+            {/* Assign — hidden for scoped agents (reassignment 403s for them) */}
+            {!isAiOn && !isScopedAgent && (
               <div style={{ position: "relative" }}>
                 <Button outline small onClick={() => setShowAssignDrawer((v) => !v)}>
                   {isAr ? "إسناد" : "Assign"} ▾

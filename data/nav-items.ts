@@ -16,10 +16,17 @@ export interface NavItem {
    * (multi-agent, sandbox) stay hidden from tenants on lower plans.
    */
   planFlag?: string;
+  /**
+   * Hidden for "scoped agents" (role === 'agent' with data scoping on).
+   * These agents work conversation-by-conversation within their own team
+   * and have no use for org-wide aggregate views. No effect on anyone
+   * else — admins, supervisors, and agents in non-scoping orgs still see it.
+   */
+  hideForScopedAgent?: boolean;
 }
 
 export const navItems: NavItem[] = [
-  { key: "dashboard",    path: "/dashboard",    labelKey: "dashboard",    icon: "dashboard" },
+  { key: "dashboard",    path: "/dashboard",    labelKey: "dashboard",    icon: "dashboard", hideForScopedAgent: true },
   { key: "inbox",        path: "/inbox",        labelKey: "inbox",        icon: "inbox", badge: 0 },
   { key: "campaigns",    path: "/campaigns",    labelKey: "campaigns",    icon: "megaphone", roles: ["admin", "supervisor"] },
   { key: "contacts",     path: "/contacts",     labelKey: "contacts",     icon: "users" },
@@ -27,7 +34,7 @@ export const navItems: NavItem[] = [
   { key: "bot-builder",  path: "/bot-builder",  labelKey: "botBuilder",   icon: "bot", roles: ["admin"] },
   { key: "ai-center",    path: "/ai-center",    labelKey: "aiCenter",     icon: "brain", roles: ["admin"] },
   { key: "ai-agents",    path: "/ai-agents",    labelKey: "aiAgents",     icon: "sparkles", roles: ["admin"], planFlag: "multi_agent_ai_enabled" },
-  { key: "analytics",    path: "/analytics",    labelKey: "analytics",    icon: "chart", roles: ["admin", "supervisor"] },
+  { key: "analytics",    path: "/analytics",    labelKey: "analytics",    icon: "chart", roles: ["admin", "supervisor"], hideForScopedAgent: true },
   { key: "integrations", path: "/integrations", labelKey: "integrations", icon: "link", roles: ["admin"] },
   { key: "teams",        path: "/teams",        labelKey: "teams",        icon: "team", roles: ["admin", "supervisor"] },
   { key: "billing",      path: "/billing",      labelKey: "billing",      icon: "card", roles: ["admin"] },

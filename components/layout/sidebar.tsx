@@ -26,6 +26,9 @@ export function Sidebar({ open, onToggle, isMobile = false }: SidebarProps) {
   const { data: badges } = useNavBadges();
   const { data: planData } = usePlanUsage();
   const { user, logout } = useAuth();
+  // Scoped agents (role === 'agent' + data scoping on) don't get org-wide
+  // aggregate views (Dashboard/Analytics). No effect for anyone else.
+  const isScopedAgent = user?.role === "agent" && !!user?.dataScopingEnabled;
   // On mobile the sidebar floats over the content as a drawer, on
   // desktop it shrinks/expands inline. The desktop "collapsed" rail
   // (72px) is hidden entirely on mobile — when the drawer closes we
@@ -138,6 +141,8 @@ export function Sidebar({ open, onToggle, isMobile = false }: SidebarProps) {
           // tenant's plan carries the flag — keeps Enterprise-only items
           // hidden from lower tiers instead of leading to an upgrade wall.
           .filter((n) => !n.planFlag || limits[n.planFlag] === true)
+          // Hide org-wide aggregate views (Dashboard/Analytics) from scoped agents
+          .filter((n) => !(isScopedAgent && n.hideForScopedAgent))
           .map((n) => {
           const isActive = pathname === n.path;
           const badgeCount = getBadge(n);

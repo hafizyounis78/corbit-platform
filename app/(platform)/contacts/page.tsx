@@ -9,7 +9,7 @@ import { useIsMobile } from "@/hooks/use-media-query";
 import { Card, CardHeader, Button, Badge, TabBar, Avatar, SearchInput, DataTable, Modal } from "@/components/ui";
 import { Icon } from "@/components/icons/icon";
 import type { Contact } from "@/data/contacts";
-import { useContacts, useContactStats, useContactTags, useSegments, useAiSegments } from "@/lib/api/hooks";
+import { useContacts, useContactStats, useContactTags, useSegments, useAiSegments, useTeams } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
 import { ExportButtons } from "@/components/shared/export-buttons";
 import { SmartSegmentsBar } from "@/components/contacts/smart-segments-bar";
@@ -91,6 +91,9 @@ export default function ContactsPage() {
   // feed a marketing campaign. Unticked → rows land without consent and
   // would need a separate bulk-grant pass.
   const [importMarketingConsent, setImportMarketingConsent] = useState(false);
+  // Optional grade/team target for the import (admin/supervisor in a
+  // scoping-enabled org only). Empty string = org-wide / no grade.
+  const [importTeamId, setImportTeamId] = useState("");
   const [importPreview, setImportPreview] = useState<{ headers: string[]; rows: string[][] } | null>(null);
   // Admin-only bulk-delete state. selectedIds is a Set keyed by contact
   // UUID; we keep it scoped to the page (not pulled into URL or shared
@@ -98,6 +101,11 @@ export default function ContactsPage() {
   // an interrupted bulk-delete should resume itself.
   const { user } = useAuth();
   const isAdmin = !!user && (user.role === 'admin' || user.role === 'owner');
+  // Data-scoping: in a scoping-enabled org, admins/supervisors may target
+  // an import at a specific team (grade). Agents never see the picker —
+  // the backend auto-assigns their import to their own team. Non-scoping
+  // orgs never see it either (unchanged).
+  const showImportTeamPicker = !!user && user.role !== 'agent' && !!user.dataScopingEnabled;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   // When true, the operator clicked the "select all 225 matching" banner.
   // We stop tracking per-row ids and send the filter to the backend
@@ -304,6 +312,10 @@ export default function ContactsPage() {
 
   // Tags from API, fall back to computed from contacts
   const { data: apiTags } = useContactTags();
+  // Teams list powers the optional import grade/team picker (only rendered
+  // for admin/supervisor in a scoping-enabled org — see showImportTeamPicker).
+  const { data: teamsData } = useTeams();
+  const importTeams = (teamsData as any)?.teams ?? [];
   const allTags = useMemo(() => {
     if (apiTags?.length) return apiTags.map((t: any) => typeof t === 'string' ? t : t.name || t.tag || String(t)) as string[];
     const set = new Set<string>();
@@ -1528,7 +1540,7 @@ export default function ContactsPage() {
       {/* ── Import Contacts Modal ── */}
       <Modal
         open={showImportModal}
-        onClose={() => { setShowImportModal(false); setImportFile(null); setImportPreview(null); setImportMarketingConsent(false); }}
+        onClose={() => { setShowImportModal(false); setImportFile(null); setImportPreview(null); setImportMarketingConsent(false); setImportTeamId(""); }}
         title={isAr ? "استيراد جهات الاتصال" : "Import Contacts"}
         wide={!!importPreview}
         submitLabel={!importFile ? (isAr ? "اختر ملف أولاً" : "Select file first") : importLoading ? (isAr ? "جاري الاستيراد..." : "Importing...") : (isAr ? `استيراد ${importPreview?.rows.length || 0} جهة اتصال` : `Import ${importPreview?.rows.length || 0} contacts`)}
@@ -1546,6 +1558,11 @@ export default function ContactsPage() {
           formData.append('file', importFile);
           if (importMarketingConsent) {
             formData.append('marketing_consent_attested', '1');
+          }
+          // Only admins/supervisors in scoping orgs can target a team; for
+          // everyone else the picker is never shown so this stays empty.
+          if (showImportTeamPicker && importTeamId) {
+            formData.append('assigned_team_id', importTeamId);
           }
           try {
             const res = await api.post('/contacts/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
@@ -1566,6 +1583,7 @@ export default function ContactsPage() {
             setImportFile(null);
             setImportPreview(null);
             setImportMarketingConsent(false);
+            setImportTeamId("");
             mutate();
           } catch (err: any) {
             showToast(err.response?.data?.message || (isAr ? "فشل الاستيراد" : "Import failed"));
@@ -1804,6 +1822,41 @@ export default function ContactsPage() {
                 </div>
               </div>
             </label>
+          )}
+
+          {/* Optional grade/team target — admin/supervisor in scoping orgs only.
+              Lets the importer route the batch to a specific team. Agents never
+              see this (backend auto-assigns to their own team); non-scoping orgs
+              don't see it either. */}
+          {showImportTeamPicker && (
+            <div style={{ borderRadius: 12, border: `1px solid ${C.brd}`, padding: 14 }}>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: C.txt, marginBottom: 6 }}>
+                {isAr ? "المرحلة / الفريق (اختياري)" : "Grade / Team (optional)"}
+              </label>
+              <div style={{ fontSize: 11.5, color: C.t2, marginBottom: 10, lineHeight: 1.6 }}>
+                {isAr
+                  ? "أسنِد الجهات المستوردة إلى فريق محدّد. اتركه فارغاً لإبقائها على مستوى المؤسسة."
+                  : "Assign the imported contacts to a specific team. Leave empty to keep them org-wide."}
+              </div>
+              <select
+                value={importTeamId}
+                onChange={(e) => setImportTeamId(e.target.value)}
+                disabled={importLoading}
+                style={{
+                  width: "100%", padding: "9px 12px", borderRadius: 8,
+                  background: C.inp, border: `1px solid ${C.brd}`, color: C.txt,
+                  fontFamily: FONT_FAMILY, fontSize: 12.5, outline: "none",
+                  cursor: importLoading ? "not-allowed" : "pointer",
+                }}
+              >
+                <option value="">{isAr ? "— (بدون مرحلة / على مستوى المؤسسة)" : "— (no grade / org-wide)"}</option>
+                {importTeams.map((tm: any) => (
+                  <option key={tm.id} value={tm.id}>
+                    {(isAr && tm.name_ar) ? tm.name_ar : tm.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
         </div>
       </Modal>
