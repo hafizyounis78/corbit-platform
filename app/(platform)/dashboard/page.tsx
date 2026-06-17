@@ -198,14 +198,14 @@ export default function DashboardPage() {
             <h3 style={{ margin: "0 0 14px", fontSize: 14.5, fontWeight: 600 }}>{t("quickAct")}</h3>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               {([
-                [t("newCamp"), C.pri],
-                [t("newTmpl"), C.sec],
-                [t("importCont"), C.ok],
-                [t("addAgent"), C.info],
-              ] as [string, string][]).map(([l, c2], i) => (
+                [t("newCamp"), C.pri, "/campaigns"],
+                [t("newTmpl"), C.sec, "/templates"],
+                [t("importCont"), C.ok, "/contacts"],
+                [t("addAgent"), C.info, "/teams"],
+              ] as [string, string, string][]).map(([l, c2, path], i) => (
                 <button
                   key={i}
-                  onClick={() => showToast("\u2713")}
+                  onClick={() => router.push(path)}
                   style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 14px", borderRadius: 10, background: c2 + "12", border: "none", cursor: "pointer", fontFamily: FONT_FAMILY, fontSize: 12.5, fontWeight: 600, color: c2 }}
                 >
                   {l}
