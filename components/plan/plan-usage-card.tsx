@@ -18,6 +18,7 @@ const FEATURES: FeatureRow[] = [
   { key: "agents",        labelAr: "الوكلاء",            labelEn: "Agents",            usageKey: "agents",            limitKey: "max_agents" },
   { key: "conversations", labelAr: "المحادثات هذا الشهر", labelEn: "Conversations (mo)", usageKey: "conversations",     limitKey: "max_conversations" },
   { key: "campaigns",     labelAr: "حملات هذا الشهر",     labelEn: "Campaigns (mo)",     usageKey: "campaigns_monthly", limitKey: "max_campaigns_monthly" },
+  { key: "broadcast",     labelAr: "رسائل البث هذا الشهر", labelEn: "Broadcast (mo)",     usageKey: "broadcast_monthly", limitKey: "broadcast_messages_monthly" },
   { key: "templates",     labelAr: "القوالب",            labelEn: "Templates",          usageKey: "templates",         limitKey: "max_templates" },
   { key: "contacts",      labelAr: "جهات الاتصال",       labelEn: "Contacts",           usageKey: "contacts",          limitKey: "max_contacts" },
   { key: "bots",          labelAr: "البوتات",            labelEn: "Bots",               usageKey: "bots",              limitKey: "max_bots" },
@@ -65,6 +66,13 @@ export function PlanUsageCard() {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {FEATURES.map((f) => {
+          // Broadcast row only makes sense where the plan allows it —
+          // Basic is service-only (broadcast_enabled=false), so hide the
+          // row entirely rather than show a misleading 0/0 meter.
+          if (f.key === "broadcast" && limits.broadcast_enabled === false) {
+            return null;
+          }
+
           const used  = Number(usage[f.usageKey] ?? 0);
           const limit = Number(limits[f.limitKey] ?? 0);
           const unlimited = limit === -1;
