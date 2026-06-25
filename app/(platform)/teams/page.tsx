@@ -348,7 +348,7 @@ export default function TeamsPage() {
                       </div>
                     </td>
                     <td style={{ padding: "12px 14px" }}>{m.team}</td>
-                    <td style={{ padding: "12px 14px" }}><Badge color={m.role === "supervisor" ? C.warn : C.info}>{m.role === "supervisor" ? t("sup") : t("agentR")}</Badge></td>
+                    <td style={{ padding: "12px 14px" }}><Badge color={m.role === "admin" ? C.err : m.role === "supervisor" ? C.warn : C.info}>{m.role === "admin" ? t("adminR") : m.role === "supervisor" ? t("sup") : t("agentR")}</Badge></td>
                     <td style={{ padding: "12px 14px" }}><Badge color={m.online ? C.ok : C.t3}>{m.online ? t("onl") : t("offl")}</Badge></td>
                     <td style={{ padding: "12px 14px", fontWeight: 600 }}>{m.stats.convos}</td>
                     <td style={{ padding: "12px 14px" }}>{m.stats.frt}</td>

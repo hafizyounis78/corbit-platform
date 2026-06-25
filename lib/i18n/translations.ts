@@ -141,6 +141,7 @@ const translations = {
   ooo: { ar: "خارج الدوام", en: "Off" },
   sup: { ar: "مشرف", en: "Supervisor" },
   agentR: { ar: "وكيل", en: "Agent" },
+  adminR: { ar: "مدير النظام", en: "Admin" },
   onl: { ar: "متصل", en: "Online" },
   offl: { ar: "غير متصل", en: "Offline" },
   bsy: { ar: "مشغول", en: "Busy" },
