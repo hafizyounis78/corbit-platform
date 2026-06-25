@@ -276,6 +276,18 @@ export default function InboxPage() {
   // API: check 24h window status
   const { data: windowData } = useWindowStatus(selectedId);
   const windowOpen = (selected as any)?.windowOpen ?? windowData?.windowOpen ?? true;
+
+  // Assignment lock — when a conversation is owned by another agent,
+  // a second agent shouldn't be able to message the same customer and
+  // step on the owner. We lock the composer and show a notice instead.
+  // Admins/supervisors are exempt: stepping in is intentional oversight,
+  // not a collision. The backend enforces the same rule on send, so
+  // this is purely the friendly UI half — bypassing it still 403s.
+  const assignedOwnerId = (selected as any)?.assignedUser?.id ?? null;
+  const assignedOwnerName = (selected as any)?.assignedUser?.name ?? null;
+  const isPrivileged = user?.role === "admin" || user?.role === "supervisor";
+  const lockedToOther = !!assignedOwnerId && assignedOwnerId !== user?.id && !isPrivileged;
+
   // windowExpiresAt is an ISO string from the backend; deriving the
   // remaining time at render time (rather than storing in state) keeps
   // the value live without setting up another timer alongside Live
@@ -1464,6 +1476,22 @@ export default function InboxPage() {
 
         {/* Message Input */}
         <div style={{ padding: "14px 22px", background: C.card, borderTop: "1px solid " + (dk ? C.brd : "#EAE7E2") }}>
+          {lockedToOther ? (
+            /* Conversation owned by another agent — replace the whole
+               composer with a notice. The owner's name comes from the
+               assignedUser relation; reassigning (via the header
+               "إسناد" control) is how a different agent legitimately
+               takes it over. */
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderRadius: 12, background: dk ? "#2A1F08" : "#FFFBEB", border: "1px solid " + (dk ? "#5A4515" : "#FCD34D") }}>
+              <span style={{ color: "#D97706", display: "inline-flex" }}><Icon name="lock" size={16} /></span>
+              <span style={{ fontSize: 12.5, color: C.t2, flex: 1, lineHeight: 1.6 }}>
+                {isAr
+                  ? <>هذه المحادثة مُسنَدة إلى <strong style={{ color: C.txt }}>{assignedOwnerName}</strong>. لا يمكنك الرد إلا بعد إسنادها إليك.</>
+                  : <>This conversation is assigned to <strong style={{ color: C.txt }}>{assignedOwnerName}</strong>. You can't reply until it's reassigned to you.</>}
+              </span>
+            </div>
+          ) : (
+          <>
           {isAiOn && (
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderRadius: 12, background: dk ? "#1a1030" : "#F8F4FF", border: "1px solid " + (dk ? "#2D2060" : "#D4C4F0"), marginBottom: 10 }}>
               <div style={{ width: 8, height: 8, borderRadius: 4, background: AI_COLOR, boxShadow: "0 0 6px " + AI_COLOR + "80" }} />
@@ -1667,6 +1695,8 @@ export default function InboxPage() {
               <Icon name="send" size={18} />
             </button>
           </div>
+          </>
+          )}
         </div>
         {/* Inbox Template Picker */}
         <TemplatePicker
