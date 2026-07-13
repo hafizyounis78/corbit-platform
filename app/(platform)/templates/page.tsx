@@ -61,6 +61,7 @@ export default function TemplatesPage() {
   });
   const [errorDetailsTarget, setErrorDetailsTarget] = useState<any | null>(null);
   const [creatingTemplate, setCreatingTemplate] = useState(false);
+  const [resubmitting, setResubmitting] = useState(false);
   const [previewLang, setPreviewLang] = useState<"ar" | "en">("ar");
   const [newTemplate, setNewTemplate] = useState({
     name: "",
@@ -982,6 +983,34 @@ export default function TemplatesPage() {
               {isAr ? "\u0644\u0627 \u062A\u0648\u062C\u062F \u062A\u0641\u0627\u0635\u064A\u0644 \u0625\u0636\u0627\u0641\u064A\u0629 \u0645\u062D\u0641\u0648\u0638\u0629. \u0623\u0639\u062F \u0627\u0644\u062A\u0642\u062F\u064A\u0645 \u0644\u062A\u0638\u0647\u0631 \u0627\u0644\u0627\u0633\u062A\u062C\u0627\u0628\u0629 \u0627\u0644\u062C\u062F\u064A\u062F\u0629 \u0647\u0646\u0627." : "No additional details saved. Resubmit to capture the latest response here."}
             </div>
           )}
+
+          {/* Resubmit rebuilds the payload from the stored template, so a
+              rejection caused by how we submitted (rather than by the
+              content) clears without retyping the whole template. */}
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+            <Button
+              disabled={resubmitting}
+              onClick={async () => {
+                if (!errorDetailsTarget || resubmitting) return;
+                setResubmitting(true);
+                try {
+                  await api.post(`/templates/${errorDetailsTarget.id}/resubmit`);
+                  showToast(isAr ? "\u062A\u0645\u0651\u062A \u0625\u0639\u0627\u062F\u0629 \u062A\u0642\u062F\u064A\u0645 \u0627\u0644\u0642\u0627\u0644\u0628 \u0644\u0640 Meta" : "Template resubmitted to Meta");
+                  setErrorDetailsTarget(null);
+                  mutate();
+                } catch (err: any) {
+                  const msg = err?.response?.data?.message || (isAr ? "\u0641\u0634\u0644\u062A \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0642\u062F\u064A\u0645" : "Resubmit failed");
+                  showToast(msg, "error");
+                } finally {
+                  setResubmitting(false);
+                }
+              }}
+            >
+              {resubmitting
+                ? (isAr ? "\u062C\u0627\u0631\u064D \u0627\u0644\u0625\u0631\u0633\u0627\u0644..." : "Submitting...")
+                : (isAr ? "\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0642\u062F\u064A\u0645 \u0644\u0640 Meta" : "Resubmit to Meta")}
+            </Button>
+          </div>
         </div>
       </Modal>
 
@@ -1071,6 +1100,24 @@ export default function TemplatesPage() {
           if (newTemplate.body.length > 1024 || newTemplate.body_ar.length > 1024) {
             showToast(isAr ? "النص يتجاوز 1024 حرف" : "Body exceeds 1024 characters");
             return;
+          }
+          // A bilingual template goes to Meta as two translations sharing a
+          // name, and Meta rejects the pair unless both expose the same
+          // variable slots. Catch it here rather than after the round-trip.
+          if (ln === "ar+en") {
+            const countVars = (text: string) =>
+              new Set((text.match(/\{\{\s*\d+\s*\}\}/g) ?? []).map((v) => v.replace(/\D/g, ""))).size;
+            const en = countVars(newTemplate.body);
+            const ar = countVars(newTemplate.body_ar);
+            if (en !== ar) {
+              showToast(
+                isAr
+                  ? `عدد المتغيّرات يجب أن يتطابق بين اللغتين — الإنجليزي فيه ${en} والعربي فيه ${ar}.`
+                  : `Variable count must match across both languages — English has ${en}, Arabic has ${ar}.`,
+                "error",
+              );
+              return;
+            }
           }
           // Final content-policy gate — re-run the check at submit
           // even if the operator already saw the warning. Blocks
