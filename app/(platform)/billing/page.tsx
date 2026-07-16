@@ -81,14 +81,18 @@ export default function BillingPage() {
 
   // Overview data from API only
   const raw = apiOverview || {};
+  // DB returns wallet as a raw decimal string ("12500.00") — format with
+  // thousands separators so the balance reads clearly (management feedback)
+  const fmtSar = (v: unknown) =>
+    Number(v ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const overview = {
-    wallet: raw.wallet ?? "0",
+    wallet: fmtSar(raw.wallet),
     curPlan: ar ? (raw.currentPlan?.nameAr || raw.currentPlan?.name || "") : (raw.currentPlan?.name || ""),
     planPrice: raw.currentPlan?.price ?? "0",
     waConv: raw.usage ? `${raw.usage.conversations}` : "0",
-    waPercent: "",
+    waPercent: ar ? "محادثة هذا الشهر" : "conversations this month",
     aiCredits: raw.usage ? `${raw.usage.aiCredits}` : "0",
-    aiPercent: "",
+    aiPercent: ar ? "استدعاء هذا الشهر" : "calls this month",
     costBreakdown: raw.costBreakdown || [],
     dailyWa: raw.dailyWa || [],
     dailyAi: raw.dailyAi || [],
@@ -239,7 +243,7 @@ export default function BillingPage() {
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14, marginBottom: 20 }}>
-            {[[t("wallet"), overview.wallet, t("sar"), C.pri, "wallet"], [t("curPlan"), overview.curPlan, overview.planPrice + "/" + (ar ? "شهر" : "mo"), C.ok, "star"], [t("waConv"), overview.waConv, overview.waPercent, C.info, "msg"], [t("aiCredits"), overview.aiCredits, overview.aiPercent, "#7C3AED", "brain"]].map(([label, value, sub, color, icon], i) => (
+            {[[t("wallet"), overview.wallet, ar ? "الرصيد المتاح" : "Available balance", C.pri, "wallet"], [t("curPlan"), overview.curPlan, overview.planPrice + "/" + (ar ? "شهر" : "mo"), C.ok, "star"], [t("waConv"), overview.waConv, overview.waPercent, C.info, "msg"], [t("aiCredits"), overview.aiCredits, overview.aiPercent, "#7C3AED", "brain"]].map(([label, value, sub, color, icon], i) => (
               <Card key={i} style={{ padding: 18 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
                   <div style={{ width: 32, height: 32, borderRadius: 8, background: `${color}15`, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -247,7 +251,11 @@ export default function BillingPage() {
                   </div>
                   <span style={{ fontSize: 11.5, color: C.t2 }}>{label}</span>
                 </div>
-                <div style={{ fontSize: 22, fontWeight: 700 }}>{value}</div>
+                <div style={{ fontSize: 22, fontWeight: 700 }}>
+                  {value}
+                  {/* currency inline with the amount so it can't be missed (management feedback) */}
+                  {i === 0 && <span style={{ fontSize: 13, fontWeight: 600, color: C.t2, marginInlineStart: 5 }}>{t("sar")}</span>}
+                </div>
                 <div style={{ fontSize: 11, color: C.t2, marginTop: 2 }}>{sub}</div>
               </Card>
             ))}
@@ -564,8 +572,10 @@ export default function BillingPage() {
           {/* Current Balance */}
           <div style={{ padding: 20, borderRadius: 14, background: GRADIENT, textAlign: "center" }}>
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", marginBottom: 4 }}>{ar ? "الرصيد الحالي" : "Current Balance"}</div>
-            <div style={{ fontSize: 32, fontWeight: 700, color: "#fff" }}>{overview.wallet || "0"}</div>
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>{ar ? "ر.س" : "SAR"}</div>
+            <div style={{ fontSize: 32, fontWeight: 700, color: "#fff" }}>
+              {overview.wallet}
+              <span style={{ fontSize: 16, fontWeight: 600, color: "rgba(255,255,255,0.85)", marginInlineStart: 6 }}>{ar ? "ر.س" : "SAR"}</span>
+            </div>
           </div>
 
           {/* Quick Amount Buttons */}

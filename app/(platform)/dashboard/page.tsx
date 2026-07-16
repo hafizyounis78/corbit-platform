@@ -58,12 +58,19 @@ export default function DashboardPage() {
     ],
   ];
 
-  /* ── Bottom stats (API only) ───────── */
+  /* ── Bottom stats (API only) ─────────
+     Backend contract (BACKEND_DOCUMENTATION.md §3.2): sla = {value, percentage},
+     csat = {value, max}, walletBalance = plain number — displays are derived here. */
   const slaValue = apiData?.sla?.value ?? 0;
-  const slaDisplay = apiData?.sla?.display ?? "0%";
+  const slaDisplay = `${slaValue}%`;
   const csatValue = apiData?.csat?.value ?? 0;
-  const csatDisplay = apiData?.csat?.display ?? "0";
-  const walletDisplay = apiData?.walletBalance?.display ?? "0";
+  const csatMax = apiData?.csat?.max ?? 5;
+  const csatDisplay = String(csatValue);
+  const rawWallet = apiData?.walletBalance;
+  const walletDisplay =
+    rawWallet != null && typeof rawWallet === "object"
+      ? rawWallet.display ?? "0"
+      : Number(rawWallet ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   /* ── WhatsApp numbers ────────────────────────────── */
   const waNumbers = apiData?.whatsappNumbers ?? [];
@@ -327,7 +334,8 @@ export default function DashboardPage() {
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 16, marginTop: 16 }}>
         {([
           [t("sla"), slaValue, C.ok, slaDisplay],
-          [t("csat"), csatValue, C.pri, csatDisplay],
+          // CSAT is on a 1-5 scale; the donut ring expects 0-100
+          [t("csat"), csatMax > 0 ? (csatValue / csatMax) * 100 : 0, C.pri, csatDisplay],
           [t("wallet"), null, null, walletDisplay],
         ] as [string, number | null, string | null, string][]).map(([l, v, cl, disp], i) => (
           <Card key={i} style={{ padding: 20, textAlign: "center" }}>

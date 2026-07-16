@@ -151,7 +151,8 @@ const translations = {
   txns: { ar: "المعاملات", en: "Transactions" },
   topUp: { ar: "شحن الرصيد", en: "Top Up" },
   waConv: { ar: "محادثات واتساب", en: "WA Conversations" },
-  aiCredits: { ar: "رصيد الذكاء", en: "AI Credits" },
+  // The billing overview card shows AI calls *used* this month, not a remaining balance
+  aiCredits: { ar: "استخدام AI هذا الشهر", en: "AI Usage This Month" },
   amount: { ar: "المبلغ", en: "Amount" },
   date: { ar: "التاريخ", en: "Date" },
   type: { ar: "النوع", en: "Type" },
