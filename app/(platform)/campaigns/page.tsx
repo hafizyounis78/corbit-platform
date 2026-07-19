@@ -1646,7 +1646,13 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
     progressPct: 0,
   };
   const totalForBar = live.total || c.recipients || 1;
+  // sentPct = processed (sent + failed); the two segments below split it.
+  // Computed client-side rather than read from the payload so the numbers
+  // stay consistent with the counters shown beside them even when the
+  // response predates successPct/failedPct.
   const sentPct = Math.round(((live.sent + live.failed) / totalForBar) * 100);
+  const successPct = Math.round((live.sent / totalForBar) * 100);
+  const failedPct = Math.round((live.failed / totalForBar) * 100);
 
   const callAction = async (action: 'send' | 'pause' | 'resume') => {
     if (busy) return;
@@ -1949,21 +1955,50 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
                 </div>
               </div>
             </div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: C.txt }}>
-              {sentPct}%
+            <div style={{ textAlign: isAr ? "left" : "right" }}>
+              <div style={{ fontSize: 22, fontWeight: 700, color: C.txt, lineHeight: 1.2 }}>
+                {sentPct}%
+              </div>
+              <div style={{ fontSize: 10.5, color: C.t3 }}>
+                {isAr ? "من الحملة تمّت معالجته" : "of the campaign processed"}
+              </div>
             </div>
           </div>
-          <div style={{ width: "100%", height: 10, borderRadius: 5, background: C.inp, overflow: "hidden" }}>
+          {/* Two segments, not one. The bar tracks processed work, so a
+              campaign where every send failed fills it completely — which
+              read as "100% delivered" on prod 2026-07-19. Splitting success
+              from failure makes an all-failed campaign render as a solid red
+              bar: same width, unmistakably different meaning. */}
+          <div style={{ width: "100%", height: 10, borderRadius: 5, background: C.inp, overflow: "hidden", display: "flex" }}>
             <div
               style={{
                 height: "100%",
-                borderRadius: 5,
-                width: `${sentPct}%`,
+                width: `${successPct}%`,
                 background: c.st === 'paused' ? COLORS.warn : COLORS.pri,
                 transition: "width 0.6s ease-out",
               }}
             />
+            <div
+              style={{
+                height: "100%",
+                width: `${failedPct}%`,
+                background: COLORS.err,
+                transition: "width 0.6s ease-out",
+              }}
+            />
           </div>
+          {live.failed > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 8, fontSize: 11, color: C.t3, flexWrap: "wrap" }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                <span style={{ width: 8, height: 8, borderRadius: 2, background: c.st === 'paused' ? COLORS.warn : COLORS.pri, display: "inline-block" }} />
+                {isAr ? `أُرسلت ${live.sent.toLocaleString()}` : `Sent ${live.sent.toLocaleString()}`}
+              </span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                <span style={{ width: 8, height: 8, borderRadius: 2, background: COLORS.err, display: "inline-block" }} />
+                {isAr ? `فشلت ${live.failed.toLocaleString()}` : `Failed ${live.failed.toLocaleString()}`}
+              </span>
+            </div>
+          )}
         </Card>
       )}
 
