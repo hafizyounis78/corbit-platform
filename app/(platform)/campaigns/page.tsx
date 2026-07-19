@@ -37,8 +37,9 @@ function fieldName(v: any): string | null {
   }
   return null;
 }
-import { useCampaigns, useCampaignStats, useCampaignProgress, useTemplates as useTemplatesApi, useSegments as useSegmentsApi, useCampaignFunnel, useSmsConfig, usePlanUsage } from "@/lib/api/hooks";
+import { useCampaigns, useCampaignStats, useCampaignProgress, useTemplates as useTemplatesApi, useSegments as useSegmentsApi, useCampaignFunnel, useSmsConfig, usePlanUsage, useApi } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
+import { resolveWindow, evaluateWindow, formatOpensAt, shortTime, type SendWindow } from "@/lib/sending-window";
 import { COLORS, GRADIENT } from "@/lib/constants/colors";
 import { FONT_FAMILY } from "@/lib/constants/font";
 import { CampaignAIBuilderModal } from "@/components/campaigns/ai-builder-modal";
@@ -110,6 +111,50 @@ export default function CampaignsPage() {
   const { data: smsConfigResponse } = useSmsConfig();
   const smsConfig = smsConfigResponse?.data ?? smsConfigResponse;
   const smsReady = !!smsConfig?.connected;
+
+  // Org-level sending policy — needed so the create modal can warn that
+  // a "send now" launch will actually be deferred to the next window.
+  // Falls back to the platform defaults if the request fails; a wrong
+  // hint is acceptable here, a missing one is what caused the 2026-07-19
+  // "the campaign isn't sending" escalation.
+  const { data: orgPolicy } = useApi<any>("/settings/sending-policy");
+
+  // Re-tick while the create modal is open so a notice that says
+  // "sending starts 09:00" flips to "sending starts now" the moment the
+  // window actually opens, instead of going stale in a modal left open.
+  const [windowTick, setWindowTick] = useState(0);
+  useEffect(() => {
+    if (!showCreateModal) return;
+    const h = window.setInterval(() => setWindowTick((n) => n + 1), 30000);
+    return () => clearInterval(h);
+  }, [showCreateModal]);
+
+  // The window this campaign will actually be judged against: the
+  // per-campaign override when the operator set one, else the org
+  // policy, else platform defaults.
+  const effectiveWindow: SendWindow = useMemo(() => {
+    if (newCampaign.overrideSendWindow) {
+      return {
+        start: newCampaign.sendWindowStart,
+        end: newCampaign.sendWindowEnd,
+        skipFridays: newCampaign.sendWindowSkipFridays,
+      };
+    }
+    return resolveWindow(orgPolicy);
+  }, [
+    newCampaign.overrideSendWindow,
+    newCampaign.sendWindowStart,
+    newCampaign.sendWindowEnd,
+    newCampaign.sendWindowSkipFridays,
+    orgPolicy,
+  ]);
+
+  // Whether a launch *right now* would send or be deferred. Recomputed
+  // on tick so the notice stays truthful.
+  const windowState = useMemo(
+    () => evaluateWindow(new Date(), effectiveWindow),
+    [effectiveWindow, windowTick, showCreateModal],
+  );
 
   // Per-channel cost estimate — refetched whenever segment OR channel
   // mode changes. We never sum WA + SMS into one number; the modal
@@ -1161,6 +1206,49 @@ export default function CampaignsPage() {
               </button>
             </div>
 
+            {/* Send-window notice. Shown when "Send Now" is picked but the
+                window is currently shut — the campaign will be created and
+                marked active, yet nothing leaves until the window opens.
+                Without this the operator sees a 0% bar and reasonably
+                concludes the platform is broken (prod escalation,
+                2026-07-19). Informational, never blocking: the deferral is
+                a deliberate Meta-compliance behaviour, not an error. */}
+            {newCampaign.sendNow && !windowState.isOpen && windowState.opensAt && (
+              <div
+                style={{
+                  marginBottom: 14,
+                  padding: 14,
+                  borderRadius: 10,
+                  background: `${COLORS.warn}10`,
+                  border: `1px solid ${COLORS.warn}40`,
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 10,
+                }}
+              >
+                <span style={{ color: COLORS.warn, display: "inline-flex", flexShrink: 0, marginTop: 1 }}>
+                  <Icon name="timer" size={18} />
+                </span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: C.txt, marginBottom: 4 }}>
+                    {isAr
+                      ? `لن يبدأ الإرسال الآن — سيبدأ ${formatOpensAt(windowState.opensAt, true)}`
+                      : `Sending won't start now — it begins ${formatOpensAt(windowState.opensAt, false)}`}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: C.t2, lineHeight: 1.7 }}>
+                    {isAr
+                      ? `نافذة الإرسال المسموحة ${shortTime(effectiveWindow.start)} - ${shortTime(effectiveWindow.end)}${effectiveWindow.skipFridays ? "، مع تجنّب الجمعة" : ""}. هذه سياسة تحمي تقييم رقمك لدى واتساب: الرسائل خارج أوقات النشاط ترفع نسبة الشكاوى وقد تؤدّي إلى تقييد الرقم. الحملة ستُنشأ الآن وتبقى بانتظار الموعد — لا حاجة لأي إجراء منك.`
+                      : `The allowed send window is ${shortTime(effectiveWindow.start)} - ${shortTime(effectiveWindow.end)}${effectiveWindow.skipFridays ? ", Fridays skipped" : ""}. This protects your number's WhatsApp quality rating — messages sent outside active hours drive complaints and can get the number restricted. The campaign will be created now and wait for its slot; no action needed from you.`}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: C.t3, lineHeight: 1.7, marginTop: 6 }}>
+                    {isAr
+                      ? "لتغيير هذه الأوقات: الإعدادات ← سياسة الإرسال، أو فعّل «تخصيص نافذة الإرسال» أدناه لهذه الحملة فقط."
+                      : "To change these hours: Settings → Sending Policy, or enable “Customise send window” below for this campaign only."}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {!newCampaign.sendNow && (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div>
@@ -1396,6 +1484,9 @@ export default function CampaignsPage() {
 function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; onBack: () => void; onRefresh?: () => void }) {
   const { colors: C } = useTheme();
   const { isAr } = useLocale();
+  // Own fetch rather than a prop: useApi dedupes cheaply and this keeps
+  // DetailView usable from anywhere without threading policy down.
+  const { data: detailOrgPolicy } = useApi<any>("/settings/sending-policy");
   const { showToast } = useToast();
   const isMobile = useIsMobile();
 
@@ -1743,6 +1834,48 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
           </div>
         </div>
       </div>
+
+      {/* Send-window hold notice. An active campaign whose window has
+          closed looks identical to a broken one: status "active",
+          progress frozen. It is neither — the queue is holding until the
+          window reopens and will resume on its own.
+
+          The "don't pause" line is deliberate. On 2026-07-19 the instinct
+          was to pause the stalled campaign; pausing is what actually
+          breaks it, because SendCampaignMessage returns early for any
+          campaign not in 'active' state and those rows never resume. */}
+      {isLive && c.st !== 'paused' && (() => {
+        const w = resolveWindow(detailOrgPolicy);
+        const st = evaluateWindow(new Date(), w);
+        if (st.isOpen || !st.opensAt) return null;
+        return (
+          <Card style={{ marginBottom: 16, padding: 16, background: `${COLORS.warn}10`, border: `1px solid ${COLORS.warn}40` }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+              <div style={{ color: COLORS.warn, display: "inline-flex" }}><Icon name="timer" size={22} /></div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: C.txt, marginBottom: 4 }}>
+                  {isAr
+                    ? `الإرسال متوقّف مؤقّتاً — يستأنف ${formatOpensAt(st.opensAt, true)}`
+                    : `Sending is on hold — resumes ${formatOpensAt(st.opensAt, false)}`}
+                </div>
+                <div style={{ fontSize: 12, color: C.t2, lineHeight: 1.7, marginBottom: 8 }}>
+                  {isAr
+                    ? `الحملة تعمل بشكل سليم. نافذة الإرسال المسموحة ${shortTime(w.start)} - ${shortTime(w.end)}${w.skipFridays ? "، مع تجنّب الجمعة" : ""}، والرسائل المتبقّية محجوزة في الطابور وستُرسل تلقائيّاً عند فتح النافذة.`
+                    : `The campaign is healthy. The allowed send window is ${shortTime(w.start)} - ${shortTime(w.end)}${w.skipFridays ? ", Fridays skipped" : ""}; remaining messages are held in the queue and go out automatically when it reopens.`}
+                </div>
+                <div style={{ fontSize: 11.5, color: C.txt, lineHeight: 1.7, padding: "8px 10px", background: C.card, borderRadius: 6, border: `1px solid ${COLORS.err}40`, display: "flex", alignItems: "flex-start", gap: 6 }}>
+                  <span style={{ color: COLORS.err, display: "inline-flex", marginTop: 1, flexShrink: 0 }}><Icon name="alert" size={13} /></span>
+                  <span>
+                    {isAr
+                      ? "لا توقف الحملة ولا تعيد إنشاءها — الانتظار هو السلوك الصحيح. الإيقاف المؤقّت في هذه الحالة يمنع استئناف الرسائل المتبقّية تلقائيّاً."
+                      : "Don't pause or recreate the campaign — waiting is the correct behaviour. Pausing here stops the remaining messages from resuming on their own."}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </Card>
+        );
+      })()}
 
       {/* Meta pacing indicator — shows when actual throughput drops
           below 50% of the configured rate for ≥10 minutes. Backend
