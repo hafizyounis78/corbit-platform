@@ -2120,6 +2120,71 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
             </Card>
           </div>
         )}
+
+        {/* Not-sent card — recipients the campaign never attempted at all.
+            They are neither a success nor a failure, so without their own
+            card they simply vanished: a 1,348-recipient campaign rendered
+            as 960 sent + 30 failed and the operator had no way to learn
+            the other 388 existed (reported on prod 2026-07-19). Always
+            clickable — the drill-down is how you see who still needs
+            sending, and a stalled campaign shows Resume alongside it. */}
+        {live.pending > 0 && (
+          <div
+            onClick={() => setRecipientStatus("pending")}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-1px)";
+              e.currentTarget.style.boxShadow = "0 4px 14px rgba(0,0,0,0.08)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "";
+            }}
+            style={{
+              cursor: "pointer",
+              transition: "transform 0.12s ease, box-shadow 0.12s ease",
+              borderRadius: 12,
+            }}
+          >
+            <Card
+              style={{
+                padding: 18,
+                border: `1px solid ${COLORS.warn}40`,
+                background: `${COLORS.warn}05`,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                <div
+                  style={{
+                    width: 32, height: 32, borderRadius: 9,
+                    background: `${COLORS.warn}18`, color: COLORS.warn,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}
+                >
+                  <Icon name="clock" size={15} />
+                </div>
+                <span style={{ fontSize: 11.5, color: COLORS.warn, fontWeight: 600, flex: 1 }}>
+                  {isAr ? "لم يُرسل" : "Not sent"}
+                </span>
+                <span style={{ fontSize: 10, color: COLORS.warn, fontWeight: 600 }}>
+                  {isAr ? "عرض ←" : "view →"}
+                </span>
+              </div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.warn }}>
+                {live.pending.toLocaleString()}
+                {totalForBar > 0 && (
+                  <span style={{ fontSize: 12, color: C.t3, marginInlineStart: 8, fontWeight: 500 }}>
+                    ({Math.round((live.pending / totalForBar) * 100)}%)
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: 11, color: C.t3, marginTop: 6, lineHeight: 1.5 }}>
+                {isAr
+                  ? "لم تُحاول المنصّة الإرسال لهؤلاء بعد — استأنف الحملة لإكمالهم."
+                  : "Never attempted — resume the campaign to finish them."}
+              </div>
+            </Card>
+          </div>
+        )}
       </div>
 
       {/* Recipient drill-down modal */}
@@ -2557,7 +2622,7 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
 /*  we render the error column inline when status=failed.              */
 /* ------------------------------------------------------------------ */
 
-type RecipientStatusFilter = "all" | "sent" | "delivered" | "read" | "clicked" | "replied" | "failed";
+type RecipientStatusFilter = "all" | "sent" | "delivered" | "read" | "clicked" | "replied" | "failed" | "pending";
 
 interface RecipientRow {
   id: string;
@@ -2631,6 +2696,7 @@ function RecipientsModal({
     { key: "clicked",   labelAr: "\u062a\u0645 \u0627\u0644\u0646\u0642\u0631",     labelEn: "Clicked",   color: COLORS.warn },
     { key: "replied",   labelAr: "\u062a\u0645 \u0627\u0644\u0631\u062f\u0651",     labelEn: "Replied",   color: COLORS.sec },
     { key: "failed",    labelAr: "\u0641\u0634\u0644",          labelEn: "Failed",    color: COLORS.err },
+    { key: "pending",   labelAr: "\u0644\u0645 \u064a\u064f\u0631\u0633\u0644",    labelEn: "Not sent",  color: COLORS.warn },
   ];
 
   const fmtDate = (iso: string | null) => {
