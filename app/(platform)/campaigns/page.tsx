@@ -1654,6 +1654,19 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
   const successPct = Math.round((live.sent / totalForBar) * 100);
   const failedPct = Math.round((live.failed / totalForBar) * 100);
 
+  // Recipients the campaign never attempted. campaigns.pending_count is
+  // NOT a usable source here: /progress is only polled while the campaign
+  // is live, so a completed one falls back to the stored counter — and the
+  // batch-completion hook used to hard-zero that column on every campaign
+  // it closed. Reading it renders "0 not sent" on exactly the campaigns
+  // that stalled. The funnel endpoint counts campaign_sends rows directly
+  // and is fetched for every status, so prefer it; the arithmetic fallback
+  // is the same subtraction the operator would do by hand.
+  const funnelPending = Number((funnelData as any)?.funnel?.pending);
+  const pendingCount = Number.isFinite(funnelPending)
+    ? funnelPending
+    : Math.max(0, totalForBar - live.sent - live.failed);
+
   const callAction = async (action: 'send' | 'pause' | 'resume') => {
     if (busy) return;
     setBusy(action);
@@ -2128,7 +2141,7 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
             the other 388 existed (reported on prod 2026-07-19). Always
             clickable — the drill-down is how you see who still needs
             sending, and a stalled campaign shows Resume alongside it. */}
-        {live.pending > 0 && (
+        {pendingCount > 0 && (
           <div
             onClick={() => setRecipientStatus("pending")}
             onMouseEnter={(e) => {
@@ -2170,10 +2183,10 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
                 </span>
               </div>
               <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.warn }}>
-                {live.pending.toLocaleString()}
+                {pendingCount.toLocaleString()}
                 {totalForBar > 0 && (
                   <span style={{ fontSize: 12, color: C.t3, marginInlineStart: 8, fontWeight: 500 }}>
-                    ({Math.round((live.pending / totalForBar) * 100)}%)
+                    ({Math.round((pendingCount / totalForBar) * 100)}%)
                   </span>
                 )}
               </div>
