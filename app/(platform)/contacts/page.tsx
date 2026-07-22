@@ -41,6 +41,39 @@ const TAG_COLORS: Record<string, string> = {
   "\u0645\u062D\u0638\u0648\u0631": COLORS.err,
 };
 
+// CSV import column synonyms. Uploaded files rarely use our exact "phone"/"name"
+// headers (customers export from CRMs/Excel with "Mobile No", "Employee Name",
+// "\u0627\u0644\u062C\u0648\u0627\u0644", ...). Match those to our canonical fields so the
+// preview + backend agree instead of flagging every row as "No phone".
+// Keep this list in sync with the backend ContactService::COLUMN_SYNONYMS.
+const IMPORT_COLUMN_SYNONYMS: Record<string, string[]> = {
+  phone: [
+    "phone", "phone number", "phone no", "phoneno", "mobile", "mobile no", "mobileno",
+    "mobile number", "tel", "telephone", "cell", "cellphone", "whatsapp", "whatsapp no",
+    "whatsapp number", "wa", "msisdn", "number", "contact number", "contact no",
+    "\u0627\u0644\u062C\u0648\u0627\u0644", "\u062C\u0648\u0627\u0644", "\u0627\u0644\u0647\u0627\u062A\u0641", "\u0647\u0627\u062A\u0641", "\u0631\u0642\u0645", "\u0631\u0642\u0645 \u0627\u0644\u062C\u0648\u0627\u0644",
+    "\u0631\u0642\u0645 \u0627\u0644\u0647\u0627\u062A\u0641", "\u0627\u0644\u0645\u0648\u0628\u0627\u064A\u0644", "\u0631\u0642\u0645 \u0627\u0644\u062A\u0648\u0627\u0635\u0644", "\u0631\u0642\u0645 \u0627\u0644\u062C\u0648\u0651\u0627\u0644", "\u0627\u0644\u0648\u0627\u062A\u0633\u0627\u0628",
+  ],
+  name: [
+    "name", "full name", "fullname", "contact name", "employee name", "customer name",
+    "first name", "display name", "\u0627\u0644\u0627\u0633\u0645", "\u0627\u0633\u0645", "\u0627\u0644\u0627\u0633\u0645 \u0627\u0644\u0643\u0627\u0645\u0644", "\u0627\u0633\u0645 \u062C\u0647\u0629 \u0627\u0644\u0627\u062A\u0635\u0627\u0644",
+    "\u0627\u0633\u0645 \u0627\u0644\u0639\u0645\u064A\u0644", "\u0627\u0633\u0645 \u0627\u0644\u0645\u0648\u0638\u0641",
+  ],
+  email: ["email", "e-mail", "mail", "email address", "\u0627\u0644\u0628\u0631\u064A\u062F", "\u0627\u0644\u0625\u064A\u0645\u064A\u0644", "\u0627\u0644\u0628\u0631\u064A\u062F \u0627\u0644\u0625\u0644\u0643\u062A\u0631\u0648\u0646\u064A"],
+  city: ["city", "town", "\u0627\u0644\u0645\u062F\u064A\u0646\u0629", "\u0645\u062F\u064A\u0646\u0629"],
+  tags: ["tags", "tag", "labels", "\u0627\u0644\u0648\u0633\u0648\u0645", "\u0648\u0633\u0648\u0645", "\u0627\u0644\u062A\u0635\u0646\u064A\u0641"],
+};
+
+// Find the header index that maps to a canonical field ("phone" | "name" | ...).
+// Exact canonical match wins first, then any registered synonym.
+function findImportColIndex(headers: string[], field: keyof typeof IMPORT_COLUMN_SYNONYMS): number {
+  const norm = headers.map(h => (h || "").toLowerCase().trim());
+  const exact = norm.indexOf(field);
+  if (exact >= 0) return exact;
+  const syns = IMPORT_COLUMN_SYNONYMS[field] || [];
+  return norm.findIndex(h => syns.includes(h));
+}
+
 export default function ContactsPage() {
   const { colors: C } = useTheme();
   const { t, isAr, lang } = useLocale();
@@ -1744,8 +1777,8 @@ export default function ContactsPage() {
                   </thead>
                   <tbody>
                     {importPreview.rows.map((row, ri) => {
-                      const phoneIdx = importPreview.headers.findIndex(h => h.toLowerCase() === 'phone');
-                      const nameIdx = importPreview.headers.findIndex(h => h.toLowerCase() === 'name');
+                      const phoneIdx = findImportColIndex(importPreview.headers, 'phone');
+                      const nameIdx = findImportColIndex(importPreview.headers, 'name');
                       const hasPhone = phoneIdx >= 0 && row[phoneIdx]?.replace(/[' ]/g, '').length > 5;
                       const hasName = nameIdx >= 0 && row[nameIdx]?.trim().length > 0;
                       return (
@@ -1773,13 +1806,13 @@ export default function ContactsPage() {
               <div style={{ padding: "10px 14px", background: C.inp, display: "flex", gap: 16, fontSize: 12 }}>
                 <span style={{ color: COLORS.ok }}>
                   ✓ {importPreview.rows.filter((row) => {
-                    const pi = importPreview!.headers.findIndex(h => h.toLowerCase() === 'phone');
+                    const pi = findImportColIndex(importPreview!.headers, 'phone');
                     return pi >= 0 && row[pi]?.replace(/[' ]/g, '').length > 5;
                   }).length} {isAr ? "صالح" : "valid"}
                 </span>
                 <span style={{ color: COLORS.err }}>
                   ✗ {importPreview.rows.filter((row) => {
-                    const pi = importPreview!.headers.findIndex(h => h.toLowerCase() === 'phone');
+                    const pi = findImportColIndex(importPreview!.headers, 'phone');
                     return !(pi >= 0 && row[pi]?.replace(/[' ]/g, '').length > 5);
                   }).length} {isAr ? "غير صالح" : "invalid"}
                 </span>
