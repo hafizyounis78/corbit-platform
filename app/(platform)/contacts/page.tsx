@@ -124,6 +124,10 @@ export default function ContactsPage() {
   // feed a marketing campaign. Unticked → rows land without consent and
   // would need a separate bulk-grant pass.
   const [importMarketingConsent, setImportMarketingConsent] = useState(false);
+  // Ticked → for numbers that already exist, additively add any new tag
+  // from the file onto the existing contact. The number and all existing
+  // data are never touched — only a missing tag is added. Off by default.
+  const [importMergeTags, setImportMergeTags] = useState(false);
   // Optional grade/team target for the import (admin/supervisor in a
   // scoping-enabled org only). Empty string = org-wide / no grade.
   const [importTeamId, setImportTeamId] = useState("");
@@ -161,6 +165,7 @@ export default function ContactsPage() {
     restored: number;
     total_rows: number;
     duplicates_existing: number;
+    tags_merged_existing: number;
     duplicates_in_file: number;
     empty_phone: number;
     error_rows: number;
@@ -1573,7 +1578,7 @@ export default function ContactsPage() {
       {/* ── Import Contacts Modal ── */}
       <Modal
         open={showImportModal}
-        onClose={() => { setShowImportModal(false); setImportFile(null); setImportPreview(null); setImportMarketingConsent(false); setImportTeamId(""); }}
+        onClose={() => { setShowImportModal(false); setImportFile(null); setImportPreview(null); setImportMarketingConsent(false); setImportMergeTags(false); setImportTeamId(""); }}
         title={isAr ? "استيراد جهات الاتصال" : "Import Contacts"}
         wide={!!importPreview}
         submitLabel={!importFile ? (isAr ? "اختر ملف أولاً" : "Select file first") : importLoading ? (isAr ? "جاري الاستيراد..." : "Importing...") : (isAr ? `استيراد ${importPreview?.rows.length || 0} جهة اتصال` : `Import ${importPreview?.rows.length || 0} contacts`)}
@@ -1592,6 +1597,11 @@ export default function ContactsPage() {
           if (importMarketingConsent) {
             formData.append('marketing_consent_attested', '1');
           }
+          // Additively merge tags onto already-existing numbers (opt-in).
+          // Never changes the number or any existing data — only adds a tag.
+          if (importMergeTags) {
+            formData.append('merge_tags_on_existing', '1');
+          }
           // Only admins/supervisors in scoping orgs can target a team; for
           // everyone else the picker is never shown so this stays empty.
           if (showImportTeamPicker && importTeamId) {
@@ -1605,6 +1615,7 @@ export default function ContactsPage() {
               restored: d.restored || 0,
               total_rows: d.total_rows || 0,
               duplicates_existing: d.duplicates_existing || 0,
+              tags_merged_existing: d.tags_merged_existing || 0,
               duplicates_in_file: d.duplicates_in_file || 0,
               empty_phone: d.empty_phone || 0,
               error_rows: d.error_rows || 0,
@@ -1616,6 +1627,7 @@ export default function ContactsPage() {
             setImportFile(null);
             setImportPreview(null);
             setImportMarketingConsent(false);
+            setImportMergeTags(false);
             setImportTeamId("");
             mutate();
           } catch (err: any) {
@@ -1852,6 +1864,41 @@ export default function ContactsPage() {
                   {isAr
                     ? "إذا لم تفعّل هذا الخيار، ستُستورد الجهات بدون موافقة تسويقية، ولن تتمكّن من إرسال قوالب التسويق إليها على واتساب (سياسة Meta). يمكنك منح الموافقة لاحقاً من صفحة جهات الاتصال."
                     : "If unchecked, contacts will be imported without marketing consent and you won't be able to send WhatsApp marketing templates to them (Meta policy). You can grant consent later from the contacts page."}
+                </div>
+              </div>
+            </label>
+          )}
+
+          {/* Opt-in: additively update tags on numbers that already exist.
+              Safe by design — the number and all existing data (name, other
+              tags, engagement) are never touched; only a missing tag is added. */}
+          {importFile && (
+            <label
+              style={{
+                display: "flex", alignItems: "flex-start", gap: 10,
+                padding: 14, borderRadius: 12,
+                background: importMergeTags ? `${COLORS.ok}10` : C.inp,
+                border: `1px solid ${importMergeTags ? COLORS.ok : C.brd}`,
+                cursor: "pointer",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={importMergeTags}
+                onChange={(e) => setImportMergeTags(e.target.checked)}
+                disabled={importLoading}
+                style={{ marginTop: 3, cursor: "pointer", flexShrink: 0 }}
+              />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.txt, marginBottom: 4 }}>
+                  {isAr
+                    ? "تحديث الوسوم للأرقام الموجودة مسبقاً"
+                    : "Update tags for numbers that already exist"}
+                </div>
+                <div style={{ fontSize: 11.5, color: C.t2, lineHeight: 1.6 }}>
+                  {isAr
+                    ? "عند التفعيل، إذا كان الرقم موجوداً مسبقاً ستُضاف الوسوم الجديدة من الملف إليه دون تكرار. لا يتم تغيير رقم الجوال ولا حذف أي بيانات أو وسوم حالية — تُضاف الوسوم الجديدة فقط."
+                    : "When enabled, if a number already exists the new tags from the file are added to it (no duplicates). The phone number is never changed and no existing data or tags are removed — only the new tags are added."}
                 </div>
               </div>
             </label>
@@ -2097,6 +2144,12 @@ export default function ContactsPage() {
               value: r.duplicates_existing,
               color: "#F59E0B",
               icon: "users",
+            },
+            {
+              label: isAr ? "تمّ تحديث وسومها" : "Tags updated on existing",
+              value: r.tags_merged_existing,
+              color: COLORS.info,
+              icon: "tag",
             },
             {
               label: isAr ? "مكرّرة داخل الملف" : "Duplicated within the file",
