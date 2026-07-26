@@ -43,6 +43,7 @@ import { resolveWindow, evaluateWindow, formatOpensAt, shortTime, type SendWindo
 import { COLORS, GRADIENT } from "@/lib/constants/colors";
 import { FONT_FAMILY } from "@/lib/constants/font";
 import { CampaignAIBuilderModal } from "@/components/campaigns/ai-builder-modal";
+import { WhatsAppPhonePreview } from "@/components/templates/whatsapp-phone-preview";
 
 export default function CampaignsPage() {
   const { colors: C } = useTheme();
@@ -253,6 +254,14 @@ export default function CampaignsPage() {
     const list = templatesApiResponse?.data || templatesApiResponse;
     return Array.isArray(list) ? list : [];
   }, [templatesApiResponse]);
+
+  // The template row behind the dropdown selection — carries the body,
+  // header, footer and buttons the preview needs. Matched the same way
+  // the consent check matches it.
+  const selectedTemplate = useMemo(
+    () => templates.find((t: any) => (t.id || t.name) === newCampaign.template) ?? null,
+    [templates, newCampaign.template],
+  );
 
   // Pre-send marketing-consent check. The send-time gate refuses
   // marketing templates for contacts without recorded consent — by
@@ -850,6 +859,36 @@ export default function CampaignsPage() {
               )}
             </div>
           </div>
+
+          {/* ── Message preview ──
+              The dropdown only shows a template name. This shows the
+              actual WhatsApp bubble the recipient receives — header,
+              body formatting, footer and buttons — so "this looks
+              wrong" is caught before launch instead of after.
+              {{1}} placeholders stay visible as chips: every contact
+              gets their own value at send time. */}
+          {selectedTemplate && (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+              <WhatsAppPhonePreview
+                header={selectedTemplate.header}
+                headerFormat={selectedTemplate.header_format}
+                headerMediaUrl={selectedTemplate.header_media_url || null}
+                body={String(selectedTemplate.body ?? "")}
+                footer={selectedTemplate.footer}
+                buttons={(selectedTemplate.buttons || []).map((b: any) => ({
+                  text: b.text,
+                  kind: b.type === "url" ? "url" : b.type === "phone" ? "phone" : "quick_reply",
+                }))}
+                rtl={String(selectedTemplate.ln ?? "").toLowerCase().startsWith("ar") || isAr}
+                compact
+              />
+              <div style={{ fontSize: 10.5, color: C.t3, textAlign: "center" }}>
+                {isAr
+                  ? "معاينة — الخانات الملوّنة تُستبدل ببيانات كلّ عميل عند الإرسال."
+                  : "Preview — highlighted slots are filled with each contact's data at send time."}
+              </div>
+            </div>
+          )}
 
           {/* ── Marketing Consent Pre-flight Warning ──
               Fires only for marketing-category templates with a chosen
