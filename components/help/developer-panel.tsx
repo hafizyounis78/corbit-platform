@@ -146,8 +146,8 @@ function IntroSection({ apiEnabled, webhooksEnabled }: { apiEnabled: boolean; we
           available={apiEnabled}
           title={isAr ? "REST API (Pull)" : "REST API (Pull)"}
           desc={isAr
-            ? "أنت تطلب من Corbit: ابعت رسالة، اجلب جهات، اقرأ المحادثات. كل request منك يبدأ."
-            : "You call Corbit: send a message, fetch contacts, read conversations. Every request originates from your code."}
+            ? "أنت تطلب من Corbit: ابعت رسالة أو قالباً أو مستنداً، أرسل رمز تحقّق، اقرأ حالة التسليم، اجلب الجهات والمحادثات. كل request منك يبدأ."
+            : "You call Corbit: send a message, template or document, issue a verification code, read delivery status, fetch contacts and conversations. Every request originates from your code."}
         />
         <FeatureCard
           icon="bell"
@@ -203,8 +203,14 @@ function ApiSection() {
         code={`Authorization: Bearer sk_live_corbit_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`}
       />
 
+      <Callout>
+        {isAr
+          ? "مهم: رسالة نصّية عاديّة تصل فقط إذا راسلك العميل خلال آخر 24 ساعة (نافذة خدمة العملاء عند Meta). لأي إشعار خدمي أو فاتورة أو شهادة أو رمز تحقّق تبدأ أنت به، استخدم قالباً معتمداً — type: template."
+          : "Important: a plain text message only reaches a contact who messaged you in the last 24 hours (Meta's customer service window). For any service notification, invoice, certificate or verification code that YOU initiate, use an approved template — type: template."}
+      </Callout>
+
       <h3 style={{ margin: "20px 0 6px", fontSize: 14, fontWeight: 700 }}>
-        {isAr ? "إرسال رسالة" : "Send a message"}
+        {isAr ? "1) رسالة نصّية" : "1) Text message"}
       </h3>
       <DocBlock
         code={`curl -X POST ${API_BASE}/api/v1/messages \\
@@ -219,21 +225,213 @@ function ApiSection() {
       </div>
 
       <h3 style={{ margin: "20px 0 6px", fontSize: 14, fontWeight: 700 }}>
-        {isAr ? "جلب جهات الاتصال" : "List contacts"}
+        {isAr ? "2) رسالة بقالب (خارج نافذة 24 ساعة)" : "2) Template message (outside the 24h window)"}
       </h3>
       <DocBlock
-        code={`curl "${API_BASE}/api/v1/contacts?page=1&limit=50" \\
-  -H "Authorization: Bearer YOUR_KEY"`}
+        code={`curl -X POST ${API_BASE}/api/v1/messages \\
+  -H "Authorization: Bearer YOUR_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "to": "966500000000",
+    "type": "template",
+    "template_name": "invoice_ready",
+    "parameters": ["INV-2026-001", "1,250 SAR"]
+  }'`}
+      />
+      <div style={{ fontSize: 12, color: "inherit", marginBottom: 14 }}>
+        {isAr
+          ? "parameters تملأ {{1}} و {{2}} بالترتيب. استخدم GET /v1/templates لمعرفة القوالب المعتمدة وعدد متغيّرات كلّ قالب."
+          : "parameters fill {{1}}, {{2}} in order. Use GET /v1/templates to discover approved templates and how many variables each needs."}
+      </div>
+
+      <h3 style={{ margin: "20px 0 6px", fontSize: 14, fontWeight: 700 }}>
+        {isAr ? "3) إرسال مستند (شهادة / فاتورة)" : "3) Send a document (certificate / invoice)"}
+      </h3>
+      <div style={{ fontSize: 12.5, color: "inherit", marginBottom: 10, lineHeight: 1.7 }}>
+        {isAr
+          ? "خطوتان: ارفع الملف، ثم أرسله بالـ document_id. الملف يُخزَّن على قرص خاص، وكل إرسال يولّد رابطاً موقّعاً صالحاً 15 دقيقة فقط — لا يوجد رابط دائم لمستند شخصي."
+          : "Two steps: upload the file, then send it by document_id. The file is stored on a private disk and each send mints a signed URL valid for 15 minutes only — no permanent link to a personal record ever exists."}
+      </div>
+      <DocBlock
+        title={isAr ? "الخطوة 1 — رفع الملف" : "Step 1 — upload"}
+        code={`curl -X POST ${API_BASE}/api/v1/media \\
+  -H "Authorization: Bearer YOUR_KEY" \\
+  -F "file=@certificate.pdf" \\
+  -F "filename=شهادة-2026.pdf"
+
+# 201 → { "data": { "document_id": "…", "retain_until": "…" } }`}
+      />
+      <DocBlock
+        title={isAr ? "الخطوة 2 — الإرسال" : "Step 2 — send"}
+        code={`curl -X POST ${API_BASE}/api/v1/messages \\
+  -H "Authorization: Bearer YOUR_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "to": "966500000000",
+    "type": "document",
+    "document_id": "THE_ID_FROM_STEP_1",
+    "caption": "شهادتك جاهزة"
+  }'`}
+      />
+      <div style={{ fontSize: 12, color: "inherit", marginBottom: 14 }}>
+        {isAr
+          ? "الملفّات تُحفَظ 7 أيّام ثم تُمسَح تلقائيّاً (يبقى سجلّ التدقيق). إن كنت تستضيف الملف بنفسك على رابط HTTPS عامّ، استخدم document_url بدل document_id."
+          : "Files are retained for 7 days then purged automatically (the audit record is kept). If you host the file yourself at a public HTTPS URL, use document_url instead of document_id."}
+      </div>
+
+      <h3 style={{ margin: "20px 0 6px", fontSize: 14, fontWeight: 700 }}>
+        {isAr ? "4) حالة التسليم" : "4) Delivery status"}
+      </h3>
+      <DocBlock
+        code={`curl "${API_BASE}/api/v1/messages/MESSAGE_ID" \\
+  -H "Authorization: Bearer YOUR_KEY"
+
+# status: sent | delivered | read | failed`}
+      />
+      <div style={{ fontSize: 12, color: "inherit", marginBottom: 14 }}>
+        {isAr
+          ? "يقبل معرّف الرسالة عندنا أو الـ whatsapp_id — مفيد عند الربط مع أحداث الـ webhook."
+          : "Accepts either our message id or the whatsapp_id — useful when correlating with webhook events."}
+      </div>
+
+      <h3 style={{ margin: "20px 0 6px", fontSize: 14, fontWeight: 700 }}>
+        {isAr ? "5) القوالب المعتمدة" : "5) Approved templates"}
+      </h3>
+      <DocBlock
+        code={`curl "${API_BASE}/api/v1/templates" \\
+  -H "Authorization: Bearer YOUR_KEY"
+
+# → name, category, language, header_format, variables`}
       />
 
       <h3 style={{ margin: "20px 0 6px", fontSize: 14, fontWeight: 700 }}>
-        {isAr ? "جلب المحادثات" : "List conversations"}
+        {isAr ? "6) رمز التحقّق (OTP)" : "6) One-time passcode (OTP)"}
+      </h3>
+      <div style={{ fontSize: 12.5, color: "inherit", marginBottom: 10, lineHeight: 1.7 }}>
+        {isAr
+          ? "نحن نولّد الرمز ونرسله ونتحقّق منه — أنت لا ترسل الرمز ولا تستقبله أبداً. يتطلّب قالباً معتمداً من فئة authentication."
+          : "We generate, deliver and verify the code — you never send or receive it. Requires an approved authentication-category template."}
+      </div>
+      <DocBlock
+        title={isAr ? "إرسال الرمز" : "Send the code"}
+        code={`curl -X POST ${API_BASE}/api/v1/otp/send \\
+  -H "Authorization: Bearer YOUR_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"to": "966500000000", "template_name": "login_code"}'
+
+# 202 → { "data": { "otp_id": "…", "expires_in": 300 } }`}
+      />
+      <DocBlock
+        title={isAr ? "التحقّق من الرمز" : "Verify the code"}
+        code={`curl -X POST ${API_BASE}/api/v1/otp/verify \\
+  -H "Authorization: Bearer YOUR_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"to": "966500000000", "code": "482913"}'
+
+# 200 → { "data": { "verified": true } }`}
+      />
+      <div style={{ fontSize: 12, color: "inherit", marginBottom: 14 }}>
+        {isAr
+          ? "الرمز صالح 5 دقائق، يُستخدم مرّة واحدة، وله سقف محاولات — بعد استنفاده يُلغى الرمز حتى لو أُدخل صحيحاً. بين كل إرسالين مهلة 30 ثانية، وبحدّ أقصى 5 إرسالات للرقم في الساعة."
+          : "Codes live 5 minutes, are single-use, and have an attempt cap — once spent the code is burned even if entered correctly. There is a 30-second cooldown between sends and a ceiling of 5 sends per number per hour."}
+      </div>
+
+      <h3 style={{ margin: "20px 0 6px", fontSize: 14, fontWeight: 700 }}>
+        {isAr ? "7) جهات الاتصال والمحادثات" : "7) Contacts and conversations"}
       </h3>
       <DocBlock
-        code={`curl "${API_BASE}/api/v1/conversations?status=open&limit=50" \\
+        code={`curl "${API_BASE}/api/v1/contacts?page=1&limit=50" \\
+  -H "Authorization: Bearer YOUR_KEY"
+
+curl "${API_BASE}/api/v1/conversations?status=open&limit=50" \\
   -H "Authorization: Bearer YOUR_KEY"`}
       />
+
+      <ErrorCodesTable />
     </Card>
+  );
+}
+
+/**
+ * Documented failure codes for /v1. Every error response carries the
+ * same envelope — { success: false, message, errors.code } — so an
+ * integrator branches on errors.code and never on the message text,
+ * which is localised and may change.
+ */
+const ERROR_CODES: Array<{ code: string; http: string; ar: string; en: string }> = [
+  { code: "INVALID_API_KEY",   http: "401", ar: "المفتاح غير صالح أو غير مُرسَل",              en: "Key missing, malformed or revoked" },
+  { code: "API_QUOTA_EXCEEDED", http: "429", ar: "تجاوزت سقف الطلبات الشهري لباقتك",           en: "Monthly request quota for your plan is spent" },
+  { code: "INVALID_PHONE",     http: "422", ar: "رقم الجوّال غير صالح",                        en: "Phone number is not usable" },
+  { code: "UNSUPPORTED_TYPE",  http: "422", ar: "قيمة type غير معروفة",                        en: "Unknown value for type" },
+  { code: "TEMPLATE_NOT_FOUND", http: "404", ar: "لا يوجد قالب بهذا الاسم في حسابك",           en: "No template by that name on your account" },
+  { code: "TEMPLATE_NOT_APPROVED", http: "422", ar: "القالب لم تعتمده Meta بعد",               en: "Template is not approved by Meta yet" },
+  { code: "TEMPLATE_NOT_AUTHENTICATION", http: "422", ar: "رمز التحقّق يتطلّب قالب فئة authentication", en: "OTP requires an authentication-category template" },
+  { code: "DOCUMENT_NOT_FOUND", http: "404", ar: "لا يوجد مستند بهذا المعرّف في حسابك",        en: "No document by that id on your account" },
+  { code: "DOCUMENT_EXPIRED",  http: "422", ar: "المستند تجاوز مدّة الاحتفاظ ومُسح",           en: "Document passed its retention window and was purged" },
+  { code: "OTP_INVALID",       http: "422", ar: "الرمز خاطئ أو منتهٍ أو مستخدَم",              en: "Code is wrong, expired or already used" },
+  { code: "OTP_COOLDOWN",      http: "429", ar: "طلب إعادة إرسال قبل انتهاء المهلة",           en: "Resend requested before the cooldown elapsed" },
+  { code: "OTP_RATE_LIMITED",  http: "429", ar: "تجاوزت سقف الإرسال بالساعة لهذا الرقم",       en: "Hourly send ceiling for this number reached" },
+  { code: "SEND_FAILED",       http: "422", ar: "رفض من واتساب — راجع message للسبب",          en: "Rejected upstream — see message for the reason" },
+];
+
+function ErrorCodesTable() {
+  const { colors: C } = useTheme();
+  const { isAr } = useLocale();
+
+  return (
+    <>
+      <h3 style={{ margin: "26px 0 6px", fontSize: 14, fontWeight: 700 }}>
+        {isAr ? "رموز الأخطاء" : "Error codes"}
+      </h3>
+      <div style={{ fontSize: 12.5, color: C.t2, marginBottom: 10, lineHeight: 1.7 }}>
+        {isAr
+          ? "كل خطأ يعود بنفس الشكل: { success: false, message, errors.code }. اعتمد على errors.code في منطقك — نصّ message مترجَم وقد يتغيّر."
+          : "Every failure returns the same shape: { success: false, message, errors.code }. Branch on errors.code — the message text is localised and may change."}
+      </div>
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <thead>
+            <tr style={{ background: C.inp }}>
+              <th style={{ padding: "8px 10px", textAlign: isAr ? "right" : "left", fontWeight: 700 }}>
+                {isAr ? "الرمز" : "Code"}
+              </th>
+              <th style={{ padding: "8px 10px", textAlign: "center", fontWeight: 700, width: 60 }}>HTTP</th>
+              <th style={{ padding: "8px 10px", textAlign: isAr ? "right" : "left", fontWeight: 700 }}>
+                {isAr ? "المعنى" : "Meaning"}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {ERROR_CODES.map((e) => (
+              <tr key={e.code} style={{ borderTop: `1px solid ${C.brd}` }}>
+                <td style={{ padding: "8px 10px", fontFamily: "monospace", direction: "ltr", textAlign: "left" }}>
+                  {e.code}
+                </td>
+                <td style={{ padding: "8px 10px", textAlign: "center", color: C.t2 }}>{e.http}</td>
+                <td style={{ padding: "8px 10px", color: C.t2 }}>{isAr ? e.ar : e.en}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+function Callout({ children }: { children: React.ReactNode }) {
+  const { colors: C } = useTheme();
+  return (
+    <div style={{
+      padding: 12,
+      borderRadius: 10,
+      background: `${C.warn}12`,
+      border: `1px solid ${C.warn}40`,
+      fontSize: 12.5,
+      lineHeight: 1.7,
+      marginBottom: 16,
+    }}>
+      {children}
+    </div>
   );
 }
 
