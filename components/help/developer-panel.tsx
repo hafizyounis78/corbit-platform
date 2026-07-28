@@ -31,6 +31,9 @@ const API_BASE = process.env.NEXT_PUBLIC_PUBLIC_API_URL
 const EVENTS = [
   { key: "message.received",    desc_ar: "رسالة جديدة من عميل وصلت لرقمك",            desc_en: "A new inbound message from a customer" },
   { key: "message.sent",        desc_ar: "رسالة صدرت من الـ bot أو الـ agent أو الـ system", desc_en: "An outbound message left your account" },
+  { key: "message.delivered",   desc_ar: "الرسالة وصلت جهاز المستلم",                     desc_en: "The message reached the recipient's device" },
+  { key: "message.read",        desc_ar: "المستلم فتح الرسالة",                            desc_en: "The recipient opened the message" },
+  { key: "message.failed",      desc_ar: "الإرسال فشل — السبب في failure داخل الـ payload", desc_en: "Delivery failed — the reason is in payload.failure" },
   { key: "conversation.opened", desc_ar: "محادثة جديدة افتُتحت",                       desc_en: "A new conversation was opened" },
   { key: "conversation.assigned", desc_ar: "محادثة عُيّنت لعضو فريق",                  desc_en: "A conversation was assigned to an agent" },
   { key: "conversation.closed", desc_ar: "محادثة أُغلقت",                              desc_en: "A conversation was closed" },
