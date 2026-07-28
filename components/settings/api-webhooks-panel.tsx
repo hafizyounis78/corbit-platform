@@ -32,9 +32,18 @@ interface Webhook {
   secret?: string;
 }
 
+// Must stay in step with the events WebhookDispatcherService actually
+// fires — an option listed here that nothing dispatches is a webhook
+// the tenant subscribes to and then waits on forever.
 const WEBHOOK_EVENTS = [
   "message.received",
   "message.sent",
+  // Delivery lifecycle. message.sent only means Corbit accepted the
+  // send; these three are what tell an integration the recipient
+  // actually got it — or why they didn't.
+  "message.delivered",
+  "message.read",
+  "message.failed",
   "conversation.opened",
   "conversation.assigned",
   "conversation.closed",
