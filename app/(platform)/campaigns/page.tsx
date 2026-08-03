@@ -2826,7 +2826,7 @@ function RecipientsModal({
             }}
             title={isAr ? "\u0625\u063a\u0644\u0627\u0642" : "Close"}
           >
-            \u00d7
+            {"\u00d7"}
           </button>
         </div>
 

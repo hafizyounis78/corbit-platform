@@ -783,7 +783,7 @@ export default function TemplatesPage() {
                     }}
                   >
                     <span style={{ flex: 1 }}>
-                      \u26a0\ufe0f {isAr ? "\u0648\u0633\u0627\u0626\u0637 \u0627\u0644\u0640 header \u0644\u0645 \u062a\u064f\u0631\u0641\u0639 \u0644\u0640 Meta \u0628\u0639\u062f" : "Header media not uploaded to Meta yet"}
+                      {"\u26a0\ufe0f"} {isAr ? "\u0648\u0633\u0627\u0626\u0637 \u0627\u0644\u0640 header \u0644\u0645 \u062a\u064f\u0631\u0641\u0639 \u0644\u0640 Meta \u0628\u0639\u062f" : "Header media not uploaded to Meta yet"}
                     </span>
                     <Button
                       outline
