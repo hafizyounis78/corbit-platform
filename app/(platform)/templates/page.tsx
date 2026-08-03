@@ -60,6 +60,13 @@ export default function TemplatesPage() {
     return localStorage.getItem("corbit:templates:last-sync");
   });
   const [errorDetailsTarget, setErrorDetailsTarget] = useState<any | null>(null);
+  // Editing an already-submitted template. Holds the *detail* row (from
+  // GET /templates/{id}) rather than the list row, because the list
+  // collapses the two translations into one localized body and the edit
+  // form needs both sides raw. Non-null means the shared template modal
+  // is in edit mode.
+  const [editTarget, setEditTarget] = useState<any | null>(null);
+  const [loadingEditTarget, setLoadingEditTarget] = useState<string | null>(null);
   const [creatingTemplate, setCreatingTemplate] = useState(false);
   const [resubmitting, setResubmitting] = useState(false);
   const [previewLang, setPreviewLang] = useState<"ar" | "en">("ar");
@@ -268,6 +275,58 @@ export default function TemplatesPage() {
     if (cat === "utility") return C.info;
     if (cat === "authentication") return COLORS.ai;
     return C.t2;
+  };
+
+  // Meta only lets an already-submitted template be edited while it is
+  // approved or rejected — a template mid-review has to finish first.
+  const canEditTemplate = (status: string) => status === "approved" || status === "rejected";
+
+  /**
+   * Load the full template row and open the shared modal in edit mode.
+   *
+   * The list row won't do: it carries one localized body, so prefilling
+   * from it would write Arabic copy into the English translation of a
+   * bilingual template. The detail endpoint returns both sides raw, plus
+   * the remaining Meta edit allowance.
+   */
+  const openEditModal = async (id: string) => {
+    setLoadingEditTarget(id);
+    try {
+      const res = await api.get(`/templates/${id}`);
+      const detail = res.data?.data ?? res.data;
+      const raw = detail?.raw ?? {};
+
+      setNewTemplate({
+        name: detail.name ?? "",
+        category: detail.cat ?? detail.category ?? "utility",
+        language: detail.ln ?? detail.language ?? "ar",
+        header: raw.header ?? "",
+        header_format: detail.header_format ?? "none",
+        header_media_url: detail.header_media_url ?? "",
+        header_media_disk: "",
+        header_media_path: "",
+        header_media_filename: detail.header_media_filename ?? "",
+        header_meta_handle: "",
+        header_upload_status: detail.header_upload_status ?? "",
+        header_upload_error: detail.header_upload_error ?? "",
+        body: raw.body ?? "",
+        body_ar: raw.body_ar ?? "",
+        footer: raw.footer ?? "",
+        buttons: detail.buttons ?? [],
+        body_examples: [],
+      });
+      setPreviewLang((detail.ln ?? "ar").startsWith("ar") ? "ar" : "en");
+      setContentReport(null);
+      setEditTarget(detail);
+    } catch (err: any) {
+      showToast(
+        err?.response?.data?.message
+          || (isAr ? "تعذّر تحميل القالب للتعديل" : "Could not load the template for editing"),
+        "error",
+      );
+    } finally {
+      setLoadingEditTarget(null);
+    }
   };
 
   // ---------- Detail View ----------
@@ -743,21 +802,48 @@ export default function TemplatesPage() {
                       </span>
                     </div>
                   </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeleteTarget(tmpl);
-                    }}
-                    title={isAr ? "\u062D\u0630\u0641" : "Delete"}
-                    style={{
-                      width: 30, height: 30, borderRadius: 8,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      background: "#EF444412", color: "#EF4444",
-                      border: `1px solid #EF444430`, cursor: "pointer", flexShrink: 0,
-                    }}
-                  >
-                    <Icon name="x" size={14} />
-                  </button>
+                  <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                    {/* Edit at Meta. Hidden mid-review: Meta refuses an
+                        edit while a template is PENDING, so offering the
+                        button there would only produce a failed round
+                        trip. */}
+                    {canEditTemplate(tmpl.st) && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (loadingEditTarget) return;
+                          openEditModal(String(tmpl.id));
+                        }}
+                        disabled={loadingEditTarget === String(tmpl.id)}
+                        title={isAr ? "\u062A\u0639\u062F\u064A\u0644 \u0627\u0644\u0642\u0627\u0644\u0628" : "Edit template"}
+                        style={{
+                          width: 30, height: 30, borderRadius: 8,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          background: `${C.pri}12`, color: C.pri,
+                          border: `1px solid ${C.pri}30`,
+                          cursor: loadingEditTarget === String(tmpl.id) ? "wait" : "pointer",
+                          opacity: loadingEditTarget === String(tmpl.id) ? 0.6 : 1,
+                        }}
+                      >
+                        <Icon name={loadingEditTarget === String(tmpl.id) ? "timer" : "pencil"} size={14} />
+                      </button>
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteTarget(tmpl);
+                      }}
+                      title={isAr ? "\u062D\u0630\u0641" : "Delete"}
+                      style={{
+                        width: 30, height: 30, borderRadius: 8,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        background: "#EF444412", color: "#EF4444",
+                        border: `1px solid #EF444430`, cursor: "pointer",
+                      }}
+                    >
+                      <Icon name="x" size={14} />
+                    </button>
+                  </div>
                 </div>
                 <div style={{ fontSize: 11.5, color: C.t2, marginTop: 4 }}>
                   {t("lng")}: {tmpl.ln}
@@ -1057,13 +1143,26 @@ export default function TemplatesPage() {
         </div>
       </Modal>
 
-      {/* ── Create Template Modal ── */}
+      {/* ── Create / Edit Template Modal ──
+           One modal serves both. An edit is the same form with the
+           fields Meta freezes (name, category, language) locked and a
+           different destination on submit; two copies of a form this
+           size would drift apart within a release. */}
       <Modal
-        open={showCreateModal}
-        onClose={() => !creatingTemplate && setShowCreateModal(false)}
-        title={isAr ? "إنشاء قالب" : "Create Template"}
+        open={showCreateModal || !!editTarget}
+        onClose={() => {
+          if (creatingTemplate) return;
+          setShowCreateModal(false);
+          setEditTarget(null);
+        }}
+        title={editTarget
+          ? (isAr ? `تعديل القالب: ${editTarget.name}` : `Edit template: ${editTarget.name}`)
+          : (isAr ? "إنشاء قالب" : "Create Template")}
         wide
-        submitLabel={creatingTemplate ? (isAr ? "\u062C\u0627\u0631\u064D \u0627\u0644\u0625\u0631\u0633\u0627\u0644 \u0625\u0644\u0649 Meta..." : "Submitting to Meta...") : (isAr ? "إنشاء القالب" : "Create Template")}
+        submitLabel={creatingTemplate ? (isAr ? "\u062C\u0627\u0631\u064D \u0627\u0644\u0625\u0631\u0633\u0627\u0644 \u0625\u0644\u0649 Meta..." : "Submitting to Meta...")
+          : editTarget
+            ? (isAr ? "حفظ وإرسال للمراجعة" : "Save & submit for review")
+            : (isAr ? "إنشاء القالب" : "Create Template")}
         submitDisabled={creatingTemplate}
         submitLoading={creatingTemplate}
         onSubmit={async () => {
@@ -1180,11 +1279,31 @@ export default function TemplatesPage() {
           } else {
             payload.header_format = "none";
           }
-          if (newTemplate.footer.trim()) payload.footer = newTemplate.footer;
-          if (newTemplate.buttons.length > 0) payload.buttons = newTemplate.buttons;
+          // Always send the footer on an edit, even when cleared — the
+          // backend replaces the whole component set, so omitting it
+          // would silently keep the old footer at Meta.
+          if (newTemplate.footer.trim() || editTarget) payload.footer = newTemplate.footer;
+          if (newTemplate.buttons.length > 0 || editTarget) payload.buttons = newTemplate.buttons;
 
           setCreatingTemplate(true);
           try {
+            if (editTarget) {
+              // Frozen at Meta — the backend drops them, and sending them
+              // would imply the form could change them.
+              delete payload.name;
+              delete payload.category;
+              delete payload.language;
+
+              const res = await api.post(`/templates/${editTarget.id}/edit-remote`, payload);
+              showToast(
+                res.data?.message
+                  || (isAr ? "تمّ إرسال التعديل إلى Meta — القالب الآن قيد المراجعة" : "Edit submitted to Meta — the template is under review"),
+              );
+              setEditTarget(null);
+              mutate();
+              return;
+            }
+
             await api.post("/templates", payload);
             showToast(isAr ? "تم إنشاء القالب بنجاح" : "Template created successfully");
             setShowCreateModal(false);
@@ -1201,6 +1320,33 @@ export default function TemplatesPage() {
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 340px", gap: 24 }}>
           {/* Left: Form Fields */}
           <div style={{ display: "flex", flexDirection: "column", gap: 14, maxHeight: "65vh", overflowY: "auto", paddingInlineEnd: 8 }}>
+
+            {/* Edit-mode notice. The consequence people get wrong is that
+                an edit is not a hot-swap: the template stops sending
+                until Meta approves it again. Saying it before they type
+                is the whole point of the banner. */}
+            {editTarget && (
+              <div style={{
+                fontSize: 12, lineHeight: 1.7, padding: "10px 12px", borderRadius: 10,
+                background: `${COLORS.warn}12`, border: `1px solid ${COLORS.warn}35`, color: C.txt,
+              }}>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                  {isAr ? "⚠️ التعديل يُعيد القالب إلى المراجعة" : "⚠️ Editing sends the template back to review"}
+                </div>
+                <div style={{ color: C.t2 }}>
+                  {isAr
+                    ? "لن يمكن الإرسال بهذا القالب حتى تعتمده Meta من جديد (عادةً من دقائق إلى 24 ساعة). الاسم واللغة والفئة لا يمكن تغييرها — أنشئ نسخة جديدة لتغييرها."
+                    : "The template cannot be sent until Meta approves it again (usually minutes to 24 hours). Name, language and category are frozen — duplicate the template to change those."}
+                </div>
+                {editTarget.edit_quota && (
+                  <div style={{ color: C.t2, marginTop: 6 }}>
+                    {isAr
+                      ? `متبقّي ${editTarget.edit_quota.remaining_this_month} تعديل خلال آخر 30 يوماً${editTarget.edit_quota.edited_today ? " — وقد استُهلك تعديل اليوم بالفعل" : ""}.`
+                      : `${editTarget.edit_quota.remaining_this_month} edits left in the trailing 30 days${editTarget.edit_quota.edited_today ? " — today's edit is already used" : ""}.`}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Template Name */}
             <div>
@@ -1220,7 +1366,8 @@ export default function TemplatesPage() {
                   setNewTemplate({ ...newTemplate, name: cleaned });
                 }}
                 placeholder={isAr ? "مثال: order_confirmation" : "e.g. order_confirmation"}
-                style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none", boxSizing: "border-box" }}
+                disabled={!!editTarget}
+                style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: editTarget ? C.t2 : C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none", boxSizing: "border-box", cursor: editTarget ? "not-allowed" : "text" }}
               />
               <div style={{ fontSize: 11, color: C.t3, marginTop: 6, lineHeight: 1.5 }}>
                 {isAr
@@ -1253,7 +1400,8 @@ export default function TemplatesPage() {
                       };
                     });
                   }}
-                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none", cursor: "pointer", boxSizing: "border-box" }}
+                  disabled={!!editTarget}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: editTarget ? C.t2 : C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none", cursor: editTarget ? "not-allowed" : "pointer", boxSizing: "border-box" }}
                 >
                   <option value="utility">{isAr ? "خدمي" : "Utility"} (خدمي)</option>
                   <option value="marketing">{isAr ? "تسويقي" : "Marketing"} (تسويقي)</option>
@@ -1295,7 +1443,8 @@ export default function TemplatesPage() {
                     else if (val === "en") setPreviewLang("en");
                     else setPreviewLang("ar");
                   }}
-                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none", cursor: "pointer", boxSizing: "border-box" }}
+                  disabled={!!editTarget}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.brd}`, background: C.inp, color: editTarget ? C.t2 : C.txt, fontSize: 13, fontFamily: FONT_FAMILY, outline: "none", cursor: editTarget ? "not-allowed" : "pointer", boxSizing: "border-box" }}
                 >
                   <option value="ar">{isAr ? "عربي" : "Arabic"} (عربي)</option>
                   <option value="en">English</option>
