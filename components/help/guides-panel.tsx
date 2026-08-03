@@ -32,6 +32,23 @@ interface Guide {
 }
 
 /**
+ * Guides that also ship as a printable PDF under /public/guides.
+ *
+ * Deliberately a static list rather than another API call: these are
+ * build-time assets, and a tenant with no guides seeded should still be
+ * able to download them.
+ */
+const PRINTABLE_GUIDES = [
+  {
+    file:    "corbit-autoreply-guide-ar.pdf",
+    titleAr: "دليل الردود الآليّة (PDF)",
+    titleEn: "Auto-Replies Guide (PDF)",
+    descAr:  "الطبقات الثلاث، ترتيب الأولويّة، فترة التهدئة، وقائمة فحص عند توقّف البوت",
+    descEn:  "The three layers, priority order, the cooldown, and a checklist for a silent bot",
+  },
+];
+
+/**
  * Help Center > Guides tab. Fetches the live guide list from
  * /api/help/guides; ops edits land instantly without a deploy.
  * Search filters by title, tag, or any step title — same UX the
@@ -204,6 +221,51 @@ export function GuidesPanel({ onNavigate }: { onNavigate: (path: string) => void
   // List view — cards of all guides with a search box.
   return (
     <div>
+      {/* Printable guides. The in-app walkthroughs are step-by-step and
+          need a screen; these are the same content laid out to be read
+          end to end, printed, or forwarded to a colleague who has no
+          login. Served straight from /public so there is no auth round
+          trip on the download. */}
+      <div style={{ marginBottom: 16 }}>
+        {PRINTABLE_GUIDES.map((doc) => (
+          <a
+            key={doc.file}
+            href={`/guides/${doc.file}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: "flex", alignItems: "center", gap: 12,
+              padding: "12px 14px", borderRadius: 12,
+              background: `${C.pri}0D`, border: `1px solid ${C.pri}33`,
+              textDecoration: "none", color: "inherit",
+            }}
+          >
+            <div style={{
+              width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+              background: `${C.pri}1A`, color: C.pri,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <Icon name="file" size={18} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13.5, fontWeight: 600, color: C.txt }}>
+                {isAr ? doc.titleAr : doc.titleEn}
+              </div>
+              <div style={{ fontSize: 11.5, color: C.t2, marginTop: 2 }}>
+                {isAr ? doc.descAr : doc.descEn}
+              </div>
+            </div>
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0,
+              fontSize: 12, fontWeight: 600, color: C.pri,
+            }}>
+              <Icon name="download" size={14} />
+              <span>PDF</span>
+            </div>
+          </a>
+        ))}
+      </div>
+
       <div style={{
         display: "flex", alignItems: "center", gap: 10,
         padding: "10px 14px", borderRadius: 12, background: C.inp,

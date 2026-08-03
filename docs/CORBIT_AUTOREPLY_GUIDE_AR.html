@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<title>دليل الردود الآليّة في Corbit</title>
+<style>
+  @page { margin: 18mm 16mm; size: A4; }
+  body {
+    font-family: "Tajawal", "Cairo", "Segoe UI", "Arial", sans-serif;
+    font-size: 11pt;
+    line-height: 1.85;
+    color: #1a1a1a;
+    max-width: 100%;
+  }
+  h1 { font-size: 22pt; color: #16A34A; border-bottom: 3px solid #16A34A; padding-bottom: 8px; margin-top: 0; }
+  h2 { font-size: 17pt; color: #0B1D3A; margin-top: 28px; padding-right: 12px; border-right: 4px solid #16A34A; }
+  h3 { font-size: 13pt; color: #34495E; margin-top: 22px; }
+  p  { margin: 8px 0; }
+  ul, ol { padding-right: 24px; padding-left: 0; }
+  li { margin: 5px 0; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 12px 0;
+    font-size: 10.5pt;
+  }
+  th, td {
+    border: 1px solid #d8d8d8;
+    padding: 7px 10px;
+    text-align: right;
+    vertical-align: top;
+  }
+  th { background: #eef7f1; font-weight: 700; color: #0B1D3A; }
+  tr:nth-child(even) td { background: #fafafa; }
+  code {
+    background: #f4f4f4;
+    color: #c0392b;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 90%;
+    /* Let each line pick its own direction from its first strong
+       character — a forced LTR override visibly reverses Arabic. */
+    unicode-bidi: plaintext;
+    display: inline-block;
+  }
+  pre {
+    background: #f6f8f7;
+    border: 1px solid #dbe6df;
+    border-radius: 8px;
+    padding: 12px 14px;
+    overflow: auto;
+    unicode-bidi: plaintext;
+    margin: 10px 0;
+    direction: ltr;
+    text-align: left;
+  }
+  pre code { background: transparent; color: #1a1a1a; padding: 0; display: block; }
+  blockquote {
+    border-right: 4px solid #16A34A;
+    background: #f3faf5;
+    padding: 10px 14px;
+    margin: 12px 0;
+    color: #24503a;
+    border-radius: 4px;
+  }
+  .warn {
+    border-right: 4px solid #FF8A2A;
+    background: #fff8f1;
+    padding: 10px 14px;
+    margin: 12px 0;
+    border-radius: 4px;
+  }
+  .flow {
+    background: #f6f8f7;
+    border: 1px solid #dbe6df;
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 12px 0;
+    font-size: 11pt;
+    line-height: 2.1;
+  }
+  hr { border: 0; border-top: 1px dashed #d0d0d0; margin: 22px 0; }
+  strong { color: #1a1a1a; }
+  .muted { color: #5A6B80; font-size: 10pt; }
+</style>
+</head>
+<body>
+
+<h1>دليل الردود الآليّة في Corbit</h1>
+
+<blockquote>
+<strong>الجمهور:</strong> فريق العميل المسؤول عن إعداد الردود الآليّة &nbsp;|&nbsp;
+<strong>الوقت المتوقّع:</strong> ١٥ دقيقة &nbsp;|&nbsp;
+<strong>المتطلّبات التقنيّة:</strong> صفر — لا يحتاج مبرمج
+</blockquote>
+
+<p class="muted">النسخة التفاعليّة داخل المنصّة: <strong>مركز المساعدة ← كيف تُنشئ الردود الآليّة</strong></p>
+
+<hr/>
+
+<h2>أوّلاً: ثلاث طبقات، لا ميزة واحدة</h2>
+
+<p>أكثر سوء فهم شيوعاً هو التعامل مع «الردّ الآلي» كأنّه شيء واحد. في الواقع عندك <strong>ثلاث طبقات مستقلّة تماماً</strong>، لكلّ واحدة مكانها وقواعدها:</p>
+
+<table>
+<thead><tr><th style="width:28%">الطبقة</th><th style="width:30%">مكانها</th><th>متى تعمل</th></tr></thead>
+<tbody>
+<tr><td><strong>رسائل تلقائيّة</strong><br/>(ترحيب / خارج الدوام)</td><td>الإعدادات ← القنوات</td><td>الترحيب: أوّل رسالة في المحادثة فقط.<br/>خارج الدوام: خارج ساعات العمل</td></tr>
+<tr><td><strong>بوت الكلمات المفتاحيّة</strong></td><td>Bot Builder</td><td>عند ورود كلمة مضبوطة مسبقاً</td></tr>
+<tr><td><strong>الردّ بالذكاء الاصطناعي</strong></td><td>مركز الذكاء الاصطناعي</td><td>لأيّ سؤال حرّ لم يمسكه بوت</td></tr>
+</tbody>
+</table>
+
+<hr/>
+
+<h2>ثانياً: ترتيب الأولويّة</h2>
+
+<p>عند وصول أيّ رسالة، النظام يجرّب بهذا الترتيب <strong>ويتوقّف عند أوّل طبقة تردّ</strong>:</p>
+
+<div class="flow">
+رسالة واردة<br/>
+&nbsp;&nbsp;↓<br/>
+<strong>١.</strong> بوت كلمات مفتاحيّة مطابق؟ &nbsp;——&nbsp; نعم ← يردّ البوت وينتهي<br/>
+&nbsp;&nbsp;↓ لا<br/>
+<strong>٢.</strong> أوّل رسالة في المحادثة؟ &nbsp;——&nbsp; نعم ← رسالة الترحيب<br/>
+&nbsp;&nbsp;↓ لا<br/>
+<strong>٣.</strong> خارج ساعات العمل؟ &nbsp;——&nbsp; نعم ← رسالة خارج الدوام<br/>
+&nbsp;&nbsp;↓ لا<br/>
+<strong>٤.</strong> الذكاء الاصطناعي (إن كان مفعّلاً)
+</div>
+
+<p><strong>نتيجة مهمّة:</strong> لو ردّ البوت، لن تصل رسالة الترحيب. هذا مقصود حتّى لا يستقبل العميل رسالتين متتاليتين.</p>
+
+<hr/>
+
+<h2>ثالثاً: الإعداد خطوة بخطوة</h2>
+
+<h3>١) الترحيب وخارج الدوام — دقيقتان</h3>
+<ol>
+<li>افتح <strong>الإعدادات ← القنوات</strong></li>
+<li>اضبط <strong>ساعات العمل</strong> بدقّة أوّلاً — رسالة «خارج الدوام» تعتمد عليها كليّاً</li>
+<li>فعّل <strong>رسالة الترحيب</strong> واكتب نصّها</li>
+<li>فعّل <strong>رسالة خارج الدوام</strong> واكتب نصّها</li>
+</ol>
+
+<p><strong>حدود مقصودة:</strong></p>
+<ul>
+<li>الترحيب يُرسل <strong>مرّة واحدة</strong> فقط، عند أوّل رسالة من العميل في المحادثة.</li>
+<li>رسالة خارج الدوام محدودة بـ <strong>مرّة كلّ ساعة</strong> لنفس المحادثة، حتّى لا تُزعج العميل الذي يرسل عدّة رسائل.</li>
+</ul>
+
+<h3>٢) بوت الكلمات المفتاحيّة</h3>
+<ol>
+<li><strong>Bot Builder ← بوت جديد</strong></li>
+<li>نوع المشغّل: <strong>كلمة مفتاحيّة</strong></li>
+<li>اكتب الكلمات <strong>مفصولة بفاصلة</strong>، وضع كلّ الصيغ المتوقّعة:<br/>
+<code>الأسعار، اسعار، السعر، كم السعر، price</code></li>
+<li>اكتب نصّ الردّ</li>
+<li>اضغط <strong>نشر</strong> ← بدون هذه الخطوة البوت لا يعمل إطلاقاً</li>
+</ol>
+
+<p>المطابقة <strong>تتسامح مع الأخطاء الإملائيّة القريبة</strong> (للكلمات من ٤ أحرف فأكثر)، فـ«مرحبا» تلتقط «مرحبأ». لكن لا تعتمد على ذلك — اكتب الصيغ الشائعة صراحةً.</p>
+
+<h3>٣) الذكاء الاصطناعي</h3>
+<ol>
+<li><strong>مركز الذكاء الاصطناعي ← فعّل الردّ الآلي</strong></li>
+<li>ارفع ملفّ المعرفة (أسعار، سياسات، أسئلة شائعة)</li>
+<li>تأكّد أنّ <strong>وضع الردّ</strong> في الإعدادات = <strong>هجين</strong></li>
+</ol>
+
+<table>
+<thead><tr><th style="width:22%">الوضع</th><th>السلوك</th></tr></thead>
+<tbody>
+<tr><td><strong>هجين</strong></td><td>البوت أوّلاً ثمّ الذكاء الاصطناعي — <strong>الموصى به</strong></td></tr>
+<tr><td>بوت فقط</td><td>يمنع الذكاء الاصطناعي تماماً</td></tr>
+<tr><td>ذكاء فقط</td><td>يتخطّى بوتات الكلمات المفتاحيّة تماماً</td></tr>
+</tbody>
+</table>
+
+<hr/>
+
+<h2>رابعاً: فترة التهدئة — اقرأ هذا القسم</h2>
+
+<div class="warn">
+<p><strong>كلّ بوت له فترة تهدئة افتراضيّة ٢٤ ساعة لكلّ رقم جوّال.</strong></p>
+<p>بمعنى: لو جرّب موظّف البوت الساعة العاشرة صباحاً، <strong>لن يردّ عليه مرّة أخرى قبل العاشرة من صباح الغد</strong> — بينما يردّ طبيعيّاً على زميله الذي يجرّب لأوّل مرّة.</p>
+<p>هذا بالضبط تفسير الملاحظة الشائعة: <strong>«البوت يردّ على بعض الموظّفين ولا يردّ على آخرين»</strong>. السلوك ليس عشوائيّاً ولا عطلاً.</p>
+</div>
+
+<p><strong>أثناء الاختبار:</strong> اضبط فترة التهدئة على <code>0</code> من إعدادات البوت، ثمّ أعدها إلى ٢٤ بعد انتهاء التجربة. الغرض من التهدئة حماية جودة الرقم عند Meta من تكرار الإزعاج على نفس العميل.</p>
+
+<hr/>
+
+<h2>خامساً: البوت لا يردّ — قائمة الفحص</h2>
+
+<p>راجع بهذا الترتيب:</p>
+
+<table>
+<thead><tr><th style="width:6%">#</th><th style="width:38%">افحص</th><th>التفصيل</th></tr></thead>
+<tbody>
+<tr><td>١</td><td>هل البوت <strong>منشور</strong>؟</td><td>المسوّدة لا تعمل إطلاقاً</td></tr>
+<tr><td>٢</td><td>هل الكلمة مطابقة فعلاً؟</td><td>جرّب نفس نصّ العميل حرفيّاً</td></tr>
+<tr><td>٣</td><td><strong>هل الرقم داخل فترة تهدئة؟</strong></td><td>السبب الأكثر شيوعاً</td></tr>
+<tr><td>٤</td><td>هل العميل ألغى اشتراكه؟</td><td>من أرسل «إيقاف» أو «stop» سابقاً تتوقّف عنه كلّ الردود الآليّة</td></tr>
+<tr><td>٥</td><td>هل المحادثة عالقة داخل تدفّق سابق؟</td><td>إن كان البوت ينتظر إجابة على سؤال سابق، فالرسالة الجديدة تُقرأ كإجابة لا كمشغّل جديد</td></tr>
+<tr><td>٦</td><td>هل رقم الاختبار هو نفسه رقم واتساب أعمال مربوط عندنا؟</td><td>في هذه الحالة يُوقَف الردّ عمداً لمنع نظامين من مراسلة بعضهما</td></tr>
+<tr><td>٧</td><td>هل الباقة تسمح؟</td><td>باقة Starter لا تشغّل بوتات Bot Builder — الترحيب وخارج الدوام يعملان في كلّ الباقات</td></tr>
+<tr><td>٨</td><td>هل انتهت صلاحيّة الاشتراك؟</td><td>انتهاء الخطّة يوقف كلّ الإرسال</td></tr>
+</tbody>
+</table>
+
+<h3>للدعم الفنّي</h3>
+
+<p>أمر تشخيص واحد يعرض كلّ البوّابات أعلاه لرقم واحد في شاشة واحدة، ويسمّي أوّل واحدة توقف الردّ:</p>
+
+<pre><code>php artisan corbit:diag-bot 966501234567
+
+php artisan corbit:diag-bot 966501234567 --text="اسعار"
+
+php artisan corbit:diag-bot 966501234567 --reset-cooldown</code></pre>
+
+<p class="muted">الأمر الأوّل للتشخيص، الثاني لاختبار مطابقة الكلمة، الثالث لتصفير فترة التهدئة للرقم.</p>
+
+</body>
+</html>
