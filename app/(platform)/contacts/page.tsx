@@ -1048,8 +1048,17 @@ export default function ContactsPage() {
             setShowAddModal(false);
             mutate();
           }).catch((err) => {
-            const msg = err?.response?.data?.message;
-            showToast(msg || (isAr ? "فشل إضافة جهة الاتصال" : "Failed to add contact"));
+            // Field errors first — a 422 message is only ever a summary
+            // ("The given data was invalid"), while errors.phone[0] holds
+            // the sentence that actually names the problem (duplicate
+            // number, bad format). Falling straight to `message` is how a
+            // duplicate phone used to reach the operator as "Server Error".
+            const data = err?.response?.data;
+            const fieldError = data?.errors && Object.values(data.errors as Record<string, string[]>)[0]?.[0];
+            showToast(
+              fieldError || data?.message || (isAr ? "فشل إضافة جهة الاتصال" : "Failed to add contact"),
+              "error",
+            );
           });
         }}
       >
