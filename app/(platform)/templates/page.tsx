@@ -26,6 +26,28 @@ function templateStatusColor(status: string): string {
   return "#555764";
 }
 
+/**
+ * True when a CTA button URL points back into WhatsApp. Meta rejects
+ * those with subcode 2388081 ("Direct links to WhatsApp aren't allowed
+ * for buttons") — a message already inside WhatsApp can't link to
+ * WhatsApp. Catching it here saves a full submit → reject round-trip.
+ *
+ * Matches on the host, not a substring, so a real link such as
+ * https://shop.example.com/whatsapp-offers still passes.
+ */
+function pointsAtWhatsApp(raw: string): boolean {
+  const v = (raw || "").trim();
+  if (!v) return false;
+  try {
+    const host = new URL(v.includes("://") ? v : `https://${v}`)
+      .hostname.toLowerCase()
+      .replace(/^www\./, "");
+    return host === "wa.me" || host === "wa.link" || host === "whatsapp.com" || host.endsWith(".whatsapp.com");
+  } catch {
+    return false;
+  }
+}
+
 export default function TemplatesPage() {
   const { colors: C } = useTheme();
   const { t, isAr, lang } = useLocale();
@@ -853,7 +875,20 @@ export default function TemplatesPage() {
                     onClick={(e) => { e.stopPropagation(); setErrorDetailsTarget(tmpl); }}
                     style={{ fontSize: 11, color: "#EF4444", marginTop: 6, lineHeight: 1.5, cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 2 }}
                   >
-                    {isAr ? "\u0633\u0628\u0628 \u0627\u0644\u0631\u0641\u0636:" : "Reason:"} {(tmpl as any).rejection_reason}
+                    {/* Translated, not raw. The unfiltered Meta payload
+                        is a wall of JSON that pushed the card to five
+                        lines and told the operator nothing actionable;
+                        the full payload still lives one click away in
+                        the error-details modal. */}
+                    <span style={{ display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                      {isAr ? "\u0633\u0628\u0628 \u0627\u0644\u0631\u0641\u0636:" : "Reason:"}{" "}
+                      {translateMetaError(
+                        (tmpl as any).provider_error_details?.raw
+                          ?? (tmpl as any).provider_error_details
+                          ?? (tmpl as any).rejection_reason,
+                        isAr,
+                      )}
+                    </span>
                   </div>
                 )}
                 {/* Pending media handle \u2014 Meta upload didn't complete on
@@ -1217,6 +1252,22 @@ export default function TemplatesPage() {
               );
               return;
             }
+          }
+          // A wa.me link is a perfectly valid URL, so nothing upstream
+          // stops it — only Meta does, hours later, with subcode
+          // 2388081. Block it here so the name isn't burned on a
+          // rejected template.
+          const waButton = newTemplate.buttons.findIndex(
+            (b) => b.type === "url" && pointsAtWhatsApp(b.value || ""),
+          );
+          if (waButton !== -1) {
+            showToast(
+              isAr
+                ? `الزرّ رقم ${waButton + 1}: ميتا تمنع الروابط التي تفتح واتساب. غيّره إلى "ردّ سريع" أو "هاتف"، أو ضع رابط موقعك.`
+                : `Button #${waButton + 1}: Meta doesn't allow links that open WhatsApp. Change it to Quick Reply or Phone, or use your website URL.`,
+              "error",
+            );
+            return;
           }
           // Final content-policy gate — re-run the check at submit
           // even if the operator already saw the warning. Blocks
@@ -1892,29 +1943,43 @@ export default function TemplatesPage() {
                       <Icon name="x" size={14} />
                     </button>
                   </div>
-                  {btn.type === "url" && (
-                    <input
-                      value={btn.value || ""}
-                      onChange={(e) => {
-                        const btns = [...newTemplate.buttons];
-                        btns[i] = { ...btns[i], value: e.target.value };
-                        setNewTemplate({ ...newTemplate, buttons: btns });
-                      }}
-                      placeholder={isAr ? "الرابط (مثال: https://corbit.sa)" : "URL (e.g. https://corbit.sa)"}
-                      type="url"
-                      dir="ltr"
-                      style={{
-                        padding: "8px 12px",
-                        borderRadius: 8,
-                        border: `1px solid ${C.brd}`,
-                        background: C.inp,
-                        color: C.txt,
-                        fontSize: 12.5,
-                        fontFamily: FONT_FAMILY,
-                        outline: "none",
-                      }}
-                    />
-                  )}
+                  {btn.type === "url" && (() => {
+                    const isWaLink = pointsAtWhatsApp(btn.value || "");
+                    return (
+                      <>
+                        <input
+                          value={btn.value || ""}
+                          onChange={(e) => {
+                            const btns = [...newTemplate.buttons];
+                            btns[i] = { ...btns[i], value: e.target.value };
+                            setNewTemplate({ ...newTemplate, buttons: btns });
+                          }}
+                          placeholder={isAr ? "الرابط (مثال: https://corbit.sa)" : "URL (e.g. https://corbit.sa)"}
+                          type="url"
+                          dir="ltr"
+                          style={{
+                            padding: "8px 12px",
+                            borderRadius: 8,
+                            border: `1px solid ${isWaLink ? COLORS.err : C.brd}`,
+                            background: C.inp,
+                            color: C.txt,
+                            fontSize: 12.5,
+                            fontFamily: FONT_FAMILY,
+                            outline: "none",
+                          }}
+                        />
+                        {/* Meta subcode 2388081 — say it before submit,
+                            not 20 minutes later as a rejection card. */}
+                        {isWaLink && (
+                          <div style={{ fontSize: 11, color: COLORS.err, lineHeight: 1.7 }}>
+                            {isAr
+                              ? "ميتا ترفض أزرار تفتح واتساب — الرسالة أصلاً داخل واتساب. اختر \"ردّ سريع\" أو \"هاتف\" من القائمة، أو ضع رابط موقعك."
+                              : "Meta rejects buttons that open WhatsApp — the message is already in WhatsApp. Pick \"Quick Reply\" or \"Phone\" instead, or use your website URL."}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                   {btn.type === "phone" && (
                     <input
                       value={btn.value || ""}

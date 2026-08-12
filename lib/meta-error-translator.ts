@@ -49,7 +49,47 @@ type Pattern = {
  * the operator should know WHAT to change, not just that something
  * is wrong.
  */
+/**
+ * Meta error subcodes we've hit in production, keyed by subcode.
+ *
+ * Checked BEFORE the regex dictionary. Two reasons: the subcode is the
+ * one field Meta never rewrites, and the surrounding payload usually
+ * also carries generic text ("Invalid parameter") that a broad pattern
+ * below would match first and bury the real cause.
+ *
+ * The regex fallbacks in PATTERNS still cover the same cases for
+ * payloads that arrive as a bare string with no parsed subcode.
+ */
+const SUBCODES: Record<number, { ar: string; en: string }> = {
+  // "Direct links to WhatsApp aren't allowed for buttons"
+  2388081: {
+    ar: "ميتا تمنع أزرار الروابط التي تفتح واتساب (wa.me أو whatsapp.com) — الرسالة أصلاً داخل واتساب. غيّر الزرّ إلى \"ردّ سريع\" أو زرّ اتصال، أو وجّه الرابط لموقعك.",
+    en: "Meta doesn't allow URL buttons that open WhatsApp (wa.me or whatsapp.com) — the message is already inside WhatsApp. Switch the button to Quick Reply or Call, or point it at your website.",
+  },
+  // "Message template language is being deleted" — 30-day name lock
+  2388023: {
+    ar: "هذا الاسم مع هذه اللغة محذوف حديثاً، وميتا تحجزه 30 يوماً قبل السماح بإعادة استخدامه. أنشئ القالب باسم مختلف (مثال: أضف ‎_v2) أو انتظر 4 أسابيع.",
+    en: "This name + language was deleted recently, and Meta reserves it for 30 days before it can be reused. Create the template under a different name (e.g. add _v2) or wait 4 weeks.",
+  },
+};
+
 const PATTERNS: Pattern[] = [
+  // — Meta subcodes seen in production —
+  // Text fallbacks for the SUBCODES above, used when the payload
+  // reaches us as a raw string (no parsed error_subcode to read).
+  // They sit first so the generic "Invalid parameter" pattern further
+  // down doesn't claim the match.
+  {
+    match: /direct links to whatsapp aren'?t allowed|2388081/i,
+    ar: SUBCODES[2388081].ar,
+    en: SUBCODES[2388081].en,
+  },
+  {
+    match: /(language|content) is being deleted|2388023/i,
+    ar: SUBCODES[2388023].ar,
+    en: SUBCODES[2388023].en,
+  },
+
   // — Authentication-template specifics —
   {
     match: /authentication.*button.*variable|button.*authentication.*variable/i,
@@ -208,6 +248,20 @@ export function extractMetaCode(payload: MetaErrorPayload): number | null {
 }
 
 /**
+ * Pulls Meta's error_subcode — the field that identifies the exact
+ * rejection reason. Unlike `message`, Meta doesn't reword it between
+ * API versions, which makes it the reliable key to translate on.
+ */
+function extractMetaSubcode(payload: MetaErrorPayload): number | null {
+  if (!payload || typeof payload === "string") return null;
+  const raw =
+    payload.error?.error_subcode ??
+    (payload as any).error_subcode ??
+    (payload as any).raw?.error?.error_subcode;
+  return typeof raw === "number" ? raw : null;
+}
+
+/**
  * Main translator. Returns a friendly message in the requested
  * locale, falls back to the original message if no pattern matches.
  *
@@ -215,6 +269,13 @@ export function extractMetaCode(payload: MetaErrorPayload): number | null {
  *   const friendly = translateMetaError(template.provider_error_details, isAr);
  */
 export function translateMetaError(payload: MetaErrorPayload, isAr: boolean = true): string {
+  // Subcode first — it's the only field Meta keeps stable, and it
+  // survives payloads whose message text says something generic.
+  const subcode = extractMetaSubcode(payload);
+  if (subcode !== null && SUBCODES[subcode]) {
+    return isAr ? SUBCODES[subcode].ar : SUBCODES[subcode].en;
+  }
+
   const original = extractMessage(payload);
   if (!original) {
     return isAr ? "لم يتمّ توفير تفاصيل الخطأ." : "No error details available.";
