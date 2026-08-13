@@ -167,6 +167,28 @@ function IntroSection({ apiEnabled, webhooksEnabled }: { apiEnabled: boolean; we
           ? "اختر REST API لو نظامك مبادر (أنت تقرّر متى تتواصل). اختر Webhooks لو تريد reactions فوريّة لكلّ حدث. كثير من العملاء يستخدم الاثنين معاً."
           : "Use REST API when your system initiates (you decide when to talk). Use Webhooks when you want real-time reactions to every event. Many integrators combine both."}
       </div>
+
+      {/* The same reference on a public URL. This panel lives behind a
+          login and a plan gate, so a customer's outsourced developer —
+          who has neither — needs a link they can actually open. */}
+      <a
+        href="/developers"
+        target="_blank"
+        rel="noreferrer"
+        style={{
+          display: "flex", alignItems: "center", gap: 8, marginTop: 10,
+          padding: "11px 13px", borderRadius: 10,
+          border: `1px solid ${C.pri}40`, background: `${C.pri}10`,
+          color: C.pri, fontSize: 12.5, fontWeight: 600, textDecoration: "none",
+        }}
+      >
+        <Icon name="link" size={14} />
+        <span>
+          {isAr
+            ? "نسخة عامّة قابلة للمشاركة مع مطوّرك — تفتح بدون تسجيل دخول: /developers"
+            : "Public, shareable copy for your developer — opens without a login: /developers"}
+        </span>
+      </a>
     </Card>
   );
 }
