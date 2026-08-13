@@ -34,6 +34,7 @@ const EVENTS = [
   { key: "message.delivered",   desc_ar: "الرسالة وصلت جهاز المستلم",                     desc_en: "The message reached the recipient's device" },
   { key: "message.read",        desc_ar: "المستلم فتح الرسالة",                            desc_en: "The recipient opened the message" },
   { key: "message.failed",      desc_ar: "الإرسال فشل — السبب في failure داخل الـ payload", desc_en: "Delivery failed — the reason is in payload.failure" },
+  { key: "message.media_ready", desc_ar: "مرفق وارد (صورة/فيديو/صوت/ملف) صار جاهزاً للتحميل", desc_en: "An inbound attachment (image/video/audio/file) is ready to download" },
   { key: "conversation.opened", desc_ar: "محادثة جديدة افتُتحت",                       desc_en: "A new conversation was opened" },
   { key: "conversation.assigned", desc_ar: "محادثة عُيّنت لعضو فريق",                  desc_en: "A conversation was assigned to an agent" },
   { key: "conversation.closed", desc_ar: "محادثة أُغلقت",                              desc_en: "A conversation was closed" },
@@ -320,7 +321,32 @@ function ApiSection() {
       </div>
 
       <h3 style={{ margin: "20px 0 6px", fontSize: 14, fontWeight: 700 }}>
-        {isAr ? "5) القوالب المعتمدة" : "5) Approved templates"}
+        {isAr ? "5) تحميل ميديا واردة" : "5) Download inbound media"}
+      </h3>
+      <div style={{ fontSize: 12.5, color: "inherit", marginBottom: 10, lineHeight: 1.7 }}>
+        {isAr
+          ? "عندما يبعت عميل صورة أو فيديو أو صوت أو ملف، اسحب الملف من هذا الـ endpoint. يردّ 302 إلى رابط موقّع صالح 15 دقيقة — وكل استدعاء يولّد رابطاً جديداً، فلو عالجت الحدث متأخّراً الرابط يظلّ يعمل. هذا الاستدعاء لا يُحسب من حصّتك الشهريّة."
+          : "When a customer sends an image, video, audio note or file, fetch it here. Answers a 302 to a signed URL valid 15 minutes — and every call mints a new one, so processing the event late still works. This call does not count against your monthly quota."}
+      </div>
+      <DocBlock
+        code={`curl -L "${API_BASE}/api/v1/messages/MESSAGE_ID/media" \\
+  -H "Authorization: Bearer YOUR_KEY" -o photo.jpg
+
+# أو للحصول على الرابط + بياناته بدل تنزيله:
+curl "${API_BASE}/api/v1/messages/MESSAGE_ID/media?as=json" \\
+  -H "Authorization: Bearer YOUR_KEY"
+
+# → { "data": { "download_url": "…", "mime_type": "image/jpeg",
+#               "file_size": 184320, "expires_at": "…" } }`}
+      />
+      <div style={{ fontSize: 12, color: "inherit", marginBottom: 14, lineHeight: 1.7 }}>
+        {isAr
+          ? "اشترك في الحدث message.media_ready ولا تسحب فور message.received: الأخير يقع لحظة وصول الرسالة، قبل أن ننهي نقل الملف من واتساب، فيردّ 409 (MEDIA_NOT_READY)."
+          : "Subscribe to message.media_ready rather than fetching on message.received: the latter fires the instant the message lands, before we finish mirroring the file off WhatsApp, so it answers 409 (MEDIA_NOT_READY)."}
+      </div>
+
+      <h3 style={{ margin: "20px 0 6px", fontSize: 14, fontWeight: 700 }}>
+        {isAr ? "6) القوالب المعتمدة" : "6) Approved templates"}
       </h3>
       <DocBlock
         code={`curl "${API_BASE}/api/v1/templates" \\

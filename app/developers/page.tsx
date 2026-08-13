@@ -108,6 +108,7 @@ export default function DevelopersPage() {
             ["#send", "إرسال رسالة"],
             ["#status", "حالة الرسالة"],
             ["#media", "رفع مستند"],
+            ["#inbound-media", "تحميل ميديا واردة"],
             ["#templates", "القوالب"],
             ["#lists", "الجهات والمحادثات"],
             ["#otp", "رمز التحقّق"],
@@ -332,6 +333,52 @@ X-RateLimit-Reset: 1756684800   // بداية الشهر القادم (Unix)`}</
           </p>
         </Section>
 
+        {/* ═══ ميديا واردة ═══ */}
+        <Section id="inbound-media" title="تحميل ميديا واردة">
+          <Endpoint method="GET" path="/api/v1/messages/{id}/media" />
+          <p style={pStyle}>
+            حين يبعت عميل <b>صورة أو فيديو أو رسالة صوتيّة أو ملفاً</b>، ننقل الملف من واتساب إلى
+            تخزيننا ثمّ نتيحه لك هنا. الاستجابة <Code>302</Code> إلى رابط موقّع صالح{" "}
+            <b>15 دقيقة</b>، فاجعل عميل HTTP لديك يتبع التحويل (<Code>curl -L</Code>). البايتات
+            تُنقل من التخزين مباشرة، فلا يمرّ فيديو بحجم 16 ميجابايت من خلالنا.
+          </p>
+          <CodeBlock>{`curl -L "${API_BASE}/api/v1/messages/MESSAGE_ID/media" \\
+  -H "Authorization: Bearer $CORBIT_KEY" -o photo.jpg`}</CodeBlock>
+          <p style={pStyle}>
+            وإن أردت الرابط وبياناته بدل تنزيل البايتات — لتسليم التحميل لعمليّة أخرى مثلاً — أضف{" "}
+            <Code>?as=json</Code>:
+          </p>
+          <CodeBlock>{`curl "${API_BASE}/api/v1/messages/MESSAGE_ID/media?as=json" \\
+  -H "Authorization: Bearer $CORBIT_KEY"
+
+// 200
+{ "data": { "message_id": "9f1c…", "type": "image",
+            "mime_type": "image/jpeg", "file_size": 184320,
+            "filename": "9f1c….jpg",
+            "download_url": "https://…",
+            "expires_at": "2026-08-13T09:29:22+03:00" } }`}</CodeBlock>
+          <Note tone="warn">
+            <b>اشترك في <Code>message.media_ready</Code>، ولا تسحب فور <Code>message.received</Code>.</b>{" "}
+            الأخير يقع لحظة وصول الرسالة — قبل أن ننهي نقل الملف من واتساب — فيردّ هذا الـ endpoint
+            حينها <Code>409</Code>. الحدث الأوّل هو الذي يعني «الملف جاهز الآن».
+          </Note>
+          <Table
+            head={["الحالة", "المعنى", "الإجراء"]}
+            rows={[
+              ["302", "الملف جاهز", "اتبع التحويل وحمّل البايتات"],
+              ["409", "النقل من واتساب لم ينتهِ بعد", "أعد المحاولة بعد ثوانٍ، أو انتظر message.media_ready"],
+              ["422", "الملف لم يُنقل ولن يُنقل", "لا تعد المحاولة — الرسالة تحوي مرفقاً غير متاح"],
+              ["410", "الملف حُذف من التخزين", "لا يمكن استرجاعه"],
+              ["404", "لا رسالة بهذا المعرّف، أو لا مرفق فيها", "راجع المعرّف ونوع الرسالة"],
+            ]}
+          />
+          <p style={pStyle}>
+            كلّ استدعاء يولّد رابطاً موقّعاً جديداً، فمعالجة الحدث بعد ساعة تعمل كما تعمل فوراً. وهذا
+            الاستدعاء <b>لا يُحسب</b> من حصّة الباقة الشهريّة — الرسالة الواردة حُسبت مرّة، وتحميل
+            مرفقها جزء من استقبالها. يقبل معرّف الرسالة عندنا أو الـ <Code>whatsapp_message_id</Code>.
+          </p>
+        </Section>
+
         {/* ═══ قوالب ═══ */}
         <Section id="templates" title="القوالب المعتمدة">
           <Endpoint method="GET" path="/api/v1/templates" />
@@ -470,6 +517,7 @@ User-Agent: CorbitWebhooks/1.0
               ["message.delivered", "وصلت الرسالة إلى جهاز المستلم"],
               ["message.read", "فتح المستلم الرسالة"],
               ["message.failed", "فشل الإرسال — السبب في data.failure"],
+              ["message.media_ready", "مرفق وارد صار جاهزاً للتحميل — data.media.download_url"],
               ["conversation.opened", "افتُتحت محادثة جديدة"],
               ["conversation.assigned", "أُسندت محادثة إلى موظّف"],
               ["conversation.closed", "أُغلقت محادثة"],
@@ -477,6 +525,27 @@ User-Agent: CorbitWebhooks/1.0
               ["campaign.completed", "انتهت حملة من الإرسال"],
             ]}
           />
+          <p style={pStyle}>
+            الرسالة الواردة التي تحوي مرفقاً تُنتج حدثين: <Code>message.received</Code> فوراً وفيه{" "}
+            <Code>media.status: "pending"</Code>، ثمّ <Code>message.media_ready</Code> حين يصبح الملف
+            قابلاً للتحميل. لا تحوي أيّ حمولة رابطاً مباشراً للبايتات — بل عنوان الـ endpoint الذي
+            يولّد رابطاً موقّعاً عند الطلب، فلا ينتهي بينما الحمولة في طابور المعالجة عندك.
+          </p>
+          <CodeBlock label="حمولة message.media_ready">{`{
+  "event": "message.media_ready",
+  "timestamp": "2026-08-13T09:14:31+03:00",
+  "data": {
+    "message": { "id": "9f1c…", "conversation_id": "3ab7…",
+                 "message_type": "image",
+                 "whatsapp_message_id": "wamid.HBgM…" },
+    "conversation": { "id": "3ab7…", "contact_id": "a91d…" },
+    "media": { "type": "image", "mime_type": "image/jpeg",
+               "file_size": 184320, "status": "ready",
+               "download_url": "${API_BASE}/api/v1/messages/9f1c…/media" }
+  },
+  "organization": { "id": "…" },
+  "attempt": 1
+}`}</CodeBlock>
         </Section>
 
         {/* ═══ التوقيع ═══ */}
@@ -527,6 +596,10 @@ app.post('/corbit-webhook',
               ["TEMPLATE_NOT_APPROVED", "422", "القالب لم تعتمده Meta بعد", "انتظر الاعتماد قبل الاعتماد عليه"],
               ["TEMPLATE_NOT_AUTHENTICATION", "422", "رمز التحقّق يتطلّب قالب authentication", "أنشئ قالباً بالفئة الصحيحة"],
               ["DOCUMENT_NOT_FOUND", "404", "لا مستند بهذا المعرّف", "أعد الرفع"],
+              ["MESSAGE_HAS_NO_MEDIA", "404", "الرسالة نصّيّة، لا مرفق فيها", "افحص message_type قبل الطلب"],
+              ["MEDIA_NOT_READY", "409", "نقل المرفق من واتساب لم ينتهِ", "انتظر message.media_ready أو أعد بعد ثوانٍ"],
+              ["MEDIA_UNAVAILABLE", "422", "تعذّر جلب المرفق من واتساب نهائيّاً", "لا تعد المحاولة"],
+              ["MEDIA_DELETED", "410", "بايتات المرفق حُذفت من التخزين", "لا يمكن استرجاعه"],
               ["DOCUMENT_EXPIRED", "422", "تجاوز المستند مدّة الاحتفاظ ومُسح", "أعد الرفع ثمّ أرسل"],
               ["OTP_INVALID", "422", "الرمز خاطئ أو منتهٍ أو مستخدَم", "اطلب رمزاً جديداً بعد المهلة"],
               ["OTP_COOLDOWN", "429", "طلب إعادة إرسال قبل انتهاء المهلة", "انتظر retry_after ثانية"],
