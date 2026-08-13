@@ -44,6 +44,10 @@ const WEBHOOK_EVENTS = [
   "message.delivered",
   "message.read",
   "message.failed",
+  // Fires once an inbound attachment has been mirrored off WhatsApp and
+  // is downloadable. message.received arrives before that, so it is this
+  // event — not that one — that means "fetch the file now".
+  "message.media_ready",
   "conversation.opened",
   "conversation.assigned",
   "conversation.closed",
