@@ -1883,12 +1883,33 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
               <Icon name="copy" size={13} />
               {isAr ? "\u062A\u0643\u0631\u0627\u0631" : "Duplicate"}
             </Button>
-            {/* Plan-gated CSV + Excel — Basic sees them disabled. */}
-            <ExportButtons
-              endpoint={`/campaigns/${c.id}/export`}
-              filenamePrefix={`campaign-${c.id}-report`}
-              size="normal"
-            />
+            {/* Two grains, deliberately separate. The summary is the
+                report an operator reads; the recipient file is the raw
+                table an analyst loads into Power BI / Excel — one row per
+                contact with the message, the reply, and every funnel
+                timestamp. Labelled because four bare CSV/Excel buttons in
+                a row give no clue which is which.
+                Both are plan-gated — Basic sees them disabled. */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 12, color: C.t3, fontWeight: 600 }}>
+                {isAr ? "ملخّص" : "Summary"}
+              </span>
+              <ExportButtons
+                endpoint={`/campaigns/${c.id}/export`}
+                filenamePrefix={`campaign-${c.id}-report`}
+                size="normal"
+              />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 12, color: C.t3, fontWeight: 600 }}>
+                {isAr ? "تفاصيل المستلمين" : "Per recipient"}
+              </span>
+              <ExportButtons
+                endpoint={`/campaigns/${c.id}/export-recipients`}
+                filenamePrefix={`campaign-${c.id}-recipients`}
+                size="normal"
+              />
+            </div>
           </div>
         </div>
       </div>
