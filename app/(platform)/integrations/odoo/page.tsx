@@ -630,23 +630,23 @@ export default function OdooIntegrationPage() {
 
             <Step
               n={2}
-              title={ar ? "أضف حقل الجوّال إلى عرض السعر" : "Add a phone field to the quotation"}
+              title={ar ? "أضف الحقول المرتبطة إلى عرض السعر" : "Add the related fields to the quotation"}
             >
               {ar
-                ? "عرض السعر في Odoo لا يحمل جوّال العميل — الجوّال على بطاقة العميل. أضف حقلاً مرتبطاً واحداً:"
-                : "An Odoo quotation doesn't carry the customer's phone — it lives on the contact. Add one related field:"}
+                ? "سببان: عرض السعر لا يحمل جوّال العميل أصلاً، وحقول العلاقة يرسلها Odoo كأرقام معرّفات لا كنصوص — partner_id يصل كـ 7 لا «أحمد». أضف ثلاثة حقول من نوع Char ونوع Related:"
+                : "Two reasons: an Odoo quotation carries no phone at all, and Odoo sends relation fields as bare record ids rather than text — partner_id arrives as 7, not “Ahmed”. Add three related Char fields:"}
               <KeyValues
                 rows={[
                   [ar ? "المسار" : "Where", "Settings → Technical → Models → sale.order → Fields"],
-                  ["Field Name", "x_corbit_phone"],
-                  ["Field Type", "Char"],
-                  ["Related Field", "partner_id.mobile"],
+                  ["x_corbit_phone", ar ? "related: partner_id.mobile — إلزامي" : "related: partner_id.mobile — required"],
+                  ["x_corbit_customer", ar ? "related: partner_id.name — وإلّا بدأت الرسالة برقم الجوّال" : "related: partner_id.name — or the message opens with a phone number"],
+                  ["x_corbit_currency", ar ? "related: currency_id.name — وإلّا ظهر المبلغ بلا عملة" : "related: currency_id.name — or the amount shows with no currency"],
                 ]}
               />
               <Note>
                 {ar
-                  ? "إن كنت تحفظ الأرقام في حقل phone بدل mobile، اجعل الربط partner_id.phone. ولو عندك Odoo Studio تقدر تضيفه من هناك بدل الشاشة الفنّيّة."
-                  : "If you store numbers in phone rather than mobile, relate to partner_id.phone instead. With Odoo Studio you can add it there instead of the technical screen."}
+                  ? "إن كنت تحفظ الأرقام في حقل phone بدل mobile، اجعل ربط الأوّل partner_id.phone. ولو عندك Odoo Studio تقدر تضيف الثلاثة من هناك بدل الشاشة الفنّيّة."
+                  : "If you store numbers in phone rather than mobile, relate the first to partner_id.phone. With Odoo Studio you can add all three there instead of the technical screen."}
               </Note>
             </Step>
 
@@ -675,12 +675,17 @@ export default function OdooIntegrationPage() {
                   ["x_corbit_phone", ar ? "جوّال العميل — إلزامي" : "customer phone — required"],
                   ["access_url", ar ? "مسار رابط الدفع — إلزامي" : "payment link path — required"],
                   ["access_token", ar ? "توكن الوصول — إلزامي" : "portal token — required"],
+                  ["x_corbit_customer", ar ? "اسم العميل" : "customer name"],
+                  ["x_corbit_currency", ar ? "العملة" : "currency"],
                   ["name", ar ? "رقم عرض السعر" : "quotation reference"],
-                  ["partner_id", ar ? "اسم العميل" : "customer name"],
                   ["amount_total", ar ? "المبلغ" : "amount"],
-                  ["currency_id", ar ? "العملة" : "currency"],
                 ]}
               />
+              <Note>
+                {ar
+                  ? "لا تختر partner_id ولا currency_id — Odoo يرسلهما كأرقام معرّفات (7 و1) لا كأسماء، فلا فائدة منهما. الحقول المرتبطة من الخطوة ٢ هي البديل."
+                  : "Do not tick partner_id or currency_id — Odoo sends them as bare record ids (7 and 1), not names. The related fields from step 2 are what carry the text."}
+              </Note>
               <Note>
                 {ar
                   ? "لو عندك رابط دفع جاهز من بوّابة أخرى، أنشئ حقلاً باسم x_corbit_payment_url يحوي الرابط الكامل واختره بدل access_url و access_token."
