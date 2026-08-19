@@ -13,6 +13,14 @@ import { integrationCategories } from "@/data/integrations";
 import { useIntegrations } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
 
+/**
+ * Integrations with a dedicated management page of their own. Anything
+ * listed here opens that page instead of the generic in-place detail
+ * panel, and gets its brand colour on the card border so it reads as
+ * fully supported rather than merely listed.
+ */
+const DEDICATED_PAGES = ["salla", "shopify", "zid", "odoo"];
+
 export default function IntegrationsPage() {
   const { colors: C, isDark: dk } = useTheme();
   const { t, isAr, lang } = useLocale();
@@ -188,7 +196,7 @@ export default function IntegrationsPage() {
         {filtered.map((app: any) => {
           const conn = isConnected(app.id);
           return (
-            <Card key={app.id} style={{ cursor: "pointer", border: conn ? `1.5px solid ${C.ok}30` : ((app.id === "salla" || app.id === "shopify") ? `1.5px solid ${app.color}40` : "1.5px solid transparent") }} onClick={() => { if (app.id === "salla") { window.location.href = "/integrations/salla"; } else if (app.id === "shopify") { window.location.href = "/integrations/shopify"; } else { setViewApp(app.id); } }}>
+            <Card key={app.id} style={{ cursor: "pointer", border: conn ? `1.5px solid ${C.ok}30` : (DEDICATED_PAGES.includes(app.id) ? `1.5px solid ${app.color}40` : "1.5px solid transparent") }} onClick={() => { if (DEDICATED_PAGES.includes(app.id)) { window.location.href = `/integrations/${app.id}`; } else { setViewApp(app.id); } }}>
               <div style={{ padding: 16 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
                   <div style={{ width: 42, height: 42, borderRadius: 12, background: `${app.color}15`, display: "flex", alignItems: "center", justifyContent: "center", color: app.color }}>
@@ -206,7 +214,7 @@ export default function IntegrationsPage() {
                   {/* Salla is the one integration that's actually live \u2014
                       it shows an Available badge + Connect CTA. Every
                       other integration is still Coming Soon. */}
-                  {(app.id === "salla" || app.id === "shopify") ? (
+                  {DEDICATED_PAGES.includes(app.id) ? (
                     <>
                       <Badge color={C.ok}>{ar ? "\u0645\u062a\u0627\u062d" : "Available"}</Badge>
                       <span style={{ fontSize: 11, color: C.pri, fontWeight: 600 }}>
