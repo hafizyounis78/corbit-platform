@@ -657,28 +657,31 @@ export default function OdooIntegrationPage() {
               <KeyValues
                 rows={[
                   ["Model", "Sales Order (sale.order)"],
-                  ["Trigger", "On Save"],
-                  ["Trigger Fields", "Status"],
-                  ["Apply on", "Status = Quotation Sent"],
+                  ["Trigger", ar ? "State is set to ← ثمّ Quotation Sent" : "State is set to → Quotation Sent"],
                   ["Action To Do", "Send Webhook Notification"],
                   ["URL", ar ? "الرابط الذي نسخته" : "the link you copied"],
                 ]}
               />
+              <Note>
+                {ar
+                  ? "لا يوجد خيار اسمه On Save في قائمة الـ Trigger — تحقّقنا من ذلك على Odoo حقيقي. الخيار الصحيح State is set to، وهو يغنيك عن ضبط Trigger Fields و Apply on يدوياً."
+                  : "There is no “On Save” option in the Trigger list — verified on a live Odoo. Pick “State is set to”, which replaces Trigger Fields and Apply on."}
+              </Note>
             </Step>
 
             <Step n={4} title={ar ? "اختر الحقول المُرسَلة" : "Pick the fields to send"}>
               {ar
-                ? "في خانة Webhook Fields اختر بالضبط:"
-                : "Under Webhook Fields, tick exactly these:"}
+                ? "في خانة Webhook Fields. مربّع البحث يبحث بالاسم المعروض لا التقني — لو كتبت access_url لن يظهر شيء. ابحث بالنصوص التالية:"
+                : "Under Webhook Fields. The picker searches by label, not technical name — typing access_url finds nothing. Search for these:"}
               <KeyValues
                 rows={[
-                  ["x_corbit_phone", ar ? "جوّال العميل — إلزامي" : "customer phone — required"],
-                  ["access_url", ar ? "مسار رابط الدفع — إلزامي" : "payment link path — required"],
-                  ["access_token", ar ? "توكن الوصول — إلزامي" : "portal token — required"],
-                  ["x_corbit_customer", ar ? "اسم العميل" : "customer name"],
-                  ["x_corbit_currency", ar ? "العملة" : "currency"],
-                  ["name", ar ? "رقم عرض السعر" : "quotation reference"],
-                  ["amount_total", ar ? "المبلغ" : "amount"],
+                  ["Corbit Phone", ar ? "جوّال العميل — إلزامي" : "customer phone — required"],
+                  ["Portal Access URL", ar ? "مسار رابط الدفع — إلزامي" : "payment link path — required"],
+                  ["Security Token", ar ? "توكن الوصول — إلزامي" : "portal token — required"],
+                  ["Corbit Customer", ar ? "اسم العميل" : "customer name"],
+                  ["Corbit Currency", ar ? "العملة" : "currency"],
+                  ["Order Reference", ar ? "رقم عرض السعر" : "quotation reference"],
+                  ["Total", ar ? "المبلغ — اختر النتيجة الأولى بالضبط" : "amount — pick the first result exactly"],
                 ]}
               />
               <Note>
