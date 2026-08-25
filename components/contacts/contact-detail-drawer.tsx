@@ -52,6 +52,15 @@ interface ContactDetail {
   };
   timeline?: TimelineEvent[];
   aiNotes?: string[];
+  /** The tenant's own fields with this contact's answers. Empty for
+   *  every tenant that has defined none. */
+  customFields?: {
+    key: string;
+    label: string;
+    labelEn?: string | null;
+    type: string;
+    value: string | number | null;
+  }[];
 }
 
 interface Props {
@@ -455,6 +464,32 @@ export function ContactDetailDrawer({ contactId, onClose, onMutated }: Props) {
                 </div>
               ))}
             </div>
+
+            {/* The tenant's own fields. Only answered ones are shown —
+                an unanswered field is noise in a triage moment. */}
+            {(contact.customFields || []).some((f) => f.value !== null && f.value !== "") && (
+              <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.brdL}` }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.t2, marginBottom: 8 }}>
+                  {isAr ? "بيانات إضافيّة" : "Additional details"}
+                </div>
+                {(contact.customFields || [])
+                  .filter((f) => f.value !== null && f.value !== "")
+                  .map((f) => (
+                    <div
+                      key={f.key}
+                      style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 12.5, padding: "5px 0" }}
+                    >
+                      <span style={{ color: C.t3 }}>{isAr ? f.label : (f.labelEn || f.label)}</span>
+                      <span
+                        style={{ color: C.txt, fontWeight: 600, textAlign: isAr ? "left" : "right" }}
+                        dir={["text", "textarea", "select"].includes(f.type) ? undefined : "ltr"}
+                      >
+                        {String(f.value)}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            )}
 
             {/* AI Notes */}
             {contact.aiNotes && contact.aiNotes.length > 0 && (
