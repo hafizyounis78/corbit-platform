@@ -356,6 +356,21 @@ export function useIntegrations(params?: { category?: string; search?: string })
   return useApi(`/integrations${q ? '?' + q : ''}`, [q]);
 }
 
+// ─── Sales pipeline ───────────────────────────────────────
+// Reading the board is open to every agent; reshaping the pipeline
+// is admin-only and enforced by the API.
+export function usePipelineStages() {
+  return useApi('/pipeline/stages');
+}
+
+export function usePipelineBoard() {
+  return useApi('/pipeline/board');
+}
+
+export function usePipelineFunnel(range: string = 'monthly') {
+  return useApi(`/pipeline/funnel?range=${range}`, [range]);
+}
+
 // ─── Teams ────────────────────────────────────────────────
 export function useTeams() {
   return useApi('/teams');

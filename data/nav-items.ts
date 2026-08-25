@@ -30,6 +30,7 @@ export const navItems: NavItem[] = [
   { key: "inbox",        path: "/inbox",        labelKey: "inbox",        icon: "inbox", badge: 0 },
   { key: "campaigns",    path: "/campaigns",    labelKey: "campaigns",    icon: "megaphone", roles: ["admin", "supervisor"] },
   { key: "contacts",     path: "/contacts",     labelKey: "contacts",     icon: "users" },
+  { key: "pipeline",     path: "/pipeline",     labelKey: "pipeline",     icon: "list" },
   { key: "templates",    path: "/templates",    labelKey: "templates",    icon: "file", roles: ["admin"] },
   { key: "bot-builder",  path: "/bot-builder",  labelKey: "botBuilder",   icon: "bot", roles: ["admin"] },
   { key: "ai-center",    path: "/ai-center",    labelKey: "aiCenter",     icon: "brain", roles: ["admin"] },

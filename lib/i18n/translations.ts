@@ -3,6 +3,7 @@ const translations = {
   inbox: { ar: "صندوق الوارد", en: "Inbox" },
   campaigns: { ar: "الحملات", en: "Campaigns" },
   contacts: { ar: "جهات الاتصال", en: "Contacts" },
+  pipeline: { ar: "مسار المبيعات", en: "Pipeline" },
   templates: { ar: "القوالب", en: "Templates" },
   botBuilder: { ar: "بناء البوت", en: "Bot Builder" },
   analytics: { ar: "التحليلات", en: "Analytics" },
