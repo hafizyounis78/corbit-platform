@@ -343,7 +343,8 @@ export function useAnalytics(tab: string, range?: string) {
   const path = tab === 'overview' ? '/analytics/overview' :
                tab === 'conversations' ? '/analytics/conversations' :
                tab === 'agents' ? '/analytics/agents' :
-               tab === 'ai' ? '/analytics/ai' : '/analytics/overview';
+               tab === 'ai' ? '/analytics/ai' :
+               tab === 'sources' ? '/analytics/lead-sources' : '/analytics/overview';
   return useApi(`${path}${qs}`, [tab, range]);
 }
 

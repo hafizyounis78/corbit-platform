@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import api from "@/lib/api/client";
 import { COLORS } from "@/lib/constants/colors";
 import { FONT_FAMILY } from "@/lib/constants/font";
+import { leadSourceLabel, leadSourceMeta, platformLabel } from "@/lib/constants/lead-sources";
 import { Avatar, Badge, Button } from "@/components/ui";
 import { Icon } from "@/components/icons/icon";
 
@@ -24,6 +25,14 @@ interface ContactDetail {
   city?: string;
   language?: string;
   source?: string;
+  /** First-touch attribution. Absent on contacts created before it
+   *  existed, which we render as "غير محدّد" rather than hiding. */
+  leadSource?: {
+    type?: string | null;
+    label?: string | null;
+    platform?: string | null;
+    at?: string | null;
+  };
   st?: string;
   tags?: string[];
   score: number;
@@ -305,6 +314,21 @@ export function ContactDetailDrawer({ contactId, onClose, onMutated }: Props) {
                       <span>{contact.city}</span>
                     </div>
                   )}
+                  {/* Where this lead came from — the first thing a
+                      salesperson asks before opening the chat. */}
+                  {contact.leadSource?.type && (() => {
+                    const meta = leadSourceMeta(contact.leadSource.type);
+                    const platform = platformLabel(contact.leadSource.platform);
+                    return (
+                      <div style={{ fontSize: 11.5, color: meta.color, marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
+                        <Icon name={meta.icon as any} size={11} />
+                        <span>
+                          {leadSourceLabel(contact.leadSource.type, isAr)}
+                          {platform ? ` · ${platform}` : ""}
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </div>
                 {/* Score badge — clickable for manual recompute */}
                 <button
