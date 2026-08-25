@@ -356,6 +356,13 @@ export function useIntegrations(params?: { category?: string; search?: string })
   return useApi(`/integrations${q ? '?' + q : ''}`, [q]);
 }
 
+// ─── Custom contact fields ────────────────────────────────
+// The tenant's own fields. Every agent may read them (the contact
+// form needs them to render); only an admin may change them.
+export function useCustomFields(entity: string = 'contact') {
+  return useApi(`/custom-fields?entity=${entity}`, [entity]);
+}
+
 // ─── Teams ────────────────────────────────────────────────
 export function useTeams() {
   return useApi('/teams');

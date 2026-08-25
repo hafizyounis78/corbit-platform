@@ -9,11 +9,12 @@ import { useIsMobile } from "@/hooks/use-media-query";
 import { Card, CardHeader, Button, Badge, TabBar, Avatar, SearchInput, DataTable, Modal } from "@/components/ui";
 import { Icon } from "@/components/icons/icon";
 import type { Contact } from "@/data/contacts";
-import { useContacts, useContactStats, useContactTags, useSegments, useAiSegments, useTeams } from "@/lib/api/hooks";
+import { useContacts, useContactStats, useContactTags, useSegments, useAiSegments, useTeams, useCustomFields } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
 import { ExportButtons } from "@/components/shared/export-buttons";
 import { SmartSegmentsBar } from "@/components/contacts/smart-segments-bar";
 import { CustomerInsightsBar } from "@/components/contacts/customer-insights-bar";
+import { CustomFieldInputs, nonEmptyValues, type CustomFieldDef } from "@/components/contacts/custom-field-inputs";
 import { ContactDetailDrawer } from "@/components/contacts/contact-detail-drawer";
 import { COLORS, GRADIENT } from "@/lib/constants/colors";
 import { FONT_FAMILY } from "@/lib/constants/font";
@@ -108,12 +109,41 @@ export default function ContactsPage() {
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 50;
   const [showAddModal, setShowAddModal] = useState(false);
+  // Tenant-defined contact fields. An org that defined none gets an
+  // empty array here and every form below renders as it always did.
+  const { data: customFieldsData } = useCustomFields();
+  const customFieldDefs: CustomFieldDef[] = Array.isArray(customFieldsData) ? customFieldsData : [];
+  const [newCustom, setNewCustom] = useState<Record<string, string>>({});
+  const [editCustom, setEditCustom] = useState<Record<string, string>>({});
   const [newContact, setNewContact] = useState({ name: "", phone: "", email: "", city: "", tags: "", optInConsent: false });
   const [showSegmentModal, setShowSegmentModal] = useState(false);
   const [newSegment, setNewSegment] = useState({ name: "", status: "all", tags: [] as string[], scoreMin: 0, scoreMax: 100, cityFilter: "", orderMin: 0 });
   const [previewCount, setPreviewCount] = useState<number | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+
+  /**
+   * Open the edit modal for a row. The contacts list is deliberately
+   * lean and carries no custom-field answers, so the detail payload is
+   * fetched to prefill them. A failed fetch still opens the modal —
+   * editing name or phone must never depend on the extra call.
+   */
+  const openEditContact = (c: any) => {
+    setEditContact({ id: c.id, name: c.name, phone: c.ph, email: c.email, city: c.city, tags: c.tags.join(", ") });
+    setEditCustom({});
+    setShowEditModal(true);
+    if (!customFieldDefs.length) return;
+    api.get(`/contacts/${c.id}?detail=1`)
+      .then((res) => {
+        const detail = res.data?.data ?? res.data;
+        const answers: Record<string, string> = {};
+        for (const f of detail?.customFields ?? []) {
+          answers[f.key] = f.value == null ? "" : String(f.value);
+        }
+        setEditCustom(answers);
+      })
+      .catch(() => { /* standard fields stay editable */ });
+  };
   const [editContact, setEditContact] = useState<any>(null);
   const [showImportModal, setShowImportModal] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -553,7 +583,7 @@ export default function ContactsPage() {
     ) : (
       <button
         key={`act-${c.id}`}
-        onClick={() => { setEditContact({ id: c.id, name: c.name, phone: c.ph, email: c.email, city: c.city, tags: c.tags.join(", ") }); setShowEditModal(true); }}
+        onClick={() => openEditContact(c)}
         title={isAr ? "تعديل" : "Edit"}
         style={{ background: "transparent", border: "none", cursor: "pointer", color: C.t2, padding: 4 }}
       >
@@ -590,7 +620,7 @@ export default function ContactsPage() {
           <p style={{ margin: "4px 0 0", fontSize: 13, color: C.t2 }}>{isAr ? "\u0625\u062F\u0627\u0631\u0629 \u062C\u0647\u0627\u062A \u0627\u0644\u0627\u062A\u0635\u0627\u0644 \u0648\u0627\u0644\u0634\u0631\u0627\u0626\u062D" : "Manage your contacts and segments"}</p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Button primary onClick={() => { setNewContact({ name: "", phone: "", email: "", city: "", tags: "", optInConsent: false }); setShowAddModal(true); }}>
+          <Button primary onClick={() => { setNewContact({ name: "", phone: "", email: "", city: "", tags: "", optInConsent: false }); setNewCustom({}); setShowAddModal(true); }}>
             <Icon name="userPlus" size={14} />
             {isAr ? "\u0625\u0636\u0627\u0641\u0629 \u062C\u0647\u0629 \u0627\u062A\u0635\u0627\u0644" : "Add Contact"}
           </Button>
@@ -1043,6 +1073,7 @@ export default function ContactsPage() {
             tags: newContact.tags ? newContact.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
             opt_in_consent: true,
             opt_in_source: "manual_entry",
+            custom_fields: nonEmptyValues(newCustom),
           }).then(() => {
             showToast(isAr ? "تم إضافة جهة الاتصال ✓" : "Contact added ✓");
             setShowAddModal(false);
@@ -1150,6 +1181,13 @@ export default function ContactsPage() {
             )}
           </div>
 
+          {/* The tenant's own fields — renders nothing when none exist */}
+          <CustomFieldInputs
+            definitions={customFieldDefs}
+            values={newCustom}
+            onChange={setNewCustom}
+          />
+
           {/* Opt-in consent — Meta WhatsApp Business Policy mandates
               that the operator explicitly confirm the contact agreed
               to receive marketing messages BEFORE the row is created.
@@ -1208,6 +1246,9 @@ export default function ContactsPage() {
             email: editContact.email,
             city: editContact.city,
             tags: editContact.tags ? editContact.tags.split(",").map((t: string) => t.trim()).filter(Boolean) : [],
+            // Only sent when the org has fields: the backend leaves
+            // absent keys untouched and treats "" as "clear it".
+            ...(customFieldDefs.length ? { custom_fields: editCustom } : {}),
           }).then(() => {
             showToast(isAr ? "تم تعديل جهة الاتصال ✓" : "Contact updated ✓");
             setShowEditModal(false);
@@ -1295,6 +1336,12 @@ export default function ContactsPage() {
                 </div>
               )}
             </div>
+
+            <CustomFieldInputs
+              definitions={customFieldDefs}
+              values={editCustom}
+              onChange={setEditCustom}
+            />
           </div>
         )}
       </Modal>

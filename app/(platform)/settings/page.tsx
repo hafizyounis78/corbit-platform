@@ -26,6 +26,7 @@ import { CsatSettingsPanel } from "@/components/settings/csat-settings-panel";
 import { SendingPolicyCard } from "@/components/settings/sending-policy-card";
 import { ClickTrackingCard } from "@/components/settings/click-tracking-card";
 import { QuickRepliesPanel } from "@/components/settings/quick-replies-panel";
+import { CustomFieldsPanel } from "@/components/settings/custom-fields-panel";
 import api from "@/lib/api/client";
 
 /* ─── helpers ─── */
@@ -680,6 +681,7 @@ export default function SettingsPage() {
     { key: "channels", label: ar ? "القنوات" : "Channels", icon: "channels" },
     { key: "csat", label: ar ? "التقييم" : "CSAT", icon: "star" },
     { key: "quick-replies", label: ar ? "الردود السريعة" : "Quick Replies", icon: "zap" },
+    { key: "fields", label: ar ? "حقول جهات الاتصال" : "Contact Fields", icon: "list" },
     { key: "whatsapp", label: ar ? "ربط الواتساب" : "WhatsApp", icon: "msg" },
     { key: "sms", label: "SMS", icon: "phone" },
     { key: "team", label: ar ? "الفريق" : "Team", icon: "users" },
@@ -1426,6 +1428,11 @@ export default function SettingsPage() {
       {/* ═══════════ QUICK REPLIES TAB ═══════════ */}
       {tab === "quick-replies" && (
         <QuickRepliesPanel />
+      )}
+
+      {/* ═══════════ CONTACT FIELDS TAB ═══════════ */}
+      {tab === "fields" && (
+        <CustomFieldsPanel />
       )}
 
       {/* ═══════════ TEAM TAB ═══════════ */}
