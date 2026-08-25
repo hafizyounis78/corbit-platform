@@ -364,6 +364,21 @@ export function useCustomFields(entity: string = 'contact') {
   return useApi(`/custom-fields?entity=${entity}`, [entity]);
 }
 
+// ─── Sales pipeline ───────────────────────────────────────
+// Reading the board is open to every agent; reshaping the pipeline
+// is admin-only and enforced by the API.
+export function usePipelineStages() {
+  return useApi('/pipeline/stages');
+}
+
+export function usePipelineBoard() {
+  return useApi('/pipeline/board');
+}
+
+export function usePipelineFunnel(range: string = 'monthly') {
+  return useApi(`/pipeline/funnel?range=${range}`, [range]);
+}
+
 // ─── Teams ────────────────────────────────────────────────
 export function useTeams() {
   return useApi('/teams');

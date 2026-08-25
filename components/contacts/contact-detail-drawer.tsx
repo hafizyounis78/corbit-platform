@@ -10,6 +10,7 @@ import { FONT_FAMILY } from "@/lib/constants/font";
 import { leadSourceLabel, leadSourceMeta, platformLabel } from "@/lib/constants/lead-sources";
 import { Avatar, Badge, Button } from "@/components/ui";
 import { Icon } from "@/components/icons/icon";
+import { usePipelineStages } from "@/lib/api/hooks";
 
 interface TimelineEvent {
   type: string;
@@ -61,6 +62,18 @@ interface ContactDetail {
     type: string;
     value: string | number | null;
   }[];
+  /** Sales pipeline position. Null when the contact is not on the
+   *  board — which is every contact until someone puts them there. */
+  stage?: {
+    id: string;
+    name: string;
+    nameEn?: string | null;
+    color: string;
+    isWon?: boolean;
+    isLost?: boolean;
+    movedAt?: string | null;
+  } | null;
+  stageHistory?: { from: string | null; to: string | null; note: string | null; at: string }[];
 }
 
 interface Props {
@@ -94,6 +107,13 @@ export function ContactDetailDrawer({ contactId, onClose, onMutated }: Props) {
   const { colors: C, isDark } = useTheme();
   const { isAr } = useLocale();
   const { showToast } = useToast();
+
+  // Pipeline stages, so the drawer can offer a move. Empty array for
+  // every tenant that has not created a pipeline — the selector then
+  // renders nothing at all.
+  const { data: stagesData } = usePipelineStages();
+  const stages: any[] = Array.isArray(stagesData) ? stagesData : [];
+  const [movingStage, setMovingStage] = useState(false);
 
   const [contact, setContact] = useState<ContactDetail | null>(null);
   const [loading, setLoading] = useState(false);
@@ -157,6 +177,22 @@ export function ContactDetailDrawer({ contactId, onClose, onMutated }: Props) {
       showToast(isAr ? "تعذّر التحديث" : "Couldn't update");
     } finally {
       setRecomputing(false);
+    }
+  };
+
+  const handleStageChange = async (stageId: string) => {
+    if (!contactId || movingStage) return;
+    setMovingStage(true);
+    try {
+      await api.patch(`/contacts/${contactId}/stage`, { stage_id: stageId || null });
+      const next = stages.find((s: any) => s.id === stageId) || null;
+      setContact((prev) => prev ? { ...prev, stage: next } : prev);
+      showToast(isAr ? "تمّ تحديث المرحلة" : "Stage updated");
+      onMutated?.();
+    } catch {
+      showToast(isAr ? "تعذّر تحديث المرحلة" : "Couldn't update stage");
+    } finally {
+      setMovingStage(false);
     }
   };
 
@@ -488,6 +524,45 @@ export function ContactDetailDrawer({ contactId, onClose, onMutated }: Props) {
                       </span>
                     </div>
                   ))}
+              </div>
+            )}
+
+            {/* Sales stage — only when the tenant has a pipeline. The
+                selector is the same move the board makes, so an agent
+                working from the inbox never has to switch screens. */}
+            {stages.length > 0 && (
+              <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.brdL}` }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.t2, marginBottom: 8 }}>
+                  {isAr ? "مرحلة الصفقة" : "Deal stage"}
+                </div>
+                <select
+                  value={contact.stage?.id || ""}
+                  onChange={(e) => handleStageChange(e.target.value)}
+                  disabled={movingStage}
+                  style={{
+                    width: "100%", padding: "8px 10px", borderRadius: 8,
+                    border: `1px solid ${contact.stage?.color || C.brd}`,
+                    background: contact.stage ? `${contact.stage.color}12` : C.inp,
+                    color: C.txt, fontSize: 12.5, fontFamily: FONT_FAMILY,
+                    cursor: movingStage ? "wait" : "pointer",
+                  }}
+                >
+                  <option value="">{isAr ? "بدون مرحلة" : "No stage"}</option>
+                  {stages.map((s: any) => (
+                    <option key={s.id} value={s.id}>{isAr ? s.name : (s.nameEn || s.name)}</option>
+                  ))}
+                </select>
+
+                {(contact.stageHistory || []).length > 0 && (
+                  <div style={{ marginTop: 10 }}>
+                    {(contact.stageHistory || []).slice(0, 4).map((h, i) => (
+                      <div key={i} style={{ fontSize: 11, color: C.t3, padding: "3px 0" }}>
+                        {h.from ? `${h.from} ← ${h.to ?? (isAr ? "خارج المسار" : "removed")}` : (h.to ?? "")}
+                        <span style={{ marginInlineStart: 6, opacity: 0.75 }}>{h.at}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
