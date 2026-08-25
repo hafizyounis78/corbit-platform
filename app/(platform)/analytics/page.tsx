@@ -15,6 +15,7 @@ import { FONT_FAMILY } from "@/lib/constants/font";
 import { useAnalytics } from "@/lib/api/hooks";
 import api from "@/lib/api/client";
 import { ExportButtons } from "@/components/shared/export-buttons";
+import { leadSourceLabel, leadSourceMeta, platformLabel } from "@/lib/constants/lead-sources";
 
 export default function AnalyticsPage() {
   const { colors: C } = useTheme();
@@ -70,11 +71,18 @@ export default function AnalyticsPage() {
     [ar ? "رصيد متبقي" : "Credits Left", String(apiData.creditsLeft ?? 0)],
   ] : null;
 
+  // Lead attribution. The endpoint always returns every known source
+  // (zeros included) so the donut keeps stable slices between ranges.
+  const leadBreakdown = Array.isArray(apiData?.breakdown) ? apiData.breakdown : [];
+  const leadTotal = leadBreakdown.reduce((sum: number, s: any) => sum + (s.count ?? 0), 0);
+  const topAds = Array.isArray(apiData?.topAds) ? apiData.topAds : [];
+
   const tabs = [
     { key: "overview", label: t("overview") },
     { key: "conversations", label: t("conv") },
     { key: "agents", label: t("agentPerf") },
     { key: "ai", label: "AI" },
+    { key: "sources", label: ar ? "مصادر العملاء" : "Lead sources" },
   ];
 
   return (
@@ -90,11 +98,15 @@ export default function AnalyticsPage() {
               / excel_export_enabled from PlanService so Basic sees
               disabled buttons with a tooltip rather than 403'ing
               after the click. */}
-          <ExportButtons
-            endpoint="/analytics/export"
-            params={{ type: tab, range }}
-            filenamePrefix={`analytics-${tab}`}
-          />
+          {/* The export endpoint only knows conversations/agents/ai —
+              offering it on the sources tab would 422 after the click. */}
+          {tab !== "sources" && (
+            <ExportButtons
+              endpoint="/analytics/export"
+              params={{ type: tab, range }}
+              filenamePrefix={`analytics-${tab}`}
+            />
+          )}
         </div>
       </div>
       <div style={{ marginBottom: 16 }}>
@@ -232,6 +244,75 @@ export default function AnalyticsPage() {
                 <span style={{ fontWeight: 700, color: "#7C3AED" }}>{v}</span>
               </div>
             ))}
+          </Card>
+        </div>
+      )}
+
+      {!isLoading && tab === "sources" && (
+        <div style={{ display: "grid", gridTemplateColumns: isMob ? "1fr" : "1fr 1fr", gap: 16 }}>
+          <Card style={{ padding: 20 }}>
+            <h3 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 700 }}>
+              {ar ? "من أين جاء العملاء؟" : "Where leads came from"}
+            </h3>
+            <p style={{ margin: "0 0 16px", fontSize: 11.5, color: C.t2 }}>
+              {ar
+                ? "يُلتقط تلقائيّاً عند وصول العميل من إعلان أو منشور"
+                : "Captured automatically when a lead arrives from an ad or post"}
+            </p>
+
+            {leadTotal === 0 ? (
+              <div style={{ padding: "30px 10px", textAlign: "center", fontSize: 12.5, color: C.t2 }}>
+                {ar ? "لا توجد بيانات مصادر في هذه الفترة" : "No source data in this period"}
+              </div>
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+                <Donut
+                  segments={leadBreakdown.map((s: any) => ({
+                    value: Math.round((s.count / leadTotal) * 100),
+                    color: leadSourceMeta(s.type).color,
+                  }))}
+                  size={90}
+                  strokeWidth={10}
+                />
+                <div style={{ fontSize: 12, flex: 1 }}>
+                  {leadBreakdown.map((s: any) => (
+                    <div key={s.type} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: leadSourceMeta(s.type).color, flexShrink: 0 }} />
+                      <span style={{ color: C.t2 }}>{leadSourceLabel(s.type, ar)}</span>
+                      <span style={{ fontWeight: 600, marginInlineStart: "auto" }}>{s.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Card>
+
+          <Card style={{ padding: 20 }}>
+            <h3 style={{ margin: "0 0 16px", fontSize: 14, fontWeight: 700 }}>
+              {ar ? "أفضل الإعلانات" : "Top ads"}
+            </h3>
+            {topAds.length === 0 ? (
+              <div style={{ padding: "30px 10px", textAlign: "center", fontSize: 12.5, color: C.t2 }}>
+                {ar ? "لم يصل أي عميل من إعلان بعد" : "No ad-sourced leads yet"}
+              </div>
+            ) : (
+              topAds.map((a: any, i: number) => (
+                <div
+                  key={a.adId ?? i}
+                  style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 8, background: C.inp, marginBottom: 4 }}
+                >
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {a.headline || (ar ? "إعلان بلا عنوان" : "Untitled ad")}
+                    </div>
+                    <div style={{ fontSize: 10.5, color: C.t3, direction: "ltr", textAlign: ar ? "right" : "left" }}>
+                      {[platformLabel(a.platform), a.adId].filter(Boolean).join(" · ")}
+                    </div>
+                  </div>
+                  <span style={{ fontWeight: 700, color: C.pri }}>{a.count}</span>
+                </div>
+              ))
+            )}
           </Card>
         </div>
       )}
