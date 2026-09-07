@@ -44,7 +44,9 @@ export function FloatingHelpButton() {
       title={isAr ? "مركز المساعدة" : "Help Center"}
       style={{
         position: "fixed",
-        bottom: 24,
+        // Stacked above the Zoho SalesIQ bubble, which sits at bottom:24
+        // in the same corner (see components/support/zoho-salesiq.tsx).
+        bottom: 96,
         insetInlineEnd: 24,
         width: 52, height: 52,
         borderRadius: 26,
