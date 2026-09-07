@@ -8,18 +8,35 @@ import { useLocale } from "@/lib/i18n/locale-provider";
 /**
  * Zoho SalesIQ live-support widget.
  *
- * The widget code is per-portal and not a secret (it ships in the page
- * source either way), but it differs between environments, so it comes
- * from NEXT_PUBLIC_ZOHO_SALESIQ_WIDGET_CODE. With the variable unset the
- * component renders nothing — local dev and CI don't open support chats.
+ * The widget code is public by design — it ships in the page source of
+ * every site running SalesIQ — so it is checked in rather than injected
+ * at deploy time. That is deliberate: NEXT_PUBLIC_* values are inlined
+ * at *build* time, so an env-only setup silently renders nothing whenever
+ * the server rebuilds without the variable present, which is exactly how
+ * the first deploy of this widget failed.
+ *
+ * Access is gated by Zoho on the referring domain, not by the code being
+ * secret: the portal serves the real loader to *.corbit.sa and a no-op
+ * stub to everything else (localhost included). So a checked-in code
+ * cannot be abused from another site, and local dev still never opens a
+ * support chat — the stub does nothing.
+ *
+ * Set NEXT_PUBLIC_ZOHO_SALESIQ_WIDGET_CODE only to point a deployment at
+ * a different portal, or to "" to switch the widget off entirely.
  *
  * The float button is pinned to the bottom corner; FloatingHelpButton
  * sits above it (see its `bottom`) so the two never overlap.
  */
 
-const WIDGET_CODE = process.env.NEXT_PUBLIC_ZOHO_SALESIQ_WIDGET_CODE;
+const DEFAULT_WIDGET_CODE =
+  "0f6965f78c75132b240078b22b61c42a054bc86c32ebfd4fdf53fb521e2ffbef";
+
+const WIDGET_CODE =
+  process.env.NEXT_PUBLIC_ZOHO_SALESIQ_WIDGET_CODE ?? DEFAULT_WIDGET_CODE;
 // Corbit's portal lives in Zoho's Saudi data centre; other DCs use a
-// different host (salesiq.zoho.com, salesiq.zoho.eu, ...).
+// different host (salesiq.zoho.com, salesiq.zoho.eu, ...). The .sa DC
+// answers on both salesiq.zohopublic.sa and salesiq.zoho.sa with a
+// byte-identical loader.
 const DOMAIN = process.env.NEXT_PUBLIC_ZOHO_SALESIQ_DOMAIN || "https://salesiq.zohopublic.sa";
 
 type SalesIqUser = { id: string; name: string; email: string; phone: string | null; role: string; team: string | null } | null;
