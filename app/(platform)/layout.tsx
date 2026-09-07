@@ -11,6 +11,7 @@ import { Header } from "@/components/layout/header";
 import { PlanWarningBanner } from "@/components/plan/plan-warning-banner";
 import { SandboxBanner } from "@/components/sandbox/sandbox-banner";
 import { FloatingHelpButton } from "@/components/help/floating-help-button";
+import { ZohoSalesIq } from "@/components/support/zoho-salesiq";
 import { FONT_FAMILY } from "@/lib/constants/font";
 import { navItems, canAccessNav } from "@/data/nav-items";
 
@@ -142,8 +143,11 @@ export default function PlatformLayout({ children }: { children: ReactNode }) {
         </main>
       </div>
       {/* Floating Help button — shows on every authed page except
-          the Help Center itself; routes to /support?tab=guides. */}
+          the Help Center itself; routes to /support?tab=guides. It sits
+          above the SalesIQ bubble, which owns the bottom corner. */}
       <FloatingHelpButton />
+      {/* Zoho SalesIQ live support — bottom corner, below the ? button. */}
+      <ZohoSalesIq />
     </div>
   );
 }
