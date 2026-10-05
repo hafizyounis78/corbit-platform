@@ -14,6 +14,7 @@ import { ProgressBar } from "@/components/charts/progress-bar";
 import { Sparkline } from "@/components/charts/sparkline";
 import { useBillingOverview, useBillingPlans, useBillingTransactions, useBankAccounts } from "@/lib/api/hooks";
 import { SmsUsageWidget } from "@/components/plan/sms-usage-widget";
+import { WhatsappUsageWidget } from "@/components/plan/whatsapp-usage-widget";
 import { SpendAlertsCard } from "@/components/plan/spend-alerts-card";
 import { PlanUsageCard } from "@/components/plan/plan-usage-card";
 import api from "@/lib/api/client";
@@ -422,6 +423,9 @@ export default function BillingPage() {
       {tab === "usage" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           <PlanUsageCard />
+          {/* WhatsApp delivered messages + Meta cost per category, as
+              360dialog reports them. Hidden for BYO numbers. */}
+          <WhatsappUsageWidget />
           {/* SMS widget — only renders if the tenant has connected
               their SMS account. Stays hidden otherwise so the page
               doesn't suggest a channel they haven't enabled. Each

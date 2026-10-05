@@ -406,6 +406,12 @@ export function useBillingTransactions(category?: string) {
   return useApi(`/billing/transactions${qs}`);
 }
 
+export function useWhatsappUsage(from: string, to: string) {
+  // WhatsApp delivered messages + cost per pricing category, as
+  // 360dialog reports them (synced hourly on the backend).
+  return useApi(`/billing/whatsapp-usage?from=${from}&to=${to}`);
+}
+
 export function useBankAccounts() {
   return useApi('/billing/bank-accounts');
 }
