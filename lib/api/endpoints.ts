@@ -129,6 +129,7 @@ export const API = {
     UPGRADE: '/billing/plans/upgrade',
     DOWNGRADE: '/billing/plans/downgrade',
     USAGE: '/billing/usage',
+    WHATSAPP_USAGE: '/billing/whatsapp-usage',
     TOP_UP: '/billing/top-up',
     TRANSACTIONS: '/billing/transactions',
     INVOICES: '/billing/invoices',
