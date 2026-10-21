@@ -18,6 +18,8 @@ import { WhatsappUsageWidget } from "@/components/plan/whatsapp-usage-widget";
 import { SpendAlertsCard } from "@/components/plan/spend-alerts-card";
 import { PlanUsageCard } from "@/components/plan/plan-usage-card";
 import api from "@/lib/api/client";
+import { track, trackEcommerce } from "@/lib/marketing/track";
+import { attributionPayload } from "@/lib/marketing/attribution";
 
 type BankAccount = {
   id: string;
@@ -126,6 +128,14 @@ export default function BillingPage() {
       if (!depositedName) { showToast(ar ? "اسم المحوِّل مطلوب" : "Depositor name required", "error"); return; }
       if (!receipt) { showToast(ar ? "صورة الإيصال مطلوبة" : "Receipt is required", "error"); return; }
 
+      // طلب شحن بتحويل بنكي → GA4 begin_checkout. الشراء نفسه يُرسل من الخادم
+      // حين يعتمد الموظف التحويل.
+      trackEcommerce("begin_checkout", {
+        value: amt,
+        payment_type: "bank_transfer",
+        items: [{ item_id: "wallet-topup", item_name: "Wallet top-up", item_category: "topup", price: amt, quantity: 1 }],
+      });
+
       setTopUpLoading(true);
       try {
         const fd = new FormData();
@@ -136,6 +146,9 @@ export default function BillingPage() {
         if (reference) fd.append("reference", reference);
         if (note) fd.append("note", note);
         fd.append("receipt", receipt);
+        // مصدر الزائر الإعلاني مع طلب التحويل — يُرسل حدث الشراء عند اعتماده.
+        const attribution = attributionPayload();
+        if (attribution) fd.append("attribution", JSON.stringify(attribution));
 
         await api.post('/billing/transfers', fd, { headers: { "Content-Type": "multipart/form-data" } });
         showToast(ar ? "تمّ استلام التحويل، سيتمّ مراجعته" : "Transfer submitted, awaiting review");
@@ -182,6 +195,13 @@ export default function BillingPage() {
       ? `السلام عليكم،\nأرغب في الترقية إلى خطة ${planName} (${planPrice} ر.س/شهر).\nالرجاء توجيهي لخطوات الدفع.`
       : `Hello,\nI'd like to upgrade to the ${planName} plan (${planPrice} SAR/month). Please share the payment steps.`;
     const url = `https://wa.me/${SALES_WHATSAPP}?text=${encodeURIComponent(text)}`;
+    // تحويل إلى واتساب المبيعات → GA4 whatsapp_click مع الباقة والمصدر.
+    track("whatsapp_click", {
+      plan_name: String(planName),
+      plan_price: planPrice,
+      link_url: url,
+      page_location: typeof window !== "undefined" ? window.location.href : undefined,
+    });
     if (typeof window !== "undefined") {
       window.open(url, "_blank", "noopener,noreferrer");
     }
