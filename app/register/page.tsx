@@ -9,6 +9,8 @@ import { WhatsBitIcon } from "@/components/shared/whatsbit-logo";
 import { FONT_LATIN } from "@/lib/constants/font";
 import api from "@/lib/api/client";
 import { API } from "@/lib/api/endpoints";
+import { track } from "@/lib/marketing/track";
+import { attributionPayload } from "@/lib/marketing/attribution";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -46,6 +48,9 @@ export default function RegisterPage() {
       return;
     }
 
+    // ضغط «إنشاء حساب» بنموذج صالح — نفس اسم الحدث في بوابة الرسائل وSchoolBit.
+    track("begin_registration");
+
     setLoading(true);
     try {
       const res = await api.post(API.AUTH.REGISTER, {
@@ -57,14 +62,23 @@ export default function RegisterPage() {
         password_confirmation: passwordConfirm,
         terms_accepted: true,
         terms_accepted_at: new Date().toISOString(),
+        // مصدر الزائر الإعلاني (UTM/GCLID) يُحفظ مع الشركة.
+        attribution: attributionPayload(),
       });
 
-      const { token, user } = res.data.data;
+      const { token, user, trial } = res.data.data;
+
+      // الحساب أُنشئ ودخل فوراً → sign_up؛ والتجربة المجانية تبدأ معه.
+      track("sign_up", { method: "email" });
+      if (trial?.days) track("start_trial", { trial_type: "signup", trial_days: trial.days });
       if (typeof window !== "undefined") {
         localStorage.setItem("auth_token", token);
         localStorage.setItem("auth_user", JSON.stringify(user));
       }
-      window.location.href = "/dashboard";
+      // مهلة قصيرة حتى تُرسل الأحداث قبل إعادة تحميل الصفحة.
+      setTimeout(() => {
+        window.location.href = "/dashboard";
+      }, 400);
     } catch (err: any) {
       const msg = err?.response?.data?.message;
       const errorMap: Record<string, string> = {
