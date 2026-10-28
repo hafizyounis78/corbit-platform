@@ -245,6 +245,7 @@ X-RateLimit-Reset: 1756684800   // start of next month (Unix)`}</CodeBlock>
               ["template_name", "Yes", "The template name exactly as Meta approved it"],
               ["language", "Optional", "ar or en — defaults to the template's own language"],
               ["parameters", "Optional", "Up to 20 entries, each up to 1,024 characters"],
+              ["header", "Optional", "A per-send PDF for a template approved with a Document header — see 2b"],
             ]}
             monoFirst
           />
@@ -255,6 +256,78 @@ X-RateLimit-Reset: 1756684800   // start of next month (Unix)`}</CodeBlock>
   "language": "en",
   "parameters": ["Mohammed", "4821"]
 }`}</CodeBlock>
+
+          <SubTitle>2b) Template with a PDF attached (invoice · booking · statement)</SubTitle>
+          <p style={pStyle}>
+            One approved template, a different file for every recipient. The PDF arrives as an
+            attachment inside the message, not as a link — and because it rides on a template it
+            reaches customers outside the 24-hour window, which a plain <Code>document</Code> send
+            cannot. Upload the file first (<ExtLink href="#media">POST /v1/media</ExtLink>), then
+            pass its id in <Code>header</Code>.
+          </p>
+          <Table
+            head={["Field", "Required", "Description"]}
+            rows={[
+              ["header.document_id", "Either", "The id returned by POST /v1/media (recommended)"],
+              ["header.document_url", "Either", "A file you host yourself — https:// only, reachable by Meta's servers"],
+              ["header.filename", "Optional", "The name the recipient sees — defaults to the uploaded file's name"],
+            ]}
+            monoFirst
+          />
+          <CodeBlock label="Step 1 — upload the file">{`curl -X POST ${API_BASE}/api/v1/media \\
+  -H "Authorization: Bearer $CORBIT_KEY" \\
+  -F "file=@booking-12345.pdf" \\
+  -F "filename=booking-12345.pdf"
+
+// 201
+{
+  "success": true,
+  "data": {
+    "document_id": "6f1c2a9e-3b1d-4c7a-9e21-0d8f5a7b3c44",
+    "filename": "booking-12345.pdf",
+    "mime": "application/pdf",
+    "size_bytes": 184320,
+    "retain_until": "2026-11-04T10:15:00+03:00"
+  }
+}`}</CodeBlock>
+          <CodeBlock label="Step 2 — send the template with the file in its header">{`curl -X POST ${API_BASE}/api/v1/messages \\
+  -H "Authorization: Bearer $CORBIT_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "to": "966501234567",
+    "type": "template",
+    "template_name": "booking_draft_invoice",
+    "language": "ar",
+    "header": {
+      "document_id": "6f1c2a9e-3b1d-4c7a-9e21-0d8f5a7b3c44",
+      "filename": "booking-12345.pdf"
+    },
+    "parameters": ["Mohammed", "12345", "2026-11-02"]
+  }'
+
+// 202
+{
+  "success": true,
+  "message": "Message accepted",
+  "data": {
+    "message_id": "9f1c…",
+    "conversation_id": "3ab7…",
+    "whatsapp_id": "wamid.HBgMOTY2…",
+    "type": "template",
+    "status": "sent"
+  }
+}`}</CodeBlock>
+          <Note>
+            <b>The template must be approved with a Document header.</b> Create it under Templates
+            with header type <i>Document</i> and a sample PDF, then wait for Meta&apos;s approval.
+            Meta does not allow changing the header type of an already-approved template, so a
+            template whose header is text (or none) needs a new template.{" "}
+            <Code>GET /v1/templates</Code> lists the qualifying ones with{" "}
+            <Code>{'header_format: "document"'}</Code>; sending <Code>header</Code> to any other
+            template is rejected with <Code>TEMPLATE_HEADER_MISMATCH</Code> before anything reaches
+            WhatsApp. Uploaded files are kept for 7 days and each send mints a 15-minute signed URL,
+            so the PDF is never publicly reachable.
+          </Note>
 
           <SubTitle>3) Document (certificate / invoice / statement)</SubTitle>
           <p style={pStyle}>
@@ -316,7 +389,9 @@ X-RateLimit-Reset: 1756684800   // start of next month (Unix)`}</CodeBlock>
         <Section id="media" title="Upload a document">
           <Endpoint method="POST" path="/api/v1/media" />
           <p style={pStyle}>
-            Upload the file first, then send it by id. It is stored on a private disk, and each send
+            Upload the file first, then send it by id — either as a standalone{" "}
+            <Code>document</Code> message, or attached to an approved template through{" "}
+            <Code>header.document_id</Code> (see 2b). It is stored on a private disk, and each send
             mints a signed URL valid for <b>15 minutes</b> only — a personal record never sits behind
             a permanent link.
           </p>
@@ -456,12 +531,16 @@ X-RateLimit-Reset: 1756684800   // start of next month (Unix)`}</CodeBlock>
           <p style={pStyle}>
             Returns Meta-approved templates only — nothing else can be sent. The{" "}
             <Code>variables</Code> field tells you how many entries <Code>parameters</Code> must
-            carry.
+            carry, and <Code>{'header_format: "document"'}</Code> marks the templates that accept a
+            per-send PDF through <Code>header</Code>.
           </p>
           <CodeBlock>{`{ "data": { "data": [
   { "name": "order_ready", "category": "utility",
     "language": "en", "header_format": null,
-    "body": "Hi {{1}}, your order {{2}} is ready.", "variables": 2 }
+    "body": "Hi {{1}}, your order {{2}} is ready.", "variables": 2 },
+  { "name": "booking_draft_invoice", "category": "utility",
+    "language": "ar", "header_format": "document",
+    "body": "مرحباً {{1}}، مسودة حجزك رقم {{2}} مرفقة.", "variables": 2 }
 ] } }`}</CodeBlock>
         </Section>
 
@@ -672,6 +751,7 @@ app.post('/corbit-webhook',
               ["UNSUPPORTED_TYPE", "422", "Unknown type value", "Use text, template or document"],
               ["TEMPLATE_NOT_FOUND", "404", "No template by that name on the account", "Check GET /v1/templates"],
               ["TEMPLATE_NOT_APPROVED", "422", "Meta has not approved it yet", "Wait for approval before relying on it"],
+              ["TEMPLATE_HEADER_MISMATCH", "422", "header sent to a template not approved with a Document header", "Use — or create — a template whose header type is Document"],
               ["TEMPLATE_NOT_AUTHENTICATION", "422", "OTP requires an authentication template", "Create one in the right category"],
               ["DOCUMENT_NOT_FOUND", "404", "No document with that id", "Upload it again"],
               ["MESSAGE_HAS_NO_MEDIA", "404", "The message is text — no attachment", "Check message_type before asking"],

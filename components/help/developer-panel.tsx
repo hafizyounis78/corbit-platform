@@ -306,6 +306,37 @@ function ApiSection() {
       </div>
 
       <h3 style={{ margin: "20px 0 6px", fontSize: 14, fontWeight: 700 }}>
+        {isAr ? "3ب) قالب مع ملف PDF مختلف لكل إرسال" : "3b) Template with a per-send PDF attached"}
+      </h3>
+      <div style={{ fontSize: 12.5, color: "inherit", marginBottom: 10, lineHeight: 1.7 }}>
+        {isAr
+          ? "فاتورة أو مسودة حجز تصل مرفقةً داخل رسالة القالب — لا رابطاً — وخارج نافذة 24 ساعة. ارفع الملف كما في الخطوة 1، ثمّ مرّره في header مع القالب. يشترط قالباً اعتمدته Meta بهيدر من نوع مستند (Document)؛ القالب ذو الهيدر النصّي يحتاج قالباً جديداً لأنّ Meta لا تسمح بتغيير نوع الهيدر بعد الاعتماد."
+          : "An invoice or booking draft delivered as an attachment inside the template message — not a link — and outside the 24h window. Upload the file as in step 1, then pass it in header alongside the template. Requires a template Meta approved with a Document header; a text-header template needs a new template, since Meta does not allow changing the header type after approval."}
+      </div>
+      <DocBlock
+        code={`curl -X POST ${API_BASE}/api/v1/messages \\
+  -H "Authorization: Bearer YOUR_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "to": "966500000000",
+    "type": "template",
+    "template_name": "booking_draft_invoice",
+    "header": {
+      "document_id": "THE_ID_FROM_STEP_1",
+      "filename": "مسودة-حجز-12345.pdf"
+    },
+    "parameters": ["محمد", "12345"]
+  }'
+
+# 202 → { "data": { "message_id": "…", "whatsapp_id": "wamid…", "type": "template", "status": "sent" } }`}
+      />
+      <div style={{ fontSize: 12, color: "inherit", marginBottom: 14 }}>
+        {isAr
+          ? "header.document_url برابط HTTPS عامّ بديل عن document_id، وheader.filename هو الاسم الذي يراه العميل. القوالب المؤهّلة تظهر في GET /v1/templates بـ header_format: document، وإرسال header لقالب آخر يُرفض بـ TEMPLATE_HEADER_MISMATCH قبل الوصول إلى واتساب."
+          : "header.document_url with a public HTTPS link is the alternative to document_id, and header.filename is the name the recipient sees. Qualifying templates show header_format: document in GET /v1/templates; sending header to any other template is rejected with TEMPLATE_HEADER_MISMATCH before it reaches WhatsApp."}
+      </div>
+
+      <h3 style={{ margin: "20px 0 6px", fontSize: 14, fontWeight: 700 }}>
         {isAr ? "4) حالة التسليم" : "4) Delivery status"}
       </h3>
       <DocBlock
@@ -416,6 +447,7 @@ const ERROR_CODES: Array<{ code: string; http: string; ar: string; en: string }>
   { code: "UNSUPPORTED_TYPE",  http: "422", ar: "قيمة type غير معروفة",                        en: "Unknown value for type" },
   { code: "TEMPLATE_NOT_FOUND", http: "404", ar: "لا يوجد قالب بهذا الاسم في حسابك",           en: "No template by that name on your account" },
   { code: "TEMPLATE_NOT_APPROVED", http: "422", ar: "القالب لم تعتمده Meta بعد",               en: "Template is not approved by Meta yet" },
+  { code: "TEMPLATE_HEADER_MISMATCH", http: "422", ar: "أُرسل header لقالب هيدره ليس من نوع مستند", en: "header sent to a template not approved with a Document header" },
   { code: "TEMPLATE_NOT_AUTHENTICATION", http: "422", ar: "رمز التحقّق يتطلّب قالب فئة authentication", en: "OTP requires an authentication-category template" },
   { code: "DOCUMENT_NOT_FOUND", http: "404", ar: "لا يوجد مستند بهذا المعرّف في حسابك",        en: "No document by that id on your account" },
   { code: "DOCUMENT_EXPIRED",  http: "422", ar: "المستند تجاوز مدّة الاحتفاظ ومُسح",           en: "Document passed its retention window and was purged" },
