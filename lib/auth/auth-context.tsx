@@ -26,6 +26,12 @@ interface User {
    * unchanged for everyone else.
    */
   dataScopingEnabled?: boolean;
+  /**
+   * Sales-activated free trial. The API locks these accounts to
+   * /api/trial/* (sales-trial-scope); the platform layout swaps the
+   * whole app for the single /trial page.
+   */
+  salesTrial?: boolean;
   org: {
     id: string;
     name: string;
