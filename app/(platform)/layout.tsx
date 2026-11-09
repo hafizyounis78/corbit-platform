@@ -14,6 +14,7 @@ import { FloatingHelpButton } from "@/components/help/floating-help-button";
 import { ZohoSalesIq } from "@/components/support/zoho-salesiq";
 import { FONT_FAMILY } from "@/lib/constants/font";
 import { navItems, canAccessNav } from "@/data/nav-items";
+import { TrialShell } from "@/components/trial/trial-shell";
 
 export default function PlatformLayout({ children }: { children: ReactNode }) {
   const isMobile = useIsMobile();
@@ -53,6 +54,18 @@ export default function PlatformLayout({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Sales-trial accounts only have the trial page; everything else
+    // would 403 (TRIAL_RESTRICTED) on the API anyway.
+    if (!isLoading && user?.salesTrial) {
+      if (pathname !== "/trial") router.replace("/trial");
+      return;
+    }
+    // The trial page is meaningless for regular accounts.
+    if (!isLoading && user && pathname === "/trial") {
+      router.replace("/dashboard");
+      return;
+    }
+
     // Role-based page guard: if current path matches a nav item with role
     // restrictions and the user's role isn't allowed, bounce to dashboard.
     if (!isLoading && user) {
@@ -72,6 +85,12 @@ export default function PlatformLayout({ children }: { children: ReactNode }) {
   }
 
   if (!isAuthenticated) return null;
+
+  // Sales trial: a minimal shell with no sidebar, search, notifications
+  // or banners — none of those endpoints are reachable for the account.
+  if (user?.salesTrial) {
+    return pathname === "/trial" ? <TrialShell>{children}</TrialShell> : null;
+  }
 
   return (
     <div
