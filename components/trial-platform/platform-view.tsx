@@ -178,7 +178,7 @@ export function PlatformView({ vm }: { vm: any }) {
                         {!!vm.wz.f4 && (<><small className="wz-f">مستندات المنشأة الرسمية لمراجعة Meta</small></>)}
                         {!!vm.wz.a4 && (<><p>ارفع مستندات المنشأة الرسمية مثل السجل التجاري <bdi dir="ltr">{vm.wz.cr}</bdi>. تراجعها Meta وقد يستغرق ذلك أيامًا.</p>
                           <label className={vm.wz.upCls}><input type="file" className="sr" accept=".pdf,.png,.jpg,.jpeg" onChange={vm.wz.file} /><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 15V4M7.5 8.5L12 4l4.5 4.5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"></path></svg><span>{vm.wz.docName}</span></label>
-                          <div className="wz-row"><button type="button" className="pf-btn pf-pri" onClick={vm.wz.doc}>إرسال للتوثيق</button><button type="button" className="lnk sm" onClick={vm.wz.demoFile}>استخدم ملفًا توضيحيًا</button></div>
+                          <div className="wz-row"><button type="button" className="pf-btn pf-pri" onClick={vm.wz.doc}>إرسال للتوثيق</button></div>
                           {!!vm.wz.docErr && (<><p className="err-l" role="alert">{vm.wz.docErr}</p></>)}
                         </>)}
                         {!!vm.wz.d4 && (<><small className="wz-done">أُرسلت المستندات · قيد مراجعة Meta</small></>)}
