@@ -47,6 +47,10 @@ interface User {
 interface LoginResult {
   success: boolean;
   error?: string;
+  /** HTTP status of a failed attempt (undefined when the request never reached the server). */
+  status?: number;
+  /** True when the request failed without any response (offline, DNS, timeout). */
+  network?: boolean;
   /** Set when the user has 2FA enabled — frontend should redirect to /auth/otp. */
   otpRequired?: boolean;
   userId?: string;
@@ -167,6 +171,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return {
         success: false,
         error: e.response?.data?.message || 'فشل تسجيل الدخول',
+        status: e.response?.status,
+        network: !e.response,
       };
     }
   }, []);
