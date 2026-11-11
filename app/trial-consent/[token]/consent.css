@@ -1,0 +1,14 @@
+/* Consent page for a number invited to a trial — same tokens as the signup (.wr). */
+.wr.cns{display:grid;grid-template-columns:1fr;place-items:center;height:auto;min-height:100vh;min-height:100dvh;overflow:auto;padding:24px 16px}
+.wr .cns-box{width:100%;max-width:480px;padding:28px 24px;border-radius:20px;background:#fff;border:1px solid var(--ln);box-shadow:0 30px 60px -40px rgba(13,40,77,.45)}
+.wr .cns-brand{display:flex;flex-direction:column;align-items:flex-start;line-height:1.1;margin-bottom:18px}
+.wr .cns-brand b{font-size:22px;font-weight:700;direction:ltr;color:var(--navy)}
+.wr .cns-brand .g{color:var(--g)}
+.wr .cns-brand small{font-size:11px;color:var(--ink2);margin-top:3px}
+.wr .cns-box h1{margin:0 0 8px;font-size:22px;line-height:1.4}
+.wr .cns-p{margin:0 0 12px;color:var(--ink2);line-height:1.8}
+.wr .cns-p b{color:var(--navy)}
+.wr .cns-ul{margin:0 0 18px;padding-inline-start:20px;color:var(--ink2);font-size:14px;line-height:1.9}
+.wr .cns-act{display:flex;gap:10px;flex-wrap:wrap}
+.wr .cns-act .btn{flex:1;min-width:140px;justify-content:center}
+.wr .cns-ft{margin:20px 0 0;font-size:13px;color:var(--ink3)}

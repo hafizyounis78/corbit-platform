@@ -32,6 +32,8 @@ interface User {
    * whole app for the single /trial page.
    */
   salesTrial?: boolean;
+  /** 'choose_plan' = signed up but has not picked a plan or the trial yet (signup step 3). */
+  signupStage?: string | null;
   org: {
     id: string;
     name: string;

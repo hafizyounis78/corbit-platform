@@ -54,6 +54,12 @@ export default function PlatformLayout({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Signed up but no plan or trial chosen yet: back to signup step 3.
+    if (!isLoading && user?.signupStage === "choose_plan") {
+      window.location.replace("/register?step=plan");
+      return;
+    }
+
     // Sales-trial accounts only have the trial page; everything else
     // would 403 (TRIAL_RESTRICTED) on the API anyway.
     if (!isLoading && user?.salesTrial) {
@@ -85,6 +91,8 @@ export default function PlatformLayout({ children }: { children: ReactNode }) {
   }
 
   if (!isAuthenticated) return null;
+
+  if (user?.signupStage === "choose_plan") return null;
 
   // Sales trial: a minimal shell with no sidebar, search, notifications
   // or banners — none of those endpoints are reachable for the account.

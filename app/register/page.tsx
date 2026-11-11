@@ -8,7 +8,7 @@ import { API } from "@/lib/api/endpoints";
 import { track } from "@/lib/marketing/track";
 import { attributionPayload } from "@/lib/marketing/attribution";
 import { EyeIcon } from "@/components/auth/auth-shell";
-import { OrderLines, PayStep, PlanStep, type PayState, type Selection } from "./plan-steps";
+import { OrderLines, PayStep, PlanStep, type PayState, type Selection, type TrialState } from "./plan-steps";
 import { PLAN_COPY, TRIAL, money, orderLines, quote as calcQuote, type Catalog, type CatalogPlan, type PlanKey } from "./plan-data";
 import "./register.css";
 
@@ -170,6 +170,8 @@ export default function RegisterPage() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [sel, setSel] = useState<Selection>({ path: "plan", yearly: false, plan: "business", extra: {} });
   const [pay, setPay] = useState<PayState>({ kind: "review" });
+  // the customer's own trial, when they come back to step 3 from it
+  const [trialState, setTrialState] = useState<TrialState | null>(null);
   // discount code: what is typed, and the backend's quote once it accepted the code
   const [promo, setPromo] = useState("");
   const [promoErr, setPromoErr] = useState("");
@@ -210,8 +212,26 @@ export default function RegisterPage() {
       pollOrder(orderNo);
     } else if (qs.get("step") === "plan") {
       done.current = true; setCreated(true); setMaxDone(2); setView("3");
+      const wanted = qs.get("plan") as PlanKey | null; // e.g. from a locked feature in the trial
+      if (wanted) setSel((s) => ({ ...s, path: "plan", plan: wanted }));
+      if (user?.salesTrial) {
+        api.get("/trial").then((res) => {
+          const t = res.data?.data;
+          if (!t?.selfServe) return;
+          const n = (x: number, one: string, two: string, few: string, many: string) => (x === 1 ? one : x === 2 ? two : x >= 3 && x <= 10 ? `${x} ${few}` : `${x} ${many}`);
+          const ok = (t.invites || []).filter((i: any) => i.status === "accepted").length;
+          setTrialState({
+            frozen: t.status !== "active",
+            daysLeft: n(t.daysLeft, "يوم واحد", "يومان", "أيام", "يومًا"),
+            left: n(t.remaining, "رسالة واحدة", "رسالتان", "رسائل", "رسالة"),
+            sent: t.messagesUsed, sentLabel: n(t.messagesUsed, "رسالة واحدة", "رسالتان", "رسائل", "رسالة"),
+            accepted: ok ? (ok === 1 ? "رقم واحد" : ok === 2 ? "رقمان" : `${ok} أرقام`) : "",
+            first: (user?.name || "").trim().split(/\s+/)[0] || "",
+          });
+        }).catch(() => {});
+      }
     } else router.replace("/dashboard");
-  }, [isAuthenticated, isLoading, router, pollOrder]);
+  }, [isAuthenticated, isLoading, router, pollOrder, user]);
 
   useEffect(() => () => { if (pollTimer.current) clearTimeout(pollTimer.current); }, []);
 
@@ -390,6 +410,24 @@ export default function RegisterPage() {
 
   const enterPlatform = () => { window.location.href = "/dashboard"; };
 
+  /** «ابدأ التجربة المجانية» — or back to the trial the customer already has. */
+  const startTrial = async () => {
+    if (trialState) { window.location.href = "/trial"; return; }
+    if (working.current) return;
+    working.current = true; setBusy(true); setFormErr("");
+    try {
+      await api.post("/trial/start");
+      track("start_trial", { trial_type: "self_serve", trial_days: TRIAL.days });
+      setTimeout(() => { window.location.href = "/trial"; }, 300); // stays busy while the browser leaves
+      return;
+    } catch (e: any) {
+      const msg = e?.response?.data?.errors?.trial?.[0];
+      setFormErr(msg || netError(e, "تعذّر بدء التجربة الآن. حاول مرة أخرى."));
+      if (e?.response?.status === 409) setSel((s) => ({ ...s, path: "plan" })); // one trial per mobile / registration
+    }
+    working.current = false; setBusy(false);
+  };
+
   /** Open the PayTabs payment page for the selection. The backend prices it. */
   const startPayment = async () => {
     if (working.current || !catalog) return;
@@ -437,7 +475,7 @@ export default function RegisterPage() {
     if (view === "1b") { verifyCode(otp); return; }
     if (view === "3") {
       if (!catalog) return;
-      if (sel.path === "trial") { enterPlatform(); return; }
+      if (sel.path === "trial") { startTrial(); return; }
       setMaxDone((m) => Math.max(m, 3)); setPay({ kind: "review" }); setFormErr("");
       go("4");
       return;
@@ -498,13 +536,13 @@ export default function RegisterPage() {
   const ps = strength(v.pass);
   const nm = v.name.trim() || (created ? (user?.name ?? "") : "");
   const email = v.email.trim() || (created ? (user?.email ?? "") : "");
-  const bizName = v.biz.trim() || (created ? ((user as any)?.organization?.name ?? "") : "");
+  const bizName = v.biz.trim() || (created ? (user?.org?.name ?? "") : "");
   const phoneShown = v.phone ? `+966 ${showPhone(v.phone)}` : (user?.phone ? `+${String(user.phone).replace(/\D/g, "")}` : "");
   // Once the account exists steps 1–2 are closed; the only way back is from payment to the plan step.
   const canBack = !busy && (created ? view === "4" && !payBusy : view !== "1a");
   const goBack = () => { if (!canBack) return; go(created ? "3" : "1a"); };
   const actLabel = view === "1a" ? "متابعة" : view === "1b" ? "تحقق ومتابعة" : view === "2" ? "متابعة"
-    : view === "3" ? (isTrial ? "ابدأ التجربة المجانية" : "متابعة إلى الدفع") : nothingToPay ? "فعّل الاشتراك" : `ادفع ${total} ر.س`;
+    : view === "3" ? (isTrial ? (trialState ? "العودة إلى لوحة التجربة" : "ابدأ التجربة المجانية") : "متابعة إلى الدفع") : nothingToPay ? "فعّل الاشتراك" : `ادفع ${total} ر.س`;
 
   return (
     <div className={`wr v${view}` + (leaving ? " leaving" : "") + (back ? " back" : "")} dir="rtl" lang="ar" ref={rootRef}>
@@ -737,7 +775,7 @@ export default function RegisterPage() {
 
               {/* STEP 3 · plan or trial */}
               {view === "3" && (catalog && catalog.plans.length
-                ? <PlanStep catalog={catalog} sel={sel} onChange={(patch) => setSel((s) => ({ ...s, ...patch }))} quoteOf={quoteOf} biz={bizName} phone={phoneShown} sector={v.sector} />
+                ? <PlanStep catalog={catalog} sel={sel} onChange={(patch) => setSel((s) => ({ ...s, ...patch }))} quoteOf={quoteOf} biz={bizName} phone={phoneShown} sector={v.sector} trial={trialState} />
                 : <div className="view"><div className="card pay-res" role="status">{formErr ? <p className="form-err" role="alert">{formErr}</p> : <><span className="wait" aria-hidden="true" /><p>جارٍ تحميل الباقات…</p></>}</div></div>)}
 
               {/* STEP 4 · payment */}
@@ -766,7 +804,7 @@ export default function RegisterPage() {
                   <svg className="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6" /></svg>
                   <span className="spin" aria-hidden="true" />
                 </button>
-                {view === "4" && <button type="button" className="act-try" onClick={enterPlatform}>جرّب المنصة أولًا، بدون دفع</button>}
+                {view === "4" && !trialState?.frozen && <button type="button" className="act-try" onClick={startTrial}>{trialState ? "العودة إلى لوحة التجربة" : "جرّب المنصة أولًا، بدون دفع"}</button>}
               </span>
             </div>
           </footer>

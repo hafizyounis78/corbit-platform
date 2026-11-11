@@ -22,7 +22,10 @@ const SPARK = "M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8zM1
 /* STEP 3 · choose a plan, or start with the trial                     */
 /* ------------------------------------------------------------------ */
 
-export function PlanStep({ catalog, sel, onChange, quoteOf, biz, phone, sector }: {
+/** The customer's existing trial, when they come back to this step from it. */
+export type TrialState = { frozen: boolean; daysLeft: string; left: string; sent: number; sentLabel: string; accepted: string; first: string };
+
+export function PlanStep({ catalog, sel, onChange, quoteOf, biz, phone, sector, trial }: {
   catalog: Catalog;
   sel: Selection;
   onChange: (patch: Partial<Selection>) => void;
@@ -30,8 +33,10 @@ export function PlanStep({ catalog, sel, onChange, quoteOf, biz, phone, sector }
   biz: string;
   phone: string;
   sector: string;
+  trial?: TrialState | null;
 }) {
   const isT = sel.path === "trial";
+  const tDis = !!trial?.frozen;
   const P = catalog.plans.find((p) => p.key === sel.plan) ?? catalog.plans[0];
   const copy = PLAN_COPY[P.key];
   const xu = sel.extra[P.key] ?? 0;
@@ -41,6 +46,13 @@ export function PlanStep({ catalog, sel, onChange, quoteOf, biz, phone, sector }
 
   return (
     <div className="view">
+      {trial && (
+        <div className="wb3" role="status">
+          <span className="wb3-ic"><Ico d={CHECK} w={2.6} /></span>
+          <div><b>أهلًا بعودتك{trial.first ? ` يا ${trial.first}` : ""} — بياناتك محفوظة</b>
+            <small>{(trial.sent ? `أرسلت ${trial.sentLabel} خلال التجربة` : "لم ترسل رسائل بعد") + (trial.accepted ? `، ووافق ${trial.accepted}` : "")}. اختر الباقة وأكمل الدفع لتربط رقمك الخاص.</small></div>
+        </div>
+      )}
       <div className="ph"><h1 tabIndex={-1}>اختر باقتك أو ابدأ بالتجربة</h1><p>اشترك الآن لتبدأ ربط رقمك الخاص، أو جرّب المنصة قبل الدفع ثم اشترك متى كنت جاهزًا وبياناتك محفوظة.</p></div>
 
       <div className="paths" role="radiogroup" aria-label="طريقة البدء">
@@ -50,10 +62,16 @@ export function PlanStep({ catalog, sel, onChange, quoteOf, biz, phone, sector }
           <span className="pt-tx"><b>اشترك بباقة</b><small>ادفع الآن، ثم اربط رقم واتساب منشأتك ووثّقه باسمك عبر Meta.</small><span className="pt-tag">من {price(cheapest * 100)} ر.س شهريًا قبل الضريبة</span></span>
           <span className="rd" aria-hidden="true" />
         </label>
-        <label className={"pth tr" + (isT ? " on" : "")}>
-          <input type="radio" className="sr" name="wr-path" value="trial" checked={isT} onChange={() => onChange({ path: "trial" })} />
+        <label className={"pth tr" + (isT ? " on" : "") + (tDis ? " dis" : "")}>
+          <input type="radio" className="sr" name="wr-path" value="trial" checked={isT} disabled={tDis} onChange={() => { if (!tDis) onChange({ path: "trial" }); }} />
           <span className="pt-ic"><Ico d={SPARK} w={1.7} /></span>
-          <span className="pt-tx"><b>جرّب المنصة أولًا، بدون دفع</b><small>{TRIAL.days} أيام و{TRIAL.total} رسالة من رقم كوربت التجريبي بقوالب جاهزة، بدون بطاقة.</small><span className="pt-tag">مجانًا</span></span>
+          <span className="pt-tx">
+            <b>{trial ? (tDis ? "انتهت تجربتك" : "تجربتك فعّالة") : "جرّب المنصة أولًا، بدون دفع"}</b>
+            <small>{trial
+              ? (tDis ? "تُتاح تجربة واحدة لكل جوال ولكل سجل تجاري. اختر باقة للمتابعة." : `متبقٍ ${trial.daysLeft} و${trial.left}، وتعود إليها متى شئت.`)
+              : `${TRIAL.days} أيام و${TRIAL.total} رسالة من رقم كوربت التجريبي بقوالب جاهزة، بدون بطاقة.`}</small>
+            <span className="pt-tag">{trial ? (tDis ? "منتهية" : "فعّالة") : "مجانًا"}</span>
+          </span>
           <span className="rd" aria-hidden="true" />
         </label>
       </div>
