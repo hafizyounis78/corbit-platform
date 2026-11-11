@@ -8,6 +8,8 @@ import { API } from "@/lib/api/endpoints";
 import { track } from "@/lib/marketing/track";
 import { attributionPayload } from "@/lib/marketing/attribution";
 import { EyeIcon } from "@/components/auth/auth-shell";
+import { OrderLines, PayStep, PlanStep, type PayState, type Selection } from "./plan-steps";
+import { PLAN_COPY, TRIAL, money, orderLines, quote as calcQuote, type Catalog, type CatalogPlan, type PlanKey } from "./plan-data";
 import "./register.css";
 
 /**
@@ -29,12 +31,19 @@ const RESEND_SECONDS = 60;
 const STEPS = [
   { t: "إنشاء الحساب", d: "بياناتك والتحقق من الجوال" },
   { t: "بيانات المنشأة", d: "السجل التجاري ورقم واتساب" },
+  { t: "الباقة أو التجربة", d: "اشترك بباقة أو جرّب مجانًا" },
+  { t: "الدفع", d: "مدى أو بطاقة ائتمانية أو Apple Pay" },
 ] as const;
 
 const SECTORS = ["تجزئة ومتاجر إلكترونية", "مطاعم ومقاهٍ", "صحة وعيادات", "تعليم وتدريب", "خدمات مالية", "عقارات", "أخرى"];
 
-type View = "1a" | "1b" | "2";
-const ORDER: Record<View, number> = { "1a": 1, "1b": 1.5, "2": 2 };
+type View = "1a" | "1b" | "2" | "3" | "4";
+const ORDER: Record<View, number> = { "1a": 1, "1b": 1.5, "2": 2, "3": 3, "4": 4 };
+const VIEW_STEP: Record<View, number> = { "1a": 1, "1b": 1, "2": 2, "3": 3, "4": 4 };
+
+/** How long to keep asking for the bank's verdict after coming back from the payment page. */
+const PAY_POLL_MS = 3000;
+const PAY_POLL_TRIES = 20;
 
 const FIELDS = {
   "1a": ["name", "email", "phone", "pass"],
@@ -127,7 +136,7 @@ const Mark = () => (
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
 
   const [view, setView] = useState<View>("1a");
   const [leaving, setLeaving] = useState(false);
@@ -154,11 +163,64 @@ export default function RegisterPage() {
   const rootRef = useRef<HTMLDivElement>(null);
   const working = useRef(false);
   const done = useRef(false);
+  const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // steps 3–4: the account exists from here on
+  const [created, setCreated] = useState(false);
+  const [catalog, setCatalog] = useState<Catalog | null>(null);
+  const [sel, setSel] = useState<Selection>({ path: "plan", yearly: false, plan: "business", extra: {} });
+  const [pay, setPay] = useState<PayState>({ kind: "review" });
   const navTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  /** Ask the backend what happened to an order until the bank has answered. */
+  const pollOrder = useCallback((orderNo: string, attempt = 0) => {
+    api.get(API.SUBSCRIPTION.ORDER(orderNo)).then((res) => {
+      const o = res.data?.data ?? {};
+      if (o.status === "paid") { setMaxDone(4); setPay({ kind: "paid", orderNo, method: o.payment_method }); return; }
+      if (o.status === "failed") {
+        // put the same selection back so the customer can simply try again
+        const key = o.quote?.key as PlanKey | undefined;
+        if (key) setSel((s) => ({ ...s, path: "plan", plan: key, yearly: o.period === "yearly", extra: { ...s.extra, [key]: o.extra_users ?? 0 } }));
+        setPay({ kind: "failed", reason: o.failure_reason === "gateway_unavailable" ? "" : (o.failure_reason || "") });
+        return;
+      }
+      if (attempt + 1 >= PAY_POLL_TRIES) { setPay({ kind: "late", orderNo }); return; }
+      pollTimer.current = setTimeout(() => pollOrder(orderNo, attempt + 1), PAY_POLL_MS);
+    }).catch((e) => {
+      if (e?.response?.status === 404) { setPay({ kind: "review" }); return; }
+      if (attempt + 1 >= PAY_POLL_TRIES) { setPay({ kind: "late", orderNo }); return; }
+      pollTimer.current = setTimeout(() => pollOrder(orderNo, attempt + 1), PAY_POLL_MS);
+    });
+  }, []);
+
+  // A signed-in visitor is either back from the payment page (?order=…), continuing at the
+  // plan step (?step=plan, e.g. from the trial), or has no business here.
   useEffect(() => {
-    if (!isLoading && isAuthenticated && !done.current) router.replace("/dashboard");
-  }, [isAuthenticated, isLoading, router]);
+    if (isLoading || !isAuthenticated || done.current) return;
+    const qs = new URLSearchParams(window.location.search);
+    const orderNo = qs.get("order");
+    if (orderNo) {
+      done.current = true; setCreated(true); setMaxDone(3); setView("4"); setPay({ kind: "checking" });
+      pollOrder(orderNo);
+    } else if (qs.get("step") === "plan") {
+      done.current = true; setCreated(true); setMaxDone(2); setView("3");
+    } else router.replace("/dashboard");
+  }, [isAuthenticated, isLoading, router, pollOrder]);
+
+  useEffect(() => () => { if (pollTimer.current) clearTimeout(pollTimer.current); }, []);
+
+  // the price list, once the plan step is reached
+  useEffect(() => {
+    if ((view !== "3" && view !== "4") || catalog) return;
+    let alive = true;
+    api.get(API.SUBSCRIPTION.CATALOG).then((res) => {
+      if (!alive) return;
+      const c = res.data.data as Catalog;
+      setCatalog(c);
+      setSel((s) => (c.plans.some((p) => p.key === s.plan) || !c.plans.length ? s : { ...s, plan: c.plans[0].key }));
+    }).catch(() => { if (alive) setFormErr("تعذّر تحميل الباقات. حدّث الصفحة وحاول مرة أخرى."); });
+    return () => { alive = false; };
+  }, [view, catalog]);
 
   // resend countdown
   useEffect(() => {
@@ -290,9 +352,12 @@ export default function RegisterPage() {
       if (trial?.days) track("start_trial", { trial_type: "signup", trial_days: trial.days });
       localStorage.setItem("auth_token", token);
       localStorage.setItem("auth_user", JSON.stringify(user));
-      // Short delay so the events are sent before the page reloads.
-      setTimeout(() => { window.location.href = "/dashboard"; }, 400);
-      return; // keep the button busy until the redirect
+      // The account exists; the customer now chooses a plan or the trial.
+      setCreated(true);
+      setMaxDone((m) => Math.max(m, 2));
+      working.current = false; setBusy(false);
+      go("3");
+      return;
     } catch (e: any) {
       const errors: Record<string, string[]> | undefined = e?.response?.status === 422 ? e.response.data?.errors : undefined;
       if (errors?.phone_token) {
@@ -314,10 +379,38 @@ export default function RegisterPage() {
     working.current = false; setBusy(false);
   };
 
+  const enterPlatform = () => { window.location.href = "/dashboard"; };
+
+  /** Open the PayTabs payment page for the selection. The backend prices it. */
+  const startPayment = async () => {
+    if (working.current || !catalog) return;
+    working.current = true; setBusy(true); setFormErr("");
+    try {
+      const res = await api.post(API.SUBSCRIPTION.CHECKOUT, {
+        plan: sel.plan, period: sel.yearly ? "yearly" : "monthly", extra_users: sel.extra[sel.plan] ?? 0,
+      });
+      const { redirect_url, order } = res.data.data;
+      if (redirect_url) { window.location.href = redirect_url; return; } // stays busy while the browser leaves
+      if (order?.status === "paid") { setMaxDone(4); setPay({ kind: "paid", orderNo: order.order_no, method: order.payment_method }); }
+      else setFormErr("تعذّر فتح صفحة الدفع الآن. لم يُخصم أي مبلغ، حاول مرة أخرى بعد قليل.");
+    } catch (e: any) {
+      setFormErr(netError(e, "تعذّر فتح صفحة الدفع الآن. لم يُخصم أي مبلغ، حاول مرة أخرى بعد قليل."));
+    }
+    working.current = false; setBusy(false);
+  };
+
   const submit = (ev?: React.SyntheticEvent) => {
     ev?.preventDefault();
     if (leaving || busy) return;
     if (view === "1b") { verifyCode(otp); return; }
+    if (view === "3") {
+      if (!catalog) return;
+      if (sel.path === "trial") { enterPlatform(); return; }
+      setMaxDone((m) => Math.max(m, 3)); setPay({ kind: "review" }); setFormErr("");
+      go("4");
+      return;
+    }
+    if (view === "4") { startPayment(); return; }
     const bad = FIELDS[view].some((k) => !!errOf(k, v)) || (view === "1a" && !agree);
     if (bad) { setSubmitted((s) => ({ ...s, [view]: true })); firstBad(); return; }
     if (view === "1a") {
@@ -354,13 +447,27 @@ export default function RegisterPage() {
     </div>
   );
 
-  const step = view === "2" ? 2 : 1;
+  const step = VIEW_STEP[view];
+  const isTrial = sel.path === "trial";
+  const P: CatalogPlan | null = catalog?.plans.find((p) => p.key === sel.plan) ?? catalog?.plans[0] ?? null;
+  const quoteOf = (p: CatalogPlan, extra = sel.extra[p.key] ?? 0) => calcQuote(p, sel.yearly, extra, catalog!);
+  const xu = P ? sel.extra[P.key] ?? 0 : 0;
+  const Q = P && catalog ? quoteOf(P, xu) : null;
+  const lines = P && Q && catalog ? orderLines(P, sel.yearly, xu, Q, catalog.vat_percent) : [];
+  const total = Q ? money(Q.totH) : "";
+  const payBusy = pay.kind === "checking" || pay.kind === "paid" || pay.kind === "late";
   const f = Object.fromEntries((Object.keys(FIELD_VIEW) as Field[]).map((k) => [k, fld(k)])) as Record<Field, ReturnType<typeof fld>>;
   const agreeBad = !agree && !!submitted["1a"];
   const ps = strength(v.pass);
-  const nm = v.name.trim();
-  const goBack = () => { if (busy) return; go("1a"); };
-  const actLabel = view === "1a" ? "متابعة" : view === "1b" ? "تحقق ومتابعة" : "إنشاء الحساب";
+  const nm = v.name.trim() || (created ? (user?.name ?? "") : "");
+  const email = v.email.trim() || (created ? (user?.email ?? "") : "");
+  const bizName = v.biz.trim() || (created ? ((user as any)?.organization?.name ?? "") : "");
+  const phoneShown = v.phone ? `+966 ${showPhone(v.phone)}` : (user?.phone ? `+${String(user.phone).replace(/\D/g, "")}` : "");
+  // Once the account exists steps 1–2 are closed; the only way back is from payment to the plan step.
+  const canBack = !busy && (created ? view === "4" && !payBusy : view !== "1a");
+  const goBack = () => { if (!canBack) return; go(created ? "3" : "1a"); };
+  const actLabel = view === "1a" ? "متابعة" : view === "1b" ? "تحقق ومتابعة" : view === "2" ? "متابعة"
+    : view === "3" ? (isTrial ? "ابدأ التجربة المجانية" : "متابعة إلى الدفع") : `ادفع ${total} ر.س`;
 
   return (
     <div className={`wr v${view}` + (leaving ? " leaving" : "") + (back ? " back" : "")} dir="rtl" lang="ar" ref={rootRef}>
@@ -371,37 +478,61 @@ export default function RegisterPage() {
           <Mark />
           <span className="bw"><b>Whats<span className="g">Bit</span></b><small>منصة من كوربت</small></span>
         </a>
-        <p className="s-lab">حساب جديد · خطوتان</p>
+        <p className="s-lab">اشتراك جديد · 4 خطوات</p>
         <ol className="steps">
           {STEPS.map((s, i) => {
-            const n = i + 1, cur = n === step, isDone = !cur && maxDone >= n, can = n < step && maxDone >= n;
+            const n = i + 1, cur = n === step, isDone = !cur && maxDone >= n;
+            const can = created ? (n === 3 && view === "4" && canBack) : (n < step && maxDone >= n);
             return (
               <li key={n} className={"st" + (cur ? " cur" : isDone ? " done" : "") + (maxDone >= n ? " fill" : "")}>
                 <button type="button" className="sbtn" disabled={!can} aria-current={cur ? "step" : undefined}
-                  aria-label={s.t + (cur ? " — الخطوة الحالية" : isDone ? " — مكتملة" : "")} onClick={() => can && go("1a")}>
+                  aria-label={s.t + (cur ? " — الخطوة الحالية" : isDone ? " — مكتملة" : "")} onClick={() => can && go(created ? "3" : "1a")}>
                   <span className="sn"><span className="sn-n">{n}</span><Check w={3} /></span>
-                  <span className="stx"><b>{s.t}</b><small>{s.d}</small></span>
+                  <span className="stx"><b>{s.t}</b><small>{n === 4 && isTrial ? "لا يلزم للتجربة المجانية" : s.d}</small></span>
                 </button>
               </li>
             );
           })}
         </ol>
 
-        <section className="sum" aria-label="ملخص الحساب">
-          <div className="sm-hd"><span>ملخص الحساب</span></div>
+        <section className={"sum" + (step >= 4 ? " compact" : "")} aria-label="ملخص الطلب">
+          <div className="sm-hd"><span>ملخص الطلب</span>{step >= 3 && <span className="sm-tag">{isTrial ? "تجربة" : pay.kind === "paid" ? "مدفوع" : sel.yearly ? "سنوي" : "شهري"}</span>}</div>
+          {step >= 3 && !isTrial && P && Q && (
+            <>
+              <div className="sm-plan"><b>باقة {PLAN_COPY[P.key].n}</b><span>{sel.yearly ? "اشتراك سنوي" : "اشتراك شهري"}</span></div>
+              <OrderLines lines={lines} />
+              <div className="tot"><span className="tl-l">الإجمالي المستحق<small>شامل ضريبة القيمة المضافة</small></span><b><span className="num">{total}</span> <small>ر.س</small></b></div>
+              <p className="sm-meta">رسوم Meta للرسائل تُحتسب منفصلة حسب الاستخدام</p>
+            </>
+          )}
+          {step >= 3 && isTrial && (
+            <>
+              <div className="sm-plan sm-tr"><b>تجربة مجانية</b><span>بدون دفع</span></div>
+              <dl className="lines">
+                <div className="ln"><dt>المدة</dt><dd>{TRIAL.days} أيام</dd></div>
+                <div className="ln"><dt>الرسائل</dt><dd>{TRIAL.total} رسالة</dd></div>
+                <div className="ln"><dt>المستلمون</dt><dd>جوالك + {TRIAL.inv} أرقام</dd></div>
+                <div className="ln"><dt>المرسل</dt><dd>رقم كوربت التجريبي</dd></div>
+              </dl>
+              <div className="tot"><span className="tl-l">الإجمالي المستحق<small>لا يلزم دفع ولا بطاقة</small></span><b><span className="num">0.00</span> <small>ر.س</small></b></div>
+              <p className="sm-meta">تشترك متى شئت وتعود لاختيار الباقة وبياناتك محفوظة</p>
+            </>
+          )}
+          {step < 3 && (<>
           <div className="sm-who">
             <div className={"sm-row" + (nm ? " on" : "")}>
               <span className="sm-av">{nm ? nm.charAt(0) : (
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 20c.9-3.6 3.9-6 7.5-6s6.6 2.4 7.5 6" /></svg>
               )}</span>
-              <span className="sm-tx"><b>{nm || "حسابك"}</b><small>{v.email.trim() || "الاسم والبريد الإلكتروني"}</small></span>
+              <span className="sm-tx"><b>{nm || "حسابك"}</b><small>{email || "الاسم والبريد الإلكتروني"}</small></span>
             </div>
-            <div className={"sm-row" + (v.biz.trim() ? " on" : "")}>
+            <div className={"sm-row" + (bizName ? " on" : "")}>
               <span className="sm-av ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16M16 9h2a2 2 0 0 1 2 2v10M8 7h4M8 11h4M8 15h4M3 21h18" /></svg></span>
-              <span className="sm-tx"><b>{v.biz.trim() || "منشأتك"}</b><small>{v.cr ? "السجل التجاري " + v.cr : "السجل التجاري والقطاع"}</small></span>
+              <span className="sm-tx"><b>{bizName || "منشأتك"}</b><small>{v.cr ? "السجل التجاري " + v.cr : "السجل التجاري والقطاع"}</small></span>
             </div>
           </div>
-          <p className="sm-empty">بعد إنشاء الحساب تدخل لوحة التحكم مباشرة، بلا دفع ولا بطاقة.</p>
+          <p className="sm-empty">ستظهر هنا الباقة والإجمالي بعد اختيارها في الخطوة 3.</p>
+          </>)}
         </section>
 
         <div className="side-ft">
@@ -416,10 +547,10 @@ export default function RegisterPage() {
         <header className="mtop">
           {view === "1a"
             ? <a className="mback" href={PRODUCT_URL} aria-label="رجوع إلى صفحة WhatsBit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg></a>
-            : <button type="button" className="mback" onClick={goBack} aria-label="رجوع إلى الخطوة السابقة"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg></button>}
+            : <button type="button" className="mback" onClick={goBack} hidden={!canBack} aria-label="رجوع إلى الخطوة السابقة"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg></button>}
           <a className="mbrand" href={PRODUCT_URL} aria-label="WhatsBit"><Mark /><b>Whats<span className="g">Bit</span></b></a>
-          <span className="mstep"><b>الخطوة {step} من 2</b><span className="mst-t"> · {STEPS[step - 1].t}</span></span>
-          <span className="mbar" aria-hidden="true">{[1, 2].map((n) => <i key={n} className={n < step ? "on" : n === step ? "on cur" : ""} />)}</span>
+          <span className="mstep"><b>الخطوة {step} من 4</b><span className="mst-t"> · {STEPS[step - 1].t}</span></span>
+          <span className="mbar" aria-hidden="true">{[1, 2, 3, 4].map((n) => <i key={n} className={n < step ? "on" : n === step ? "on cur" : ""} />)}</span>
           <span className="msp" />
           <span className="mlogin">لديك حساب؟ <a href="/login">سجّل الدخول</a></span>
         </header>
@@ -567,22 +698,35 @@ export default function RegisterPage() {
                 </div>
               )}
 
+              {/* STEP 3 · plan or trial */}
+              {view === "3" && (catalog && catalog.plans.length
+                ? <PlanStep catalog={catalog} sel={sel} onChange={(patch) => setSel((s) => ({ ...s, ...patch }))} quoteOf={quoteOf} biz={bizName} phone={phoneShown} sector={v.sector} />
+                : <div className="view"><div className="card pay-res" role="status">{formErr ? <p className="form-err" role="alert">{formErr}</p> : <><span className="wait" aria-hidden="true" /><p>جارٍ تحميل الباقات…</p></>}</div></div>)}
+
+              {/* STEP 4 · payment */}
+              {view === "4" && (pay.kind !== "review" && pay.kind !== "failed"
+                ? <PayStep lines={[]} total="" periodLabel="" state={pay} error="" onEnter={enterPlatform} />
+                : P && Q
+                  ? <PayStep lines={lines} total={total} periodLabel={sel.yearly ? "اشتراك سنوي" : "اشتراك شهري"} state={pay} error={formErr} onEnter={enterPlatform} />
+                  : <div className="view"><div className="card pay-res" role="status"><span className="wait" aria-hidden="true" /><p>جارٍ التحميل…</p></div></div>)}
+
             </div>
             <p className="m-help"><a href="tel:920006900">تحتاج مساعدة؟ <b><bdi dir="ltr">920006900</bdi></b></a></p>
           </div>
 
-          <footer className="act">
+          <footer className="act" hidden={view === "4" && payBusy}>
             <div className="act-in">
               {view === "1a"
                 ? <a className="btn btn-line act-back" href={PRODUCT_URL}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg><span>رجوع</span></a>
-                : <button type="button" className="btn btn-line act-back" onClick={goBack}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg><span>رجوع</span></button>}
+                : <button type="button" className="btn btn-line act-back" onClick={goBack} hidden={!canBack}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg><span>رجوع</span></button>}
               <span className="act-sp" />
               <span className="act-gw">
-                <button type="submit" className={"btn act-go btn-pri" + (busy ? " busy" : "")} aria-busy={busy}>
+                <button type="submit" className={"btn act-go " + (view === "3" && isTrial ? "btn-tr" : "btn-pri") + (busy ? " busy" : "")} aria-busy={busy}>
                   <span className="bl">{actLabel}</span>
                   <svg className="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6" /></svg>
                   <span className="spin" aria-hidden="true" />
                 </button>
+                {view === "4" && <button type="button" className="act-try" onClick={enterPlatform}>جرّب المنصة أولًا، بدون دفع</button>}
               </span>
             </div>
           </footer>
