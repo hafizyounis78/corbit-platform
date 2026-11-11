@@ -5,6 +5,8 @@ export const API = {
     ME: '/auth/me',
     REFRESH: '/auth/refresh',
     REGISTER: '/auth/register',
+    REGISTER_PHONE_SEND: '/auth/register/phone/send',
+    REGISTER_PHONE_VERIFY: '/auth/register/phone/verify',
     FORGOT_PASSWORD: '/auth/forgot-password',
     RESET_PASSWORD: '/auth/reset-password',
     CHANGE_PASSWORD: '/auth/change-password',
