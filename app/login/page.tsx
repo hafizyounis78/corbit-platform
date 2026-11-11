@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useLocale } from '@/lib/i18n/locale-provider';
 import { ZohoSalesIq } from '@/components/support/zoho-salesiq';
-import { AuthLogo, AUTH_THEME_KEY } from '@/components/auth/auth-shell';
+import { AuthTopbar, AuthLegal, EyeIcon, useAuthTheme } from '@/components/auth/auth-shell';
 import './login.css';
 
 const D = {
@@ -12,9 +12,8 @@ const D = {
     sub: 'أدخل بيانات حسابك للوصول إلى منصة واتساب الأعمال.', email: 'البريد الإلكتروني', eEmail: 'أدخل بريداً إلكترونياً صحيحاً',
     pass: 'كلمة المرور', ePass: 'أدخل كلمة المرور', forgot: 'نسيت كلمة المرور؟', caps: 'زر الأحرف الكبيرة (Caps Lock) مفعّل',
     login: 'تسجيل الدخول', noAcc: 'ليس لديك حساب؟', signup: 'أنشئ حسابك الآن',
-    site: 'موقع كوربت', terms: 'شروط الاستخدام', privacy: 'الخصوصية', dpa: 'معالجة البيانات', waPolicy: 'سياسة واتساب', copy: '© 2026 Corbit',
     errAuth: 'البريد الإلكتروني أو كلمة المرور غير صحيحة.', errNet: 'تعذّر الاتصال. تحقق من الإنترنت وحاول مرة أخرى.',
-    showPass: 'إظهار كلمة المرور', hidePass: 'إخفاء كلمة المرور', theme: 'تبديل الوضع', talk: 'تحدث معنا', loading: 'جاري التحميل...',
+    showPass: 'إظهار كلمة المرور', hidePass: 'إخفاء كلمة المرور', loading: 'جاري التحميل...',
     eyebrow: 'منصة واتساب الأعمال المتكاملة', h2a: 'واتساب للأعمال', h2b: ' بذكاء أكبر',
     heroP: 'حملات وقوالب معتمدة وبوتات ووكلاء ذكاء اصطناعي وصندوق وارد مشترك لفريقك في مكان واحد.',
     demo: 'عرض توضيحي', inb: 'صندوق الوارد', c1n: 'أحمد', c1m: 'كم سعر الباقة السنوية؟', c2n: 'سارة', c2m: 'أريد تغيير موعد الطلب',
@@ -27,9 +26,8 @@ const D = {
     sub: 'Enter your account details to access the WhatsApp business platform.', email: 'Email', eEmail: 'Enter a valid email address',
     pass: 'Password', ePass: 'Enter your password', forgot: 'Forgot password?', caps: 'Caps Lock is on',
     login: 'Sign in', noAcc: "Don't have an account?", signup: 'Create your account',
-    site: 'Corbit website', terms: 'Terms', privacy: 'Privacy', dpa: 'Data processing', waPolicy: 'WhatsApp policy', copy: '© 2026 Corbit',
     errAuth: 'Incorrect email or password.', errNet: "Couldn't connect. Check your internet and try again.",
-    showPass: 'Show password', hidePass: 'Hide password', theme: 'Toggle theme', talk: 'Talk to us', loading: 'Loading...',
+    showPass: 'Show password', hidePass: 'Hide password', loading: 'Loading...',
     eyebrow: 'The complete WhatsApp business platform', h2a: 'WhatsApp for business,', h2b: ' smarter',
     heroP: 'Campaigns, approved templates, bots, AI agents and a shared team inbox in one place.',
     demo: 'Demo', inb: 'Inbox', c1n: 'Ahmed', c1m: 'How much is the yearly plan?', c2n: 'Sara', c2m: 'I want to change my order date',
@@ -40,23 +38,25 @@ const D = {
   },
 } as const;
 
-const PhoneIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A15 15 0 0 1 3 6a2 2 0 0 1 2-2z" />
-  </svg>
-);
-
 /** Both languages are in the DOM; CSS shows the active one (data-l). */
 const L2 = ({ ar, en }: { ar: string; en: string }) => (<><span data-l="ar">{ar}</span><span data-l="en">{en}</span></>);
+
+/** Blocks whose height is locked to the taller of the two languages. */
+const LOCK_SEL = ['.hero-head', '.stage', '.trust', '.slides', '.card'] as const;
+
+type FormError = { k: 'errAuth' | 'errNet' } | { m: string };
 
 export default function LoginPage() {
   const router = useRouter();
   const { login, isAuthenticated, isLoading } = useAuth();
   const { lang, toggleLang } = useLocale();
-  const t = D[lang === 'en' ? 'en' : 'ar'];
-  const en = lang === 'en';
+  // Layout measuring: 'a' = this language, 'b' = one render in the other language (never painted).
+  const [meas, setMeas] = useState<'' | 'a' | 'b'>('a');
+  const [lk, setLk] = useState<number[] | null>(null);
+  const en = (meas === 'b') !== (lang === 'en');
+  const t = D[en ? 'en' : 'ar'];
 
-  const [dark, setDark] = useState(false);
+  const [dark, toggleTheme] = useAuthTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [pw, setPw] = useState(false);
@@ -65,7 +65,7 @@ export default function LoginPage() {
   const [eP, setEP] = useState(false);
   const [shk, setShk] = useState(0);
   const [btn, setBtn] = useState<'' | 'loading' | 'success'>('');
-  const [err, setErr] = useState<string | null>(null);
+  const [err, setErr] = useState<FormError | null>(null);
   const [morning, setMorning] = useState(true);
 
   // hero demo state
@@ -75,11 +75,11 @@ export default function LoginPage() {
   const [used, setUsed] = useState(false);
   const [cnt, setCnt] = useState(0);
   const [now, setNow] = useState<number | null>(null);
-  const [cz, setCz] = useState(1);
-  const [hz, setHz] = useState(1);
 
   const busy = useRef(false);
   const passRef = useRef<HTMLInputElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const lkA = useRef<number[] | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const centerRef = useRef<HTMLElement>(null);
   const heroRef = useRef<HTMLElement>(null);
@@ -91,22 +91,14 @@ export default function LoginPage() {
     if (!isLoading && isAuthenticated) router.replace('/dashboard');
   }, [isAuthenticated, isLoading, router]);
 
-  // theme (auth screens default to light, as designed) + greeting + clock
+  // greeting + clock
   useEffect(() => {
-    try { setDark(localStorage.getItem(AUTH_THEME_KEY) === 'dark'); } catch { /* ignore */ }
     const h = new Date().getHours();
     setMorning(h >= 4 && h < 12);
     setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 15000);
     return () => clearInterval(id);
   }, []);
-
-  const toggleTheme = () => {
-    setDark((d) => {
-      try { localStorage.setItem(AUTH_THEME_KEY, d ? 'light' : 'dark'); } catch { /* ignore */ }
-      return !d;
-    });
-  };
 
   const reduce = () => {
     try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
@@ -160,36 +152,57 @@ export default function LoginPage() {
     return () => clearInterval(id);
   }, []);
 
-  // fit the card and the hero to the viewport height (the page never scrolls)
+  /* Fit to the viewport height — the page never scrolls (mirrors the design's lock() + fit()):
+     'a' natural heights in this language → 'b' the same in the other language → lock min-heights
+     to the taller of the two, so switching language doesn't move the layout → zoom the card / the
+     hero down when they are taller than the room they have.
+     Zoom goes straight to the DOM inside a layout effect, so nothing is painted in between. */
   const fit = useCallback(() => {
     const card = cardRef.current, center = centerRef.current, hero = heroRef.current, hi = heroInnerRef.current;
     if (card && center) {
+      card.style.zoom = '';
       const av = center.clientHeight - 24, h = card.offsetHeight;
-      setCz(h > av ? Math.max(0.4, av / h) : 1);
+      if (h > av) card.style.zoom = String(Math.max(0.4, av / h));
     }
-    if (hero && hi && getComputedStyle(hero).display !== 'none') {
-      const H = hero.clientHeight, N = hi.scrollHeight;
-      setHz(N > H ? Math.max(0.4, H / N) : 1);
-    } else {
-      setHz(1);
+    if (hi) {
+      hi.style.zoom = ''; hi.style.height = ''; hi.style.flex = '';
+      if (hero && getComputedStyle(hero).display !== 'none') {
+        hi.style.flex = 'none';
+        const H = hero.clientHeight, N = hi.offsetHeight, z = N > 0 ? Math.min(1, H / N) : 1;
+        hi.style.height = `${H / z}px`;
+        if (z < 1) hi.style.zoom = String(z);
+      }
     }
   }, []);
 
   useLayoutEffect(() => {
     if (isLoading) return;
-    // measure at natural size, then apply the zoom
-    setCz(1); setHz(1);
-    const id = setTimeout(fit, 0);
+    if (meas) {
+      // natural size: no zoom, no fixed hero height
+      const card = cardRef.current, hi = heroInnerRef.current;
+      if (card) card.style.zoom = '';
+      if (hi) { hi.style.zoom = ''; hi.style.height = ''; hi.style.flex = 'none'; }
+      const hs = LOCK_SEL.map((sel) => rootRef.current?.querySelector<HTMLElement>(sel)?.offsetHeight ?? 0);
+      if (meas === 'a') { lkA.current = hs; setMeas('b'); return; }
+      const a = lkA.current ?? hs;
+      setLk(hs.map((v, i) => Math.max(v, a[i])));
+      setMeas('');
+      return;
+    }
+    fit();
+    // the field hints open with a .25s transition — fit again once they have settled
+    const id = setTimeout(fit, 320);
     return () => clearTimeout(id);
-  }, [fit, isLoading, lang, eE, eP, caps, err]);
+  }, [fit, isLoading, meas, lk, lang, eE, eP, caps, err]);
 
+  // re-measure from scratch when the viewport changes or the web fonts land
   useEffect(() => {
     let tm: ReturnType<typeof setTimeout>;
-    const onRs = () => { clearTimeout(tm); tm = setTimeout(() => { setCz(1); setHz(1); setTimeout(fit, 0); }, 250); };
-    window.addEventListener('resize', onRs);
-    try { document.fonts?.ready.then(() => onRs()); } catch { /* ignore */ }
-    return () => { window.removeEventListener('resize', onRs); clearTimeout(tm); };
-  }, [fit]);
+    const relock = () => { clearTimeout(tm); tm = setTimeout(() => { setLk(null); setMeas('a'); }, 250); };
+    window.addEventListener('resize', relock);
+    try { document.fonts?.ready.then(relock); } catch { /* ignore */ }
+    return () => { window.removeEventListener('resize', relock); clearTimeout(tm); };
+  }, []);
 
   const capsKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
     const c = !!e.getModifierState?.('CapsLock');
@@ -224,16 +237,7 @@ export default function LoginPage() {
     setBtn('');
     // Server messages (suspended account, throttling…) are kept as-is; the
     // two designed messages cover wrong credentials and no connection.
-    setErr(result.network ? t.errNet : (result.status === 401 || result.status === 422 || !result.error ? t.errAuth : result.error));
-  };
-
-  /** «تحدث معنا»: opens the existing live-support chat; falls back to the unified number. */
-  const talk = () => {
-    try {
-      const siq = (window as any).$zoho?.salesiq;
-      if (siq?.floatwindow?.visible) { siq.floatwindow.visible('show'); return; }
-    } catch { /* ignore */ }
-    window.location.href = 'tel:920006900';
+    setErr(result.network ? { k: 'errNet' } : (result.status === 401 || result.status === 422 || !result.error ? { k: 'errAuth' } : { m: result.error }));
   };
 
   if (isLoading) return (
@@ -252,25 +256,16 @@ export default function LoginPage() {
   );
 
   return (
-    <div className={'lgw' + (dark ? ' dark' : '') + (en ? ' en' : '')} dir={en ? 'ltr' : 'rtl'} lang={en ? 'en' : 'ar'}>
-      <ZohoSalesIq />
+    <div className={'lgw' + (dark ? ' dark' : '') + (en ? ' en' : '')} dir={en ? 'ltr' : 'rtl'} lang={en ? 'en' : 'ar'} ref={rootRef}>
+      <ZohoSalesIq hideLauncher />
       <div className="page">
 
         <section className="side-form">
           <div className="gridbg" aria-hidden="true" /><div className="orb" aria-hidden="true" />
-          <header className="topbar reveal">
-            <AuthLogo />
-            <div className="topbar-actions">
-              <button type="button" className="talk-btn" onClick={talk}><PhoneIcon /><span className="tt">{t.talk}</span></button>
-              <button type="button" className="lang-btn" lang={en ? 'ar' : 'en'} aria-label={en ? 'التبديل إلى العربية' : 'Switch to English'} onClick={toggleLang}>{en ? 'عربي' : 'EN'}</button>
-              <button type="button" className="theme-btn" aria-label={t.theme} onClick={toggleTheme}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></svg>
-              </button>
-            </div>
-          </header>
+          <AuthTopbar en={en} onToggleLang={toggleLang} onToggleTheme={toggleTheme} />
 
           <main className="center" ref={centerRef}>
-            <div className="card reveal" ref={cardRef} style={cz < 1 ? { zoom: cz } : undefined}>
+            <div className="card reveal" ref={cardRef} style={lk ? { minHeight: lk[4] } : undefined}>
               <h1>{t.greet[morning ? 0 : 1]}</h1>
               <p className="sub">{t.sub}</p>
               <form noValidate onSubmit={submit}>
@@ -293,15 +288,13 @@ export default function LoginPage() {
                       onKeyDown={capsKey} onKeyUp={capsKey} onBlur={() => caps && setCaps(false)} />
                     <button type="button" className="icon-btn" aria-label={pw ? t.hidePass : t.showPass}
                       onClick={() => { setPw((v) => !v); setTimeout(() => passRef.current?.focus(), 0); }}>
-                      {pw
-                        ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6A17 17 0 0 0 2 12s3.5 7 10 7a9.7 9.7 0 0 0 4-.9" /></svg>
-                        : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></svg>}
+                      <EyeIcon off={pw} />
                     </button>
                   </div>
                   <div className="hint"><span>{t.ePass}</span></div>
                   <div className={'hint warn' + (caps ? ' show' : '')}><span>{t.caps}</span></div>
                 </div>
-                {err && <div className="form-err" role="alert">{err}</div>}
+                {err && <div className="form-err" role="alert">{'k' in err ? t[err.k] : err.m}</div>}
                 <button className={'btn' + (btn ? ' ' + btn : '')} type="submit" aria-busy={btn ? 'true' : 'false'}>
                   <span className="lbl">{t.login}</span>
                   <span className="spin"><i /></span>
@@ -312,32 +305,18 @@ export default function LoginPage() {
             </div>
           </main>
 
-          <footer className="legal reveal">
-            <nav>
-              <a href="https://corbit.sa" target="_blank" rel="noopener" className="site"><span className="dot" /><span>{t.site}</span></a>
-              <a className="sup" href="mailto:info@corbit.sa"><bdi dir="ltr">info@corbit.sa</bdi></a>
-              <a className="tel" href="tel:920006900"><PhoneIcon /><bdi dir="ltr">920006900</bdi></a>
-            </nav>
-            <nav>
-              <a href="/terms">{t.terms}</a>
-              <a href="/privacy">{t.privacy}</a>
-              <a href="/dpa">{t.dpa}</a>
-              {/* Required by Meta WhatsApp Business Policy — kept from the previous screen. */}
-              <a href="https://www.whatsapp.com/legal/business-policy" target="_blank" rel="noopener noreferrer">{t.waPolicy}</a>
-              <span className="cpy">{t.copy}</span>
-            </nav>
-          </footer>
+          <AuthLegal en={en} />
         </section>
 
         <aside className="hero" ref={heroRef}>
-          <div className="hero-inner" ref={heroInnerRef} style={hz < 1 ? { zoom: hz, flex: 'none' } : undefined}>
-            <div className="hero-head reveal">
+          <div className="hero-inner" ref={heroInnerRef}>
+            <div className="hero-head reveal" style={lk ? { minHeight: lk[0] } : undefined}>
               <span className="eyebrow"><span className="dot" /><span>{t.eyebrow}</span></span>
               <h2><em>{t.h2a}</em>{t.h2b}</h2>
               <p>{t.heroP}</p>
             </div>
 
-            <div className="stage reveal">
+            <div className="stage reveal" style={lk ? { minHeight: lk[1] } : undefined}>
               <div className="dash" aria-hidden="true">
                 <div className="chrome"><i /><i /><i /><span className="url" dir="ltr">whatsbit.corbit.sa/inbox</span><span className="demo">{t.demo}</span></div>
                 <div className="dbody inbox">
@@ -367,7 +346,7 @@ export default function LoginPage() {
                     <span className="wa-who"><b><span className="bn">متجر الريّان</span><i className="wa-ver">✓</i></b><small><L2 ar="حساب تجاري" en="Business account" /></small></span>
                   </div>
                   <div className="wa-body">
-                    <div className="slides">
+                    <div className="slides" style={lk ? { minHeight: lk[3] } : undefined}>
                       <div className={slc(0)}>
                         <div className="wa-in wa-tpl">
                           <div className="wa-img"><L2 ar="🎉 عرض نهاية الأسبوع" en="🎉 Weekend offer" /></div>
@@ -411,7 +390,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="trust reveal">
+            <div className="trust reveal" style={lk ? { minHeight: lk[2] } : undefined}>
               <dl className="stats">
                 <div><dt><bdi dir="ltr"><b className="num">{Math.round(20 * e3)}+</b></bdi></dt><dd>{t.st1}</dd></div>
                 <div><dt><bdi dir="ltr"><b className="num">{Math.round(98 * e3)}%</b></bdi></dt><dd>{t.st2}</dd></div>
