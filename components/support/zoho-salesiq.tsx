@@ -66,7 +66,13 @@ function applyVisitor(user: SalesIqUser, lang: string) {
   }
 }
 
-export function ZohoSalesIq() {
+/**
+ * `hideLauncher` keeps the chat available but hides SalesIQ's floating
+ * bubble — for screens that open the chat from their own button (the
+ * auth screens' «تحدث معنا»). The rule unmounts with the screen, so the
+ * bubble is back as soon as the user reaches the platform.
+ */
+export function ZohoSalesIq({ hideLauncher = false }: { hideLauncher?: boolean } = {}) {
   const { user, isAuthenticated } = useAuth();
   const { lang } = useLocale();
 
@@ -107,6 +113,7 @@ export function ZohoSalesIq() {
           bottom: 24px !important;
         }
       `}</style>
+      {hideLauncher && <style>{`#zsiq_float, .zsiq_floatmain { display: none !important; }`}</style>}
       <Script
         id="zsiqscript"
         src={`${DOMAIN}/widget?wc=${WIDGET_CODE}`}
