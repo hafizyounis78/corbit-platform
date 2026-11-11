@@ -15,7 +15,12 @@ import { useAuth } from "@/lib/auth/auth-context";
  * limits are enforced there, this file only mirrors them for the UI.
  */
 
-type TrialTemplate = { id: string; name: string; body: string; footer: string | null; variablesCount: number; variableExamples: string[] };
+type TrialTemplate = {
+  id: string; name: string; body: string; footer: string | null; variablesCount: number; variableExamples: string[];
+  /** 1-based position of the variable the platform fills with the business name; the customer never types it */
+  bizVariable: number | null;
+  variableLabels: string[];
+};
 type Invite = { phone: string; status: "pending" | "accepted" | "declined" };
 export type TrialSummary = {
   status: "active" | "not_started" | "expired" | "cap_reached" | "ended";
@@ -65,21 +70,35 @@ function varErr(s: string): string {
   return "";
 }
 
-/** A template body with {{1}}, {{2}}… → text and variable segments. Empty variables show their label. */
-function segments(t: TrialTemplate, vals: string[] | null): Seg[] {
+/** Positions (0-based, in the template) of the variables the customer types — all but the business name. */
+const customerVars = (t: TrialTemplate) =>
+  Array.from({ length: t.variablesCount }, (_, i) => i).filter((i) => i + 1 !== t.bizVariable);
+
+const varLabel = (t: TrialTemplate, pos: number) => (t.variableLabels?.[pos] || "").trim() || `المتغير ${pos + 1}`;
+
+/**
+ * A template body with {{1}}, {{2}}… → text, variable and business-name segments.
+ * `vals` are the customer's values in customerVars() order; an empty one shows its label.
+ */
+function segments(t: TrialTemplate, vals: string[] | null, biz: string): Seg[] {
   const out: Seg[] = [];
+  const order = customerVars(t);
   const re = /\{\{(\d+)\}\}/g;
   let last = 0, m: RegExpExecArray | null;
   while ((m = re.exec(t.body))) {
     if (m.index > last) out.push({ t: t.body.slice(last, m.index), c: "s" });
-    const i = Number(m[1]) - 1;
-    out.push({ t: (vals?.[i] || "").trim() || varLabel(t, i), c: "v" });
+    const pos = Number(m[1]) - 1;
+    if (pos + 1 === t.bizVariable) out.push({ t: biz, c: "b" });
+    else out.push({ t: (vals?.[order.indexOf(pos)] || "").trim() || varLabel(t, pos), c: "v" });
     last = re.lastIndex;
   }
   if (last < t.body.length) out.push({ t: t.body.slice(last), c: "s" });
   return out;
 }
-const varLabel = (t: TrialTemplate, i: number) => `المتغير ${i + 1}`;
+
+/** What the send dialog starts with: the customer's first name where a name is asked, else the template's example. */
+const startValues = (t: TrialTemplate, first: string) =>
+  customerVars(t).map((pos, k) => (k === 0 && first ? first : t.variableExamples?.[pos] ?? ""));
 
 export function useTrialPlatform(initial: TrialSummary) {
   const { user, logout } = useAuth();
@@ -171,23 +190,24 @@ export function useTrialPlatform(initial: TrialSummary) {
     if (!t) { say("لا توجد قوالب متاحة للتجربة حاليًا"); return; }
     const to = sTo !== "me" && trial.invites.some((i) => i.phone === sTo && i.status === "accepted") ? sTo : "me";
     setSTpl(t.id); setSTo(to); setSSub(false); setSBusy(false); setSErr("");
-    setSVars(Array.from({ length: t.variablesCount }, (_, i) => (i === 0 && first ? first : t.variableExamples?.[i] ?? "")));
+    setSVars(startValues(t, first));
     setNav(false); setMd("send");
   };
 
   const sT = TL.find((x) => x.id === sTpl) || TL[0];
   const pickTpl = (t: TrialTemplate) => {
     setSTpl(t.id); setSSub(false);
-    setSVars(Array.from({ length: t.variablesCount }, (_, i) => (i === 0 && first ? first : t.variableExamples?.[i] ?? "")));
+    setSVars(startValues(t, first));
   };
 
   const doSend = async () => {
     if (sBusy || frozen || dayFull || !sT) return;
-    if (sVars.slice(0, sT.variablesCount).some((x) => !!varErr(x))) { setSSub(true); return; }
+    const typed = customerVars(sT).map((_, k) => sVars[k] || ""); // the business name is added by the backend
+    if (typed.some((x) => !!varErr(x))) { setSSub(true); return; }
     setSBusy(true); setSErr("");
     const to = sTo === "me" ? me : sTo;
     try {
-      const res = await api.post("/trial/messages", { phone: to, templateId: sT.id, variables: sVars.slice(0, sT.variablesCount) });
+      const res = await api.post("/trial/messages", { phone: to, templateId: sT.id, variables: typed });
       // One request: the answer carries the recorded message and the whole refreshed summary.
       const message = res.data?.data?.message as TrialMessage | undefined;
       const next = res.data?.data?.trial as TrialSummary;
@@ -291,7 +311,7 @@ export function useTrialPlatform(initial: TrialSummary) {
         chip: "خدمي · معتمد للتجربة", ft: true,
         sub: "قوالب خدمية معتمدة خلال التجربة، تعدّل فيها المتغيرات فقط.",
         lockT: "تُفتح بعد الاشتراك: تكتب قوالبك بنصك الخاص وترسلها لاعتماد Meta، ومنها الرسائل التسويقية.",
-        list: TL.map((t) => ({ n: t.name, segs: segments(t, null), vars: t.variablesCount ? `المتغيرات: ${t.variablesCount}` : "بلا متغيرات", useLbl: "استخدم القالب", use: () => openSend(t.id) })),
+        list: TL.map((t) => ({ n: t.name, segs: segments(t, null, biz), vars: customerVars(t).length ? `المتغيرات: ${customerVars(t).map((pos) => varLabel(t, pos)).join("، ")}` : "بلا متغيرات", useLbl: "استخدم القالب", use: () => openSend(t.id) })),
       },
       ct: {
         used: String(trial.invites.length), max: String(trial.inviteCap), v: invV, fcls: "pfld" + (invErr ? " bad" : ""), err: invErr, inv: invErr ? "true" : "false",
@@ -309,12 +329,12 @@ export function useTrialPlatform(initial: TrialSummary) {
         to: toOpts.map((o) => { const on = o.k === toSel.k; return { t: o.t, n: o.n, wait: o.wait, dis: o.wait, on, cls: "so" + (on ? " on" : "") + (o.wait ? " dis" : ""), pick: () => { if (!o.wait) setSTo(o.k); } }; }),
         toN: toSel.n,
         tpls: TL.map((t) => { const on = t.id === sT?.id; return { n: t.name, on, cls: "so" + (on ? " on" : ""), pick: () => pickTpl(t) }; }),
-        vars: sT ? Array.from({ length: sT.variablesCount }, (_, i) => {
+        vars: sT ? customerVars(sT).map((pos, i) => {
           const val = sVars[i] || "", e = varErr(val), show = !!e && (sSub || (!!val && e !== "اكتب قيمة المتغير"));
-          return { id: `pf-v-${i}`, l: varLabel(sT, i), v: val, err: e, inv: show ? "true" : "false", cls: "pfld" + (show ? " bad" : ""),
+          return { id: `pf-v-${i}`, l: varLabel(sT, pos), v: val, err: e, inv: show ? "true" : "false", cls: "pfld" + (show ? " bad" : ""),
             on: (ev: React.ChangeEvent<HTMLInputElement>) => setSVars((o) => { const n = o.slice(); n[i] = ev.target.value.slice(0, 40); return n; }) };
         }) : [],
-        segs: sT ? segments(sT, sVars) : [],
+        segs: sT ? segments(sT, sVars, biz) : [],
         limit: frozen || dayFull || !!sErr,
         limitT: sErr || (frozen ? "انتهت التجربة وتجمّد الإرسال." : `وصلت إلى حد اليوم (${day} رسائل). يتجدد الحد غدًا.`),
         left: `يتبقى ${msgN(left)} في التجربة`, dis: frozen || dayFull, busy: sBusy ? "true" : "false",
