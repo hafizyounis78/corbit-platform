@@ -650,3 +650,6 @@
 .wr .promo-ok{margin:8px 0 0;display:flex;gap:6px;align-items:flex-start;font-size:12.5px;line-height:1.55;font-weight:600;color:var(--gd)}
 .wr .promo-ok svg{width:14px;height:14px;margin-top:3px}
 .wr .promo .ctrl input[readonly]{background:#F5FBF7;font-weight:700;letter-spacing:.5px}
+
+/* national address — shown under the VAT number once one is entered */
+.wr .addr-note{grid-column:1 / -1;font-size:13px;color:var(--ink2);line-height:1.7;margin:2px 0 -4px}

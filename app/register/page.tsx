@@ -35,6 +35,12 @@ const STEPS = [
   { t: "الدفع", d: "مدى أو بطاقة ائتمانية أو Apple Pay" },
 ] as const;
 
+/** The administrative regions of the national address (keys as the backend stores them). */
+const REGIONS: [string, string][] = [
+  ["riyadh", "الرياض"], ["makkah", "مكة المكرمة"], ["madinah", "المدينة المنورة"], ["qassim", "القصيم"], ["eastern", "المنطقة الشرقية"],
+  ["asir", "عسير"], ["tabuk", "تبوك"], ["hail", "حائل"], ["northern_borders", "الحدود الشمالية"], ["jazan", "جازان"],
+  ["najran", "نجران"], ["bahah", "الباحة"], ["jawf", "الجوف"],
+];
 const SECTORS = ["تجزئة ومتاجر إلكترونية", "مطاعم ومقاهٍ", "صحة وعيادات", "تعليم وتدريب", "خدمات مالية", "عقارات", "أخرى"];
 
 type View = "1a" | "1b" | "2" | "3" | "4";
@@ -47,19 +53,20 @@ const PAY_POLL_TRIES = 20;
 
 const FIELDS = {
   "1a": ["name", "email", "phone", "pass"],
-  "2": ["biz", "sector", "cr", "vat", "city", "wa", "disp"],
+  "2": ["biz", "sector", "cr", "vat", "bno", "street", "dist", "region", "zip", "addno", "city", "wa", "disp"],
 } as const;
 type Field = (typeof FIELDS)["1a"][number] | (typeof FIELDS)["2"][number];
 const FIELD_VIEW: Record<Field, "1a" | "2"> = {
   name: "1a", email: "1a", phone: "1a", pass: "1a",
-  biz: "2", sector: "2", cr: "2", vat: "2", city: "2", wa: "2", disp: "2",
+  biz: "2", sector: "2", cr: "2", vat: "2", bno: "2", street: "2", dist: "2", region: "2", zip: "2", addno: "2", city: "2", wa: "2", disp: "2",
 };
-const EMPTY: Record<Field, string> = { name: "", email: "", phone: "", pass: "", biz: "", sector: "", cr: "", vat: "", city: "", wa: "", disp: "" };
+const EMPTY: Record<Field, string> = { name: "", email: "", phone: "", pass: "", biz: "", sector: "", cr: "", vat: "", bno: "", street: "", dist: "", region: "", zip: "", addno: "", city: "", wa: "", disp: "" };
 
 /** Backend field name → the form field it belongs to. */
 const SERVER_FIELD: Record<string, Field> = {
   name: "name", email: "email", phone: "phone", password: "pass",
   companyName: "biz", sector: "sector", cr_number: "cr", vat_number: "vat", city: "city", wa_number: "wa", display_name: "disp",
+  building_number: "bno", street: "street", district: "dist", region: "region", postal_code: "zip", additional_number: "addno",
 };
 
 /** Same policy the backend enforces: 8+ characters with an uppercase letter, a lowercase letter and a digit. */
@@ -77,6 +84,13 @@ function errOf(k: Field, v: Record<Field, string>): string {
     case "cr": return /^\d{10}$/.test(x) ? "" : "رقم السجل التجاري 10 أرقام";
     case "vat": return !x || /^3\d{13}3$/.test(x) ? "" : "الرقم الضريبي 15 رقمًا ويبدأ وينتهي بالرقم 3";
     case "city": return x.trim().length < 2 ? "اكتب مدينة المنشأة" : "";
+    // The national address goes with a VAT number: together they make the invoice a tax invoice in the name of the business.
+    case "bno": return !v.vat ? "" : /^\d{4}$/.test(x) ? "" : "رقم المبنى 4 أرقام";
+    case "street": return !v.vat || x.trim().length >= 2 ? "" : "اكتب اسم الشارع";
+    case "dist": return !v.vat || x.trim().length >= 2 ? "" : "اكتب اسم الحي";
+    case "region": return !v.vat || x ? "" : "اختر المنطقة الإدارية";
+    case "zip": return !v.vat ? "" : /^\d{5}$/.test(x) ? "" : "الرمز البريدي 5 أرقام";
+    case "addno": return !v.vat || !x || /^\d{4}$/.test(x) ? "" : "الرقم الإضافي 4 أرقام";
     case "wa": return /^5\d{8}$/.test(x) ? "" : "رقم واتساب 9 أرقام ويبدأ بالرقم 5";
     case "disp": return x.trim().length < 2 ? "اكتب الاسم الذي سيظهر لعملائك" : "";
   }
@@ -92,6 +106,8 @@ function clean(k: Field, raw: string): string {
   }
   if (k === "cr") return raw.replace(/\D/g, "").slice(0, 10);
   if (k === "vat") return raw.replace(/\D/g, "").slice(0, 15);
+  if (k === "bno" || k === "addno") return raw.replace(/\D/g, "").slice(0, 4);
+  if (k === "zip") return raw.replace(/\D/g, "").slice(0, 5);
   return raw;
 }
 
@@ -156,6 +172,9 @@ export default function RegisterPage() {
   const [otp, setOtp] = useState<string[]>(["", "", "", "", "", ""]);
   const [otpErr, setOtpErr] = useState("");
   const [otpNote, setOtpNote] = useState("");
+  // how the code was last sent, and whether the backend can also send it over WhatsApp
+  const [codeCh, setCodeCh] = useState<"sms" | "whatsapp">("sms");
+  const [waCode, setWaCode] = useState(false);
   const [cd, setCd] = useState(0);
   const [sentTo, setSentTo] = useState("");
   const [verified, setVerified] = useState<{ phone: string; token: string } | null>(null);
@@ -313,15 +332,18 @@ export default function RegisterPage() {
   /** A failed request → the message to show. Our own wording unless the server said something specific. */
   const netError = (e: any, fallback: string) => (!e?.response ? "تعذّر الاتصال. تحقق من الإنترنت وحاول مرة أخرى." : (e.response.data?.message || fallback));
 
-  const requestCode = async (isResend: boolean) => {
+  const requestCode = async (isResend: boolean, channel: "sms" | "whatsapp" = "sms") => {
     if (working.current) return;
     working.current = true; setBusy(true); setFormErr(""); setOtpErr(""); setOtpNote("");
     try {
-      const res = await api.post(API.AUTH.REGISTER_PHONE_SEND, { phone: fullPhone() });
+      const res = await api.post(API.AUTH.REGISTER_PHONE_SEND, { phone: fullPhone(), channel });
+      const sentBy: "sms" | "whatsapp" = res.data?.data?.channel === "whatsapp" ? "whatsapp" : "sms";
+      const switched = isResend && sentBy !== codeCh;
+      setCodeCh(sentBy); setWaCode(!!res.data?.data?.whatsapp_available);
       setSentTo(v.phone);
       setOtp(["", "", "", "", "", ""]);
       setCd(Number(res.data?.data?.resend_in_seconds) || RESEND_SECONDS);
-      if (isResend) { setOtpNote("أرسلنا رمزًا جديدًا"); setTimeout(() => q<HTMLElement>(".cell")?.focus(), 30); }
+      if (isResend) { setOtpNote(switched ? (sentBy === "whatsapp" ? "أرسلنا الرمز عبر واتساب" : "أرسلنا الرمز برسالة نصية") : "أرسلنا رمزًا جديدًا"); setTimeout(() => q<HTMLElement>(".cell")?.focus(), 30); }
       else go("1b");
     } catch (e: any) {
       const msg = netError(e, "تعذّر إرسال الرمز الآن. حاول بعد قليل.");
@@ -369,6 +391,10 @@ export default function RegisterPage() {
         sector: v.sector,
         cr_number: v.cr,
         vat_number: v.vat || null,
+        ...(v.vat ? {
+          building_number: v.bno, street: v.street.trim(), district: v.dist.trim(), region: v.region,
+          postal_code: v.zip, additional_number: v.addno || null,
+        } : {}),
         city: v.city.trim(),
         wa_number: "966" + v.wa,
         display_name: v.disp.trim(),
@@ -688,7 +714,7 @@ export default function RegisterPage() {
               {/* STEP 1 · OTP */}
               {view === "1b" && (
                 <div className="view">
-                  <div className="ph"><h1 tabIndex={-1}>تحقق من رقم جوالك</h1><p>أرسلنا رمز تحقق من 6 أرقام برسالة نصية إلى <bdi dir="ltr" className="num">{`+966 ${v.phone.charAt(0)}• ••• ••${v.phone.slice(7)}`}</bdi></p></div>
+                  <div className="ph"><h1 tabIndex={-1}>تحقق من رقم جوالك</h1><p>{codeCh === "whatsapp" ? "أرسلنا رمز تحقق من 6 أرقام عبر واتساب إلى" : "أرسلنا رمز تحقق من 6 أرقام برسالة نصية إلى"} <bdi dir="ltr" className="num">{`+966 ${v.phone.charAt(0)}• ••• ••${v.phone.slice(7)}`}</bdi></p></div>
                   <div className="card otp-card">
                     <div className={"otp" + (otp.join("").length === 6 ? " full" : "") + (otpErr ? " bad" : "")} role="group" aria-label="رمز التحقق المكوّن من 6 أرقام">
                       {otp.map((c, k) => (
@@ -706,7 +732,12 @@ export default function RegisterPage() {
                     <div className="otp-links">
                       {cd > 0
                         ? <span className="cd">إعادة الإرسال بعد <b className="num">{mmss(cd)}</b></span>
-                        : <button type="button" className="lnk" disabled={busy} onClick={() => requestCode(true)}>أعد إرسال الرمز</button>}
+                        : <button type="button" className="lnk" disabled={busy} onClick={() => requestCode(true, codeCh)}>أعد إرسال الرمز</button>}
+                      {waCode && (
+                        <button type="button" className="lnk wa" disabled={busy} onClick={() => requestCode(true, codeCh === "whatsapp" ? "sms" : "whatsapp")}>
+                          {codeCh === "whatsapp" ? "أرسل الرمز برسالة نصية" : "أرسل الرمز عبر واتساب"}
+                        </button>
+                      )}
                       <button type="button" className="lnk muted" onClick={() => { go("1a"); setTimeout(() => { const el = q<HTMLInputElement>("#wr-phone"); try { el?.focus(); el?.select(); } catch { /* ignore */ } }, 320); }}>تغيير الرقم</button>
                     </div>
                   </div>
@@ -745,6 +776,47 @@ export default function RegisterPage() {
                         <div className="ctrl ltrc"><input id="wr-vat" name="vat" inputMode="numeric" autoComplete="off" placeholder="15 رقمًا يبدأ وينتهي بـ 3" {...f.vat.input} /><Check cls="okm" /></div>
                         <p className="err" id="wr-vat-e">{f.vat.err}</p>
                       </div>
+                      {!!v.vat && (
+                        <>
+                          <p className="addr-note">العنوان الوطني للمنشأة — يُطبع مع الرقم الضريبي على فاتورتك الضريبية.</p>
+                          <div className={f.bno.cls}>
+                            <label htmlFor="wr-bno">رقم المبنى</label>
+                            <div className="ctrl ltrc"><input id="wr-bno" name="bno" inputMode="numeric" autoComplete="off" placeholder="4 أرقام" {...f.bno.input} /><Check cls="okm" /></div>
+                            <p className="err" id="wr-bno-e">{f.bno.err}</p>
+                          </div>
+                          <div className={f.street.cls}>
+                            <label htmlFor="wr-street">الشارع</label>
+                            <div className="ctrl"><input id="wr-street" name="street" autoComplete="address-line1" placeholder="مثال: طريق الملك فهد" {...f.street.input} /><Check cls="okm" /></div>
+                            <p className="err" id="wr-street-e">{f.street.err}</p>
+                          </div>
+                          <div className={f.dist.cls}>
+                            <label htmlFor="wr-dist">الحي</label>
+                            <div className="ctrl"><input id="wr-dist" name="district" autoComplete="address-level3" placeholder="مثال: العليا" {...f.dist.input} /><Check cls="okm" /></div>
+                            <p className="err" id="wr-dist-e">{f.dist.err}</p>
+                          </div>
+                          <div className={f.region.cls}>
+                            <label htmlFor="wr-region">المنطقة الإدارية</label>
+                            <div className={"ctrl sel" + (v.region ? "" : " empty")}>
+                              <select id="wr-region" name="region" {...f.region.input}>
+                                <option value="" disabled>اختر المنطقة</option>
+                                {REGIONS.map(([k, n]) => <option key={k} value={k}>{n}</option>)}
+                              </select>
+                              <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+                            </div>
+                            <p className="err" id="wr-region-e">{f.region.err}</p>
+                          </div>
+                          <div className={f.zip.cls}>
+                            <label htmlFor="wr-zip">الرمز البريدي</label>
+                            <div className="ctrl ltrc"><input id="wr-zip" name="zip" inputMode="numeric" autoComplete="postal-code" placeholder="5 أرقام" {...f.zip.input} /><Check cls="okm" /></div>
+                            <p className="err" id="wr-zip-e">{f.zip.err}</p>
+                          </div>
+                          <div className={f.addno.cls}>
+                            <label htmlFor="wr-addno">الرقم الإضافي <span className="opt">(اختياري)</span></label>
+                            <div className="ctrl ltrc"><input id="wr-addno" name="addno" inputMode="numeric" autoComplete="off" placeholder="4 أرقام" {...f.addno.input} /><Check cls="okm" /></div>
+                            <p className="err" id="wr-addno-e">{f.addno.err}</p>
+                          </div>
+                        </>
+                      )}
                       <div className={f.city.cls}>
                         <label htmlFor="wr-city">المدينة</label>
                         <div className="ctrl"><input id="wr-city" name="city" autoComplete="address-level2" placeholder="مثال: الرياض" {...f.city.input} /><Check cls="okm" /></div>
