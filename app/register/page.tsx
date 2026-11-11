@@ -170,6 +170,11 @@ export default function RegisterPage() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [sel, setSel] = useState<Selection>({ path: "plan", yearly: false, plan: "business", extra: {} });
   const [pay, setPay] = useState<PayState>({ kind: "review" });
+  // discount code: what is typed, and the backend's quote once it accepted the code
+  const [promo, setPromo] = useState("");
+  const [promoErr, setPromoErr] = useState("");
+  const [promoBusy, setPromoBusy] = useState(false);
+  const [applied, setApplied] = useState<{ code: string; discountH: number; vatH: number; totH: number } | null>(null);
   const navTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /** Ask the backend what happened to an order until the bank has answered. */
@@ -181,6 +186,7 @@ export default function RegisterPage() {
         // put the same selection back so the customer can simply try again
         const key = o.quote?.key as PlanKey | undefined;
         if (key) setSel((s) => ({ ...s, path: "plan", plan: key, yearly: o.period === "yearly", extra: { ...s.extra, [key]: o.extra_users ?? 0 } }));
+        if (o.coupon_code) setPromo(o.coupon_code); // typed back in; «تطبيق» checks it again
         setPay({ kind: "failed", reason: o.failure_reason === "gateway_unavailable" ? "" : (o.failure_reason || "") });
         return;
       }
@@ -208,6 +214,9 @@ export default function RegisterPage() {
   }, [isAuthenticated, isLoading, router, pollOrder]);
 
   useEffect(() => () => { if (pollTimer.current) clearTimeout(pollTimer.current); }, []);
+
+  // A code is priced against one exact selection — change the selection and it must be applied again.
+  useEffect(() => { setApplied(null); setPromoErr(""); }, [sel.plan, sel.yearly, sel.extra, sel.path]);
 
   // the price list, once the plan step is reached
   useEffect(() => {
@@ -388,15 +397,38 @@ export default function RegisterPage() {
     try {
       const res = await api.post(API.SUBSCRIPTION.CHECKOUT, {
         plan: sel.plan, period: sel.yearly ? "yearly" : "monthly", extra_users: sel.extra[sel.plan] ?? 0,
+        coupon: applied?.code ?? null,
       });
       const { redirect_url, order } = res.data.data;
       if (redirect_url) { window.location.href = redirect_url; return; } // stays busy while the browser leaves
       if (order?.status === "paid") { setMaxDone(4); setPay({ kind: "paid", orderNo: order.order_no, method: order.payment_method }); }
       else setFormErr("تعذّر فتح صفحة الدفع الآن. لم يُخصم أي مبلغ، حاول مرة أخرى بعد قليل.");
     } catch (e: any) {
-      setFormErr(netError(e, "تعذّر فتح صفحة الدفع الآن. لم يُخصم أي مبلغ، حاول مرة أخرى بعد قليل."));
+      if (e?.response?.data?.errors?.code === "coupon_rejected") {
+        // the code stopped applying between «تطبيق» and «ادفع» (e.g. its uses ran out)
+        setApplied(null); setPromoErr(String(e.response.data.message || "رمز الخصم غير صالح"));
+      } else setFormErr(netError(e, "تعذّر فتح صفحة الدفع الآن. لم يُخصم أي مبلغ، حاول مرة أخرى بعد قليل."));
     }
     working.current = false; setBusy(false);
+  };
+
+  /** «تطبيق»: the backend decides whether the code applies and prices the order with it. */
+  const applyPromo = async () => {
+    if (promoBusy) return;
+    if (!promo) { setPromoErr("اكتب رمز الخصم أولًا"); return; }
+    setPromoBusy(true); setPromoErr("");
+    try {
+      const res = await api.post(API.SUBSCRIPTION.QUOTE, {
+        plan: sel.plan, period: sel.yearly ? "yearly" : "monthly", extra_users: sel.extra[sel.plan] ?? 0, coupon: promo,
+      });
+      const q = res.data.data;
+      setApplied({ code: q.coupon_code, discountH: q.discount_halalas, vatH: q.vat_halalas, totH: q.total_halalas });
+      setPromo(q.coupon_code);
+    } catch (e: any) {
+      setApplied(null);
+      setPromoErr(e?.response?.status === 422 ? String(e.response.data?.message || "الرمز غير صالح") : netError(e, "تعذّر التحقق من الرمز. حاول مرة أخرى."));
+    }
+    setPromoBusy(false);
   };
 
   const submit = (ev?: React.SyntheticEvent) => {
@@ -453,8 +485,13 @@ export default function RegisterPage() {
   const quoteOf = (p: CatalogPlan, extra = sel.extra[p.key] ?? 0) => calcQuote(p, sel.yearly, extra, catalog!);
   const xu = P ? sel.extra[P.key] ?? 0 : 0;
   const Q = P && catalog ? quoteOf(P, xu) : null;
-  const lines = P && Q && catalog ? orderLines(P, sel.yearly, xu, Q, catalog.vat_percent) : [];
-  const total = Q ? money(Q.totH) : "";
+  const baseLines = P && Q && catalog ? orderLines(P, sel.yearly, xu, Q, catalog.vat_percent) : [];
+  // With a code applied the discount, VAT and total are the backend's figures.
+  const lines = applied
+    ? [...baseLines.slice(0, -1), { k: `خصم الرمز ${applied.code}`, v: `−${money(applied.discountH)}` }, { ...baseLines[baseLines.length - 1], v: money(applied.vatH) }]
+    : baseLines;
+  const total = applied ? money(applied.totH) : Q ? money(Q.totH) : "";
+  const nothingToPay = !!applied && applied.totH === 0;
   const payBusy = pay.kind === "checking" || pay.kind === "paid" || pay.kind === "late";
   const f = Object.fromEntries((Object.keys(FIELD_VIEW) as Field[]).map((k) => [k, fld(k)])) as Record<Field, ReturnType<typeof fld>>;
   const agreeBad = !agree && !!submitted["1a"];
@@ -467,7 +504,7 @@ export default function RegisterPage() {
   const canBack = !busy && (created ? view === "4" && !payBusy : view !== "1a");
   const goBack = () => { if (!canBack) return; go(created ? "3" : "1a"); };
   const actLabel = view === "1a" ? "متابعة" : view === "1b" ? "تحقق ومتابعة" : view === "2" ? "متابعة"
-    : view === "3" ? (isTrial ? "ابدأ التجربة المجانية" : "متابعة إلى الدفع") : `ادفع ${total} ر.س`;
+    : view === "3" ? (isTrial ? "ابدأ التجربة المجانية" : "متابعة إلى الدفع") : nothingToPay ? "فعّل الاشتراك" : `ادفع ${total} ر.س`;
 
   return (
     <div className={`wr v${view}` + (leaving ? " leaving" : "") + (back ? " back" : "")} dir="rtl" lang="ar" ref={rootRef}>
@@ -707,7 +744,10 @@ export default function RegisterPage() {
               {view === "4" && (pay.kind !== "review" && pay.kind !== "failed"
                 ? <PayStep lines={[]} total="" periodLabel="" state={pay} error="" onEnter={enterPlatform} />
                 : P && Q
-                  ? <PayStep lines={lines} total={total} periodLabel={sel.yearly ? "اشتراك سنوي" : "اشتراك شهري"} state={pay} error={formErr} onEnter={enterPlatform} />
+                  ? <PayStep lines={lines} total={total} periodLabel={sel.yearly ? "اشتراك سنوي" : "اشتراك شهري"} state={pay} error={formErr} onEnter={enterPlatform}
+                      promo={{ value: promo, err: promoErr, busy: promoBusy, applied: applied ? { code: applied.code, saved: money(applied.discountH) } : null,
+                        onChange: (x) => { setPromo(x.toUpperCase().replace(/\s/g, "").slice(0, 20)); setPromoErr(""); },
+                        onApply: applyPromo, onRemove: () => { setApplied(null); setPromo(""); setPromoErr(""); } }} />
                   : <div className="view"><div className="card pay-res" role="status"><span className="wait" aria-hidden="true" /><p>جارٍ التحميل…</p></div></div>)}
 
             </div>

@@ -13,6 +13,7 @@ export const API = {
   },
   SUBSCRIPTION: {
     CATALOG: '/subscription/catalog',
+    QUOTE: '/subscription/quote',
     CHECKOUT: '/subscription/checkout',
     ORDER: (orderNo: string) => `/subscription/orders/${encodeURIComponent(orderNo)}`,
   },

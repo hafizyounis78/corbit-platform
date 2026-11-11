@@ -214,13 +214,26 @@ export type PayState =
   | { kind: "paid"; orderNo: string; method?: string | null }
   | { kind: "failed"; reason: string };
 
-export function PayStep({ lines, total, periodLabel, state, error, onEnter }: {
+/** The discount-code field on the payment step. */
+export type PromoProps = {
+  value: string;
+  err: string;
+  busy: boolean;
+  /** set once the backend accepted the code */
+  applied: { code: string; saved: string } | null;
+  onChange: (v: string) => void;
+  onApply: () => void;
+  onRemove: () => void;
+};
+
+export function PayStep({ lines, total, periodLabel, state, error, onEnter, promo }: {
   lines: Line[];
   total: string;
   periodLabel: string;
   state: PayState;
   error: string;
   onEnter: () => void;
+  promo?: PromoProps;
 }) {
   if (state.kind === "checking") {
     return (
@@ -276,6 +289,24 @@ export function PayStep({ lines, total, periodLabel, state, error, onEnter }: {
         <div className="card ordr">
           <h3 className="c-t">ملخص الطلب <span className="ordr-tag">{periodLabel}</span></h3>
           <OrderLines lines={lines} />
+          {promo && (
+            <div className={"fld promo-w" + (promo.err ? " bad" : "")}>
+              <label className="lbl" htmlFor="wr-promo">رمز الخصم <span className="opt">(اختياري)</span></label>
+              <div className="promo">
+                <div className="ctrl">
+                  <input id="wr-promo" name="promo" autoComplete="off" placeholder="أدخل الرمز" dir="ltr" value={promo.value} readOnly={!!promo.applied}
+                    onChange={(e) => promo.onChange(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (!promo.applied) promo.onApply(); } }}
+                    aria-invalid={!!promo.err} aria-describedby="wr-promo-e" />
+                </div>
+                {promo.applied
+                  ? <button type="button" className="btn btn-line promo-go" onClick={promo.onRemove}>إزالة</button>
+                  : <button type="button" className={"btn btn-line promo-go" + (promo.busy ? " busy" : "")} disabled={promo.busy} onClick={promo.onApply}>تطبيق</button>}
+              </div>
+              <p className="err" id="wr-promo-e" role="alert">{promo.err}</p>
+              {promo.applied && <p className="promo-ok" role="status"><Ico d={CHECK} w={2.4} /><span>تم تطبيق الرمز <bdi dir="ltr">{promo.applied.code}</bdi> — وفّرت {promo.applied.saved} ر.س قبل الضريبة</span></p>}
+            </div>
+          )}
           <div className="tot"><span className="tl-l">الإجمالي المستحق<small>شامل ضريبة القيمة المضافة</small></span><b><span className="num">{total}</span> <small>ر.س</small></b></div>
         </div>
       </div>

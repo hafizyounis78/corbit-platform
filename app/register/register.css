@@ -647,3 +647,6 @@
 .wr .pay-res .okc svg{width:28px;height:28px}
 .wr .pay-res .wait{width:44px;height:44px;border-radius:50%;border:4px solid #E6EAF0;border-top-color:var(--g);animation:wrSpin .8s linear infinite}
 .wr .pay-res .btn{margin-top:14px}
+.wr .promo-ok{margin:8px 0 0;display:flex;gap:6px;align-items:flex-start;font-size:12.5px;line-height:1.55;font-weight:600;color:var(--gd)}
+.wr .promo-ok svg{width:14px;height:14px;margin-top:3px}
+.wr .promo .ctrl input[readonly]{background:#F5FBF7;font-weight:700;letter-spacing:.5px}
