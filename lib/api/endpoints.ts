@@ -11,6 +11,12 @@ export const API = {
     RESET_PASSWORD: '/auth/reset-password',
     CHANGE_PASSWORD: '/auth/change-password',
   },
+  SUBSCRIPTION: {
+    CATALOG: '/subscription/catalog',
+    QUOTE: '/subscription/quote',
+    CHECKOUT: '/subscription/checkout',
+    ORDER: (orderNo: string) => `/subscription/orders/${encodeURIComponent(orderNo)}`,
+  },
   SUPER_ADMIN: {
     ORGANIZATIONS: '/super-admin/organizations',
     ORGANIZATION: (id: string) => `/super-admin/organizations/${id}`,

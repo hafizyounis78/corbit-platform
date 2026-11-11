@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icons/icon";
 import { FONT_FAMILY } from "@/lib/constants/font";
+import { SelfServeTrial } from "@/components/trial-platform/self-serve-trial";
 
 type TrialStatus = "active" | "not_started" | "expired" | "cap_reached" | "ended";
 
@@ -80,7 +81,8 @@ export default function TrialPage() {
   const { data: summary, isLoading, mutate: refreshSummary } = useApi<TrialSummary>("/trial");
   const [page, setPage] = useState(1);
   const { data: list, mutate: refreshList } = useApi<{ items: TrialMessage[]; meta: { currentPage: number; lastPage: number; total: number } }>(
-    `/trial/messages?page=${page}&limit=10`,
+    // The self-serve dashboard loads its own messages; this list (and its 10s poll) is for sales trials only.
+    summary && !(summary as any).selfServe ? `/trial/messages?page=${page}&limit=10` : null,
     [],
     10000,
   );
@@ -158,6 +160,11 @@ export default function TrialPage() {
   }
   if (!summary) {
     return <div style={{ textAlign: "center", color: C.t2, padding: 40 }}>{isAr ? "لا توجد تجربة مفعّلة لهذا الحساب." : "No trial is active for this account."}</div>;
+  }
+
+  // The trial a customer started themselves gets the dashboard from the signup design.
+  if ((summary as any).selfServe) {
+    return <SelfServeTrial summary={summary as any} />;
   }
 
   const usedPct = summary.messageCap > 0 ? Math.min(100, Math.round((summary.messagesUsed / summary.messageCap) * 100)) : 100;

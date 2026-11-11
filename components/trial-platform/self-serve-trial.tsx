@@ -1,0 +1,24 @@
+"use client";
+
+import "@/app/register/register.css";
+import "./platform.css";
+import { PlatformView } from "./platform-view";
+import { useTrialPlatform, type TrialSummary } from "./use-trial-platform";
+
+/**
+ * The trial dashboard a customer lands on after «ابدأ التجربة المجانية»
+ * (signup step 3). The markup is the approved design's platform shell
+ * (platform-view.tsx, generated from it); the data is the real trial.
+ *
+ * It covers the whole screen: a trial account has no other page, and
+ * the design's shell brings its own sidebar and top bar.
+ */
+export function SelfServeTrial({ summary }: { summary: TrialSummary }) {
+  const vm = useTrialPlatform(summary);
+
+  return (
+    <div className="wr pfm" dir="rtl" lang="ar" style={{ position: "fixed", inset: 0, zIndex: 60, height: "100dvh" }}>
+      <PlatformView vm={vm} />
+    </div>
+  );
+}
