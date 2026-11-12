@@ -30,22 +30,81 @@ export type TrialSummary = {
   signupPhone: string | null; tasks: { msg: boolean; inv: boolean; tpl: boolean };
   extended: boolean; extensionDays: number; totalDays: number; retentionDays: number;
 };
-type TrialMessage = { id: string; phone: string; templateName: string; body: string | null; status: string; sentAt: string | null };
+type TrialMessage = { id: string; phone: string; templateName: string; body: string | null; status: string; error?: string | null; sentAt: string | null };
 
-type View = "home" | "tpl" | "ct" | "inbox";
+type View = "home" | "tpl" | "ct" | "inbox" | "feat";
 type Seg = { t: string; c: "s" | "v" | "b" };
 
-/** Features that open with a subscription, each with the first plan that includes it (from the design). */
+/** The three the home card lists as opening with a subscription, each with the first plan that includes it (from the design). */
 const FEAT: Record<string, { n: string; d: string; plan: string }> = {
   camp: { n: "الحملات", d: "رسائل البث لعملائك", plan: "basic" },
   bot: { n: "الشات بوت الذكي", d: "ردود آلية ذكية على عملائك", plan: "starter" },
   api: { n: "API والتكاملات", d: "سلة وزد و Shopify وأنظمتك", plan: "starter" },
 };
-const PLAN: Record<string, { n: string; p: number; f: string[] }> = {
-  basic: { n: "الأساسية", p: 199, f: ["2,000 رسالة بث شهريًا", "1,000 محادثة خدمية", "مستخدمان + رقم واتساب", "قوالب غير محدودة", "ردود تلقائية بقواعد"] },
-  starter: { n: "البداية", p: 399, f: ["كل مميزات الأساسية", "10,000 بث + 2,500 محادثة", "شات بوت ذكي (5,000 رسالة)", "5 مستخدمين", "قوالب غير محدودة"] },
+const PLAN: Record<string, { n: string }> = { basic: { n: "الأساسية" }, starter: { n: "البداية" } };
+const NAV_T: Record<string, string> = {
+  home: "لوحة التحكم", inbox: "صندوق الوارد", camp: "الحملات", ct: "جهات الاتصال", pipe: "مسار المبيعات", tpl: "القوالب", bot: "بناء البوت",
+  aic: "مركز الذكاء", aig: "وكلاء الذكاء", ana: "التحليلات", api: "التطبيقات", team: "الفرق", bill: "الفوترة", help: "مركز المساعدة",
 };
-const VIEW_TITLE: Record<View, string> = { home: "لوحة التحكم", tpl: "القوالب", ct: "جهات الاتصال", inbox: "صندوق الوارد" };
+const VIEW_TITLE: Record<Exclude<View, "feat">, string> = { home: NAV_T.home, tpl: NAV_T.tpl, ct: NAV_T.ct, inbox: NAV_T.inbox };
+
+/**
+ * What a trial account reads when it opens a section it cannot use yet:
+ * the section is not locked away, it is explained — what it does (`pts`)
+ * and the step that starts it once the number is connected (`step`).
+ */
+const TOUR: Record<string, { s: string; pts: [string, string][]; step: string }> = {
+  camp: {
+    s: "أرسل رسائل البث لعملائك دفعة واحدة بقوالب معتمدة من Meta، وتابع نتيجة كل حملة.",
+    pts: [["اختيار الجمهور", "حدّد المستلمين من جهات الاتصال أو من شريحة منها"], ["قوالب معتمدة", "ترسل بقوالبك المعتمدة من Meta مع متغيرات لكل عميل"], ["جدولة الإرسال", "أرسل الحملة الآن أو حدّد لها موعدًا"], ["تقرير لكل حملة", "ما أُرسل وما وصل وما قُرئ وما فشل"]],
+    step: "أنشئ حملتك الأولى واختر جمهورها",
+  },
+  pipe: {
+    s: "تابع صفقاتك من أول محادثة حتى الإغلاق في لوحة مراحل واحدة.",
+    pts: [["مراحل واضحة", "انقل الصفقة من مرحلة إلى التي بعدها بالسحب"], ["مرتبطة بالعميل", "كل صفقة مرتبطة بجهة الاتصال صاحبة المحادثة"], ["متابعة الفريق", "اعرف ما في كل مرحلة ومن المسؤول عنه"]],
+    step: "أضف صفقتك الأولى وحرّكها بين المراحل",
+  },
+  bot: {
+    s: "ابنِ ردودًا آلية تعمل على مدار الساعة بمخطط مرئي، دون كتابة كود.",
+    pts: [["مخطط مرئي", "ارسم مسار المحادثة خطوة بخطوة"], ["أزرار وقوائم", "يختار العميل ما يريد بضغطة"], ["تحويل لموظف", "يحوّل البوت المحادثة لفريقك عند الحاجة"], ["يعمل دائمًا", "يرد على عملائك خارج أوقات الدوام"]],
+    step: "ابنِ أول بوت وفعّله على رقمك",
+  },
+  aic: {
+    s: "ردود ذكية على عملائك مبنية على معلومات منشأتك أنت.",
+    pts: [["قاعدة المعرفة", "أضف معلومات منشأتك ليجيب الذكاء منها"], ["نبرة الرد", "اختر الأسلوب الذي يخاطب به عملاءك"], ["ضوابط", "حدّد ما يجيب عنه وما يحوّله لموظف"], ["نظرة عامة", "تابع استخدام الذكاء ونتائجه"]],
+    step: "أضف معلومات منشأتك وفعّل الرد الذكي",
+  },
+  aig: {
+    s: "وكلاء ذكاء متخصصون، لكل واحد شخصيته ومهمته.",
+    pts: [["وكيل لكل مهمة", "مبيعات، دعم، حجوزات، أو ما يناسب منشأتك"], ["تعليمات خاصة", "تكتب لكل وكيل شخصيته وطريقة رده"], ["توجيه تلقائي", "تُوجَّه المحادثة للوكيل المناسب بكلمات مفتاحية"], ["يستند لمعلوماتك", "يستخدم الوكيل قاعدة المعرفة عند الرد"]],
+    step: "أنشئ أول وكيل واكتب تعليماته",
+  },
+  ana: {
+    s: "أرقام رسائلك ومحادثاتك وأداء فريقك في مكان واحد.",
+    pts: [["الرسائل", "ما أُرسل وما وصل وما قُرئ"], ["المحادثات", "حجم المحادثات وأوقاتها"], ["أداء الفريق", "نشاط كل موظف وسرعة رده"]],
+    step: "ابدأ الإرسال وتظهر الأرقام تلقائيًا",
+  },
+  api: {
+    s: "اربط WhatsBit بمتجرك وأنظمتك لتُرسل الرسائل تلقائيًا.",
+    pts: [["المتاجر", "رسائل الطلبات والشحن تلقائيًا"], ["API عام", "أرسل من أنظمتك برمز وصول خاص بك"], ["تنبيهات لأنظمتك", "استقبل أحداث الرسائل في نظامك (Webhooks)"]],
+    step: "اربط متجرك أو أنشئ رمز الوصول",
+  },
+  team: {
+    s: "أضف فريقك ووزّع المحادثات بينهم.",
+    pts: [["أعضاء وأدوار", "أضف موظفيك وحدّد صلاحية كل واحد"], ["توزيع المحادثات", "أسند المحادثة للموظف أو الفريق المناسب"], ["صندوق مشترك", "يعمل الجميع على رقم واحد"]],
+    step: "أضف أول عضو لفريقك",
+  },
+  bill: {
+    s: "اشتراكك وفواتيرك في مكان واحد.",
+    pts: [["الباقة", "اختر باقتك وغيّرها متى احتجت"], ["الفواتير", "فاتورة ضريبية إلكترونية لكل دفعة"], ["الدفع", "دفع آمن بالبطاقة"]],
+    step: "اختر باقتك وأكمل الدفع",
+  },
+  help: {
+    s: "إجابات وأدلة، وفريق دعم معك.",
+    pts: [["اتصل بنا", "فريق الدعم على الرقم 920006900"], ["أدلة الاستخدام", "شرح كل قسم في المنصة خطوة بخطوة"], ["الأسئلة الشائعة", "إجابات جاهزة لأكثر ما يُسأل عنه"]],
+    step: "اتصل بفريق الدعم متى احتجت",
+  },
+};
 const NAV = ["home", "inbox", "camp", "ct", "pipe", "tpl", "bot", "aic", "aig", "ana", "api", "team", "bill", "help"];
 
 const days = (n: number) => (n <= 0 ? "انتهت" : n === 1 ? "يوم واحد" : n === 2 ? "يومان" : n <= 10 ? `${n} أيام` : `${n} يومًا`);
@@ -106,9 +165,9 @@ export function useTrialPlatform(initial: TrialSummary) {
   const [msgs, setMsgs] = useState<TrialMessage[]>([]);
 
   const [pv, setPv] = useState<View>("home");
-  const [md, setMd] = useState<"" | "send" | "lock" | "ach">("");
+  const [md, setMd] = useState<"" | "send" | "ach">("");
   const [nav, setNav] = useState(false);
-  const [lockK, setLockK] = useState("camp");
+  const [featK, setFeatK] = useState("camp");
   const [toast, setToast] = useState("");
   const [toastOn, setToastOn] = useState(false);
 
@@ -179,9 +238,8 @@ export function useTrialPlatform(initial: TrialSummary) {
       }
       return;
     }
-    setNav(false);
-    if (FEAT[k]) { setLockK(k); setMd("lock"); return; }
-    say("تتفعّل بعد الاشتراك وربط رقمك");
+    // every other section opens as a page that explains it: the trial lets the customer look around
+    setNav(false); setFeatK(k); setPv("feat");
   };
 
   const openSend = (id?: string) => {
@@ -254,15 +312,16 @@ export function useTrialPlatform(initial: TrialSummary) {
     const meMsgs = msgs.filter((m) => m.phone === me && m.status !== "failed").slice().reverse();
     const sentMsgs = msgs.filter((m) => m.status !== "failed");
     const dl = Math.max(0, trial.daysLeft);
-    const lkF = FEAT[lockK] || FEAT.camp, lkP = PLAN[lkF.plan];
+    const tour = TOUR[featK] || TOUR.camp;
+    const featPlan = FEAT[featK] ? PLAN[FEAT[featK].plan].n : "";
     const toOpts = [{ k: "me", t: "جوالك الموثّق", n: showPhone(me), wait: false }]
       .concat(trial.invites.filter((i) => i.status !== "declined").map((i) => ({ k: i.phone, t: "رقم مدعو", n: showPhone(i.phone), wait: i.status !== "accepted" })));
     const toSel = toOpts.find((o) => o.k === sTo && !o.wait) || toOpts[0];
 
     const nv: Record<string, any> = { inboxN: String(sentMsgs.length) };
     NAV.forEach((k) => {
-      const lk = !!FEAT[k], on = k === pv;
-      nv[k] = { cls: "pf-it" + (on ? " on" : "") + (lk ? " locked" : ""), cur: on ? "page" : undefined, lk, lkT: lk ? PLAN[FEAT[k].plan].n : "", go: () => go(k) };
+      const on = pv === "feat" ? k === featK : k === pv;
+      nv[k] = { cls: "pf-it" + (on ? " on" : ""), cur: on ? "page" : undefined, lk: false, lkT: "", go: () => go(k) };
     });
 
     const taskDefs = [
@@ -273,7 +332,7 @@ export function useTrialPlatform(initial: TrialSummary) {
 
     return {
       pf: {
-        cls: "pf ph-ready trial" + (nav ? " nav" : ""), isTrial: true, title: VIEW_TITLE[pv],
+        cls: "pf ph-ready trial" + (nav ? " nav" : ""), isTrial: true, title: pv === "feat" ? NAV_T[featK] : VIEW_TITLE[pv],
         ini: first.charAt(0) || "م", uname: user?.name || "مالك الحساب",
         navOpen: () => setNav(true), navClose: () => setNav(false), navExp: nav ? "true" : "false",
         sub: () => goSubscribe(), send: () => openSend(), sendDis: frozen || dayFull,
@@ -306,7 +365,7 @@ export function useTrialPlatform(initial: TrialSummary) {
         { l: "الأيام المتبقية", v: dl, of: `من ${trial.totalDays}`, p: trial.totalDays ? dl / trial.totalDays : 0, s: trial.extended ? `شاملة تمديد ${trial.extensionDays} أيام` : "ثم يتجمّد الإرسال", c: "c4" },
       ].map((k) => ({ l: k.l, v: String(k.v), of: k.of, s: k.s, cls: "pf-kpi " + k.c, st: pct(k.p) })),
       ph: { to: showPhone(me), empty: !meMsgs.length, more: !!meMsgs.length, msgs: meMsgs.map((m) => ({ segs: [{ t: m.body || "", c: "s" }], time: clock(m.sentAt) })) },
-      lk: ["camp", "bot", "api"].map((k) => ({ n: FEAT[k].n, d: FEAT[k].d, pl: `من باقة ${PLAN[FEAT[k].plan].n}`, go: () => { setLockK(k); setMd("lock"); } })),
+      lk: ["camp", "bot", "api"].map((k) => ({ n: FEAT[k].n, d: FEAT[k].d, pl: `من باقة ${PLAN[FEAT[k].plan].n}`, go: () => go(k) })),
       tp: {
         chip: "خدمي · معتمد للتجربة", ft: true,
         sub: "قوالب خدمية معتمدة خلال التجربة، تعدّل فيها المتغيرات فقط.",
@@ -341,19 +400,47 @@ export function useTrialPlatform(initial: TrialSummary) {
         btnCls: "pf-btn pf-pri" + (sBusy ? " busy" : ""),
         send: () => doSend(), inv: () => { setMd(""); go("ct"); },
       },
-      lkm: {
-        t: `${lkF.n} — متاحة من باقة ${lkP.n}`, s: "هذه الميزة مقفلة خلال التجربة. اشترك لتفعيلها على رقمك الخاص وباسم منشأتك.",
-        pn: lkP.n, pp: lkP.p.toLocaleString("en-US"), f: lkP.f, goLbl: `اشترك في ${lkP.n}`, go: () => goSubscribe(lkF.plan),
+      // sections are explained on their own page (ft), so the lock dialog is never opened
+      lkm: { t: "", s: "", pn: "", pp: "", f: [], goLbl: "", go: () => {} },
+      ft: {
+        t: NAV_T[featK], s: tour.s, pts: tour.pts.map(([t, d]) => ({ t, d })),
+        k: featPlan ? `متاحة من باقة ${featPlan}` : "تتفعّل بعد الاشتراك وربط رقمك",
+        ct: "فعّل هذه الميزة على رقمك",
+        cs: featK === "bill" ? "أنت الآن في التجربة المجانية ولا يُطلب منك دفع." : "تعمل على رقمك الخاص وباسم منشأتك بعد الاشتراك.",
+        goLbl: featK === "help" ? "اتصل بالدعم" : "اشترك الآن",
+        go: () => { if (featK === "help") window.location.href = "tel:920006900"; else goSubscribe(FEAT[featK]?.plan); },
+        steps: featK === "help" ? [tour.step] : ["اشترك في الباقة المناسبة لمنشأتك", "اربط رقم واتساب الأعمال باسم منشأتك", tour.step],
       },
+      srch: [
+        ...NAV.map((k) => ({ t: NAV_T[k], s: "قسم", go: () => go(k) })),
+        ...TL.map((t) => ({ t: t.name, s: "قالب", go: () => openSend(t.id) })),
+        { t: "إرسال رسالة تجريبية", s: "إجراء", go: () => openSend() },
+        { t: "ادعُ رقمًا للتجربة", s: "إجراء", go: () => go("ct") },
+        { t: "اشترك الآن", s: "إجراء", go: () => goSubscribe() },
+        ...trial.invites.map((i) => ({ t: showPhone(i.phone), s: "رقم مدعو", go: () => go("ct") })),
+      ],
+      notes: [
+        ...(frozen ? [{ id: "frozen", t: "انتهت التجربة وتجمّد الإرسال.", s: "اشترك لمتابعة الإرسال من رقمك الخاص", go: () => goSubscribe() }] : []),
+        ...(!frozen && !TL.length ? [{ id: "no-tpl", t: "لا توجد قوالب متاحة للتجربة حاليًا", s: "القوالب قيد الاعتماد وستظهر هنا فور جاهزيتها" }] : []),
+        ...msgs.filter((m) => m.status === "failed").slice(0, 3).map((m) => ({ id: `fail:${m.id}`, t: `تعذّر إرسال رسالة إلى ${showPhone(m.phone)}`, s: m.error || "تعذّر الإرسال", go: () => openSend() })),
+        ...(!frozen && dayFull ? [{ id: `day:${today}`, t: `وصلت إلى حد اليوم (${day} رسائل). يتجدد الحد غدًا.`, s: "" }] : []),
+        ...(!frozen && dl <= 2 ? [{ id: `days:${dl}`, t: `تبقّى ${days(dl)} على انتهاء تجربتك`, s: "اشترك لمتابعة الإرسال من رقمك الخاص", go: () => goSubscribe() }] : []),
+        ...(!frozen && left > 0 && left <= 5 ? [{ id: `left:${left}`, t: `يتبقى ${msgN(left)} في التجربة`, s: "اشترك لمتابعة الإرسال من رقمك الخاص", go: () => goSubscribe() }] : []),
+        ...(trial.extended ? [{ id: "extended", t: `أكملت المهام الثلاث — مددنا تجربتك ${trial.extensionDays} أيام`, s: "" }] : []),
+        ...trial.invites.filter((i) => i.status !== "pending").map((i) => i.status === "accepted"
+          ? { id: `inv:${i.phone}:ok`, t: `وافق الرقم ${showPhone(i.phone)} على استقبال رسائل التجربة`, s: "يمكنك الإرسال إليه الآن", go: () => openSend() }
+          : { id: `inv:${i.phone}:no`, t: `رفض الرقم ${showPhone(i.phone)} استقبال رسائل التجربة`, s: "لن يستقبل رسائل التجربة", go: () => go("ct") }),
+        { id: "started", t: `بدأت تجربتك المجانية: ${total} رسالة خلال ${days(trial.totalDays)}`, s: "رسائلك تصل من رقم كوربت التجريبي" },
+      ],
       ach: {
         s: sent >= Math.ceil(total * 0.8) ? `استخدمت ${sent} من ${total} رسالة تجريبية. هذا ما أنجزته حتى الآن:` : dl > 0 && !frozen ? `تبقّى ${days(dl)} على انتهاء تجربتك. هذا ما أنجزته حتى الآن:` : "انتهت تجربتك. هذا ما أنجزته:",
         sent: String(sent), inv: String(okInv), tk: String(nDone), ext: trial.extended, go: () => goSubscribe(),
       },
-      md: { send: md === "send", lock: md === "lock", ach: md === "ach", meta: false, close: () => { if (!sBusy) setMd(""); } },
-      pv: { homeT: pv === "home", homeP: false, tpl: pv === "tpl", ct: pv === "ct", inbox: pv === "inbox" },
+      md: { send: md === "send", lock: false, ach: md === "ach", meta: false, close: () => { if (!sBusy) setMd(""); } },
+      pv: { homeT: pv === "home", homeP: false, tpl: pv === "tpl", ct: pv === "ct", inbox: pv === "inbox", feat: pv === "feat" },
       // the paid dashboard (number wizard, receipt, quick actions) is not part of the trial
       rc: { on: false }, wz: {}, qa: {}, hl: [], mt: {},
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trial, msgs, pv, md, nav, lockK, toast, toastOn, sTpl, sTo, sVars, sSub, sBusy, sErr, invV, invErr, invBusy, user]);
+  }, [trial, msgs, pv, md, nav, featK, toast, toastOn, sTpl, sTo, sVars, sSub, sBusy, sErr, invV, invErr, invBusy, user]);
 }

@@ -513,3 +513,116 @@
   .wr .qa-g{grid-template-columns:1fr 1fr}
 }
 @keyframes pfSheet{from{opacity:0;transform:translate3d(0,40px,0)}to{opacity:1;transform:none}}
+
+/* =================================================================
+   Hand-written additions (not in the design file): the working top bar,
+   search, the bell, «حسابي», the feature pages of the trial, the light
+   theme and the left-to-right layout for English.
+   ================================================================= */
+.wr .pf-top{position:relative;z-index:5}
+.wr button.pf-srch{border:0;cursor:pointer;font-family:inherit;text-align:start;transition:background .2s,color .2s}
+.wr button.pf-srch:hover{color:var(--ptx2)}
+.wr button.pf-tic{background:none;cursor:pointer;transition:border-color .2s,background .2s}
+.wr button.pf-tic:hover{border-color:var(--pln2);background:rgba(255,255,255,.04)}
+.wr .pf-bw2{position:relative;display:inline-flex;flex:none}
+.wr .pf-pop{position:absolute;top:calc(100% + 10px);inset-inline-end:0;z-index:20;width:340px;max-width:calc(100vw - 24px);max-height:min(460px,70vh);overflow-y:auto;padding:14px;border-radius:16px;background:var(--psf);border:1px solid var(--pln2);box-shadow:0 30px 70px -30px rgba(0,0,0,.8);animation:pfView .25s var(--ease) both;scrollbar-width:thin}
+.wr .pop-h{display:block;font-size:15px;color:var(--ptx);margin-bottom:10px}
+.wr .pop-ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.wr .nt{width:100%;display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:12px;border:1px solid transparent;background:var(--psf2);color:inherit;font-family:inherit;text-align:start;line-height:1.5;cursor:default}
+.wr .nt.act{cursor:pointer}
+.wr .nt.act:hover{border-color:var(--pg)}
+.wr .nt b{font-size:13.5px;font-weight:600;color:var(--ptx)}
+.wr .nt small{font-size:12px;color:var(--ptx2)}
+.wr .pop-0,.wr .sr-0{font-size:13px;color:var(--ptx3);padding:6px 2px}
+
+.wr .pf-me{flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:0;border:0;background:none;color:inherit;font-family:inherit;text-align:start;cursor:pointer;border-radius:10px}
+.wr .pf-me:hover .pf-ut b{color:var(--pgt)}
+.wr .me-dl{margin:0 0 16px;display:flex;flex-direction:column;gap:6px}
+.wr .me-dl > div{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 12px;border-radius:11px;background:var(--psf2)}
+.wr .me-dl dt{font-size:12.5px;color:var(--ptx2);flex:none}
+.wr .me-dl dd{margin:0;min-width:0;font-size:14px;font-weight:600;color:var(--ptx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wr .me-msg{margin-top:10px!important}
+.wr .me-ok{font-size:12.5px;color:var(--pgt);font-weight:600}
+
+.wr .sr-md{place-items:start center;padding-top:min(14vh,120px)}
+.wr .pf-dlg.sr-dlg{width:min(560px,100%);padding:10px}
+.wr .sr-in{display:flex;align-items:center;gap:10px;height:48px;padding:0 12px;border-radius:12px;background:var(--pbg);border:1px solid var(--pln2);color:var(--ptx2)}
+.wr .sr-in:focus-within{border-color:var(--pg)}
+.wr .sr-in svg{width:18px;height:18px;flex:none}
+.wr .sr-in input{flex:1;min-width:0;height:100%;border:0;outline:0;background:none;color:var(--ptx);font:inherit;font-size:15px}
+.wr .sr-in input::placeholder{color:var(--ptx3);opacity:1}
+.wr .sr-in kbd{font:600 11px/1 "IBM Plex Sans",sans-serif;padding:4px 6px;border-radius:6px;background:var(--psf2);color:var(--ptx2);direction:ltr}
+.wr .sr-ul{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:2px}
+.wr .sr-it{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:42px;padding:0 12px;border:0;border-radius:10px;background:none;color:inherit;font-family:inherit;text-align:start;cursor:pointer}
+.wr .sr-it.on{background:var(--psf2)}
+.wr .sr-it b{font-size:14px;font-weight:600;color:var(--ptx);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wr .sr-it small{font-size:11.5px;color:var(--ptx3);flex:none}
+.wr .sr-0{padding:12px}
+
+.wr .ft-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.wr .ft-list li{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-radius:12px;background:var(--psf2)}
+.wr .ft-ic{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:rgba(34,197,94,.14);color:var(--pgt);flex:none;margin-top:2px}
+.wr .ft-ic svg{width:14px;height:14px}
+.wr .ft-tx{display:flex;flex-direction:column;line-height:1.5;min-width:0}
+.wr .ft-tx b{font-size:14.5px;color:var(--ptx)}
+.wr .ft-tx small{font-size:13px;color:var(--ptx2)}
+.wr .ft-cta{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.wr .ft-cta h2{font-size:17px}
+.wr .ft-cta p{font-size:13.5px;color:var(--ptx2);line-height:1.7}
+.wr .ft-cta .pf-btn{margin-top:4px}
+.wr .ft-k{font-size:11.5px;font-weight:700;color:#FFC48A;background:rgba(255,133,46,.12);padding:2px 10px;border-radius:10px;line-height:1.7}
+.wr .ft-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;font-size:13.5px;color:var(--ptx2);line-height:1.6}
+.wr .ft-steps li{display:flex;gap:10px;align-items:flex-start}
+.wr .ft-n{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;border:1.5px solid var(--pln2);font-size:12px;font-weight:700;color:var(--ptx2);flex:none}
+
+/* ---- light theme: the content turns light, the sidebar stays navy as in the rest of the platform ---- */
+.wr .pf.lt{--pbg:#F2F4F7;--psf:#FFFFFF;--psf2:#F1F4F8;--pln:#DEE2E8;--pln2:#CBD3DD;--ptx:#0B1D3A;--ptx2:#5A6B80;--ptx3:#8492A6;--pg:#16A34A;--pgt:#15803D;--pgd:#16A34A;--pside:#0B1D3A}
+.wr .pf.lt .pf-side{--pbg:#0B1D3A;--psf:#112240;--psf2:#1A2E4A;--pln:#1E3350;--pln2:#2A4368;--ptx:#E8EEF7;--ptx2:#94A3B8;--ptx3:#6B7A90;--pg:#22C55E;--pgt:#34D27A;--pgd:#16A34A;color:var(--ptx)}
+.wr .pf.lt .pf-slab{border-color:#1E3350}
+.wr .pf.lt h1,.wr .pf.lt h2{color:var(--ptx)}
+.wr .pf.lt .pf-wel h1{color:#fff}
+.wr .pf.lt .pf-ttl,.wr .pf.lt .pf-mb,.wr .pf.lt .pf-tic{color:var(--ptx)}
+.wr .pf.lt button.pf-tic:hover,.wr .pf.lt .pf-ghost:hover,.wr .pf.lt .tb-adv:hover{background:rgba(11,29,58,.05);color:var(--ptx)}
+.wr .pf.lt .pf-scroll,.wr .pf.lt .pf-dlg{scrollbar-color:#CBD3DD transparent}
+.wr .pf.lt .tb-st{color:#3B4A5F}
+.wr .pf.lt .tb-st b{color:var(--ptx)}
+.wr .pf.lt .tb-bar,.wr .pf.lt .kp-bar{background:rgba(11,29,58,.1)}
+.wr .pf.lt .tb-frz{color:#B4501A}
+.wr .pf.lt .pf-line{color:var(--ptx)!important}
+.wr .pf.lt .tk-ring{background:conic-gradient(var(--pg) calc(var(--p) * 1%),rgba(11,29,58,.1) 0)}
+.wr .pf.lt .tk-ring b,.wr .pf.lt .tk-tx b,.wr .pf.lt .pf-kpi b,.wr .pf.lt .lk-tx b,.wr .pf.lt .tp-hd b,.wr .pf.lt .tp-b .b,.wr .pf.lt .ct-t bdi,.wr .pf.lt .ib-t b,.wr .pf.lt .so,.wr .pf.lt .so .o-t b,.wr .pf.lt .lkm-ph > b,.wr .pf.lt .lkm-ph > span b,.wr .pf.lt .ach-s b,.wr .pf.lt .mt-k,.wr .pf.lt .rc-tx b,.wr .pf.lt .wz-b > b,.wr .pf.lt .wz-b p bdi,.wr .pf.lt .wz-fin b,.wr .pf.lt .wz-up:hover,.wr .pf.lt .wz-up.on,.wr .pf.lt .pctrl input{color:var(--ptx)}
+.wr .pf.lt .wz:not(.cur):not(.done) .wz-b > b{color:var(--ptx2)}
+.wr .pf.lt .pf-kpi b small{color:var(--ptx2)}
+.wr .pf.lt .rl-list,.wr .pf.lt .tp-b,.wr .pf.lt .pfld label,.wr .pf.lt .sd-fs legend,.wr .pf.lt .sd-pl,.wr .pf.lt .lkm-plan ul,.wr .pf.lt .rc-tx bdi,.wr .pf.lt .pctrl .cc{color:#3B4A5F}
+.wr .pf.lt .tp-b .v{color:#1D6FD1}
+.wr .pf.lt .lk-pl,.wr .pf.lt .st-chip.w,.wr .pf.lt .so .o-w,.wr .pf.lt .sd-lim,.wr .pf.lt .ft-k{color:#C2570C}
+.wr .pf.lt .lk-ic,.wr .pf.lt .lk-big,.wr .pf.lt .ct-lock svg{color:#D9661A}
+.wr .pf.lt .pctrl input::placeholder{color:#9BA8B7}
+.wr .pf.lt .pfld .err,.wr .pf.lt .err-l{color:#CF3F3F}
+.wr .pf.lt .ct-av{background:rgba(11,29,58,.07)}
+.wr .pf.lt .ct-r.me .ct-av{background:var(--pgd);color:#fff}
+.wr .pf.lt .pf-ix{background:rgba(11,29,58,.05)}
+.wr .pf.lt .pf-ix:hover{background:rgba(11,29,58,.1);color:var(--ptx)}
+.wr .pf.lt .so:hover{border-color:#9FB2CC}
+.wr .pf.lt .so.on{border-color:var(--pg)}
+.wr .pf.lt .rd2{border-color:#9BA8B7}
+.wr .pf.lt .wz.cur .wz-n{background:#DCFCE7;color:#166534}
+.wr .pf.lt .qa-b.g{background:#E7F6EC}
+.wr .pf.lt .qa-b.p{background:#FDE8F1;color:#D61F69}
+.wr .pf.lt .hl-c{background:var(--psf2)}
+.wr .pf.lt .pf-pop,.wr .pf.lt .pf-dlg{box-shadow:0 30px 70px -34px rgba(11,29,58,.45)}
+.wr .pf.lt .pf-mscrim{background:rgba(11,29,58,.4)}
+.wr .pf.lt .pf-toast{background:#0B1D3A;color:#fff}
+.wr .pf.lt .pf-toast svg{color:#34D27A}
+
+/* ---- English: the shell left to right; WhatsApp text keeps its own direction ---- */
+.wr[dir="ltr"] .pctrl input{text-align:left}
+.wr[dir="ltr"] .ct-t bdi,.wr[dir="ltr"] .so .o-t bdi,.wr[dir="ltr"] .so .o-t small{text-align:left}
+.wr[dir="ltr"] .ph-tx,.wr[dir="ltr"] .tp-b,.wr[dir="ltr"] .ib-t p,.wr[dir="ltr"] .pf .ph-ft{unicode-bidi:plaintext;text-align:start}
+@media (orientation:portrait),(max-width:859px),(max-height:559px) and (max-width:1199px){
+  .wr[dir="ltr"] .pf-side{transform:translate3d(-100%,0,0)}
+  .wr[dir="ltr"] .pf.nav .pf-side{transform:none}
+  .wr .pf-pop{position:fixed;top:64px;inset-inline:12px;width:auto;max-width:none}
+  .wr .sr-md{place-items:start stretch;padding:12px}
+  .wr .pf-dlg.sr-dlg{border-radius:16px;padding:10px;max-height:80%;animation-name:pfDlg}
+}
