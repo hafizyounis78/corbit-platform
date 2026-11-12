@@ -3,6 +3,11 @@
 // GENERATED from the approved signup design (project/WhatsBit-Signup.dc.html, the platform section)
 // by scratch tooling: markup, classes, texts and icons are the design's own. Do not hand-edit the
 // markup here — change the view-model in use-trial-platform.ts instead.
+//
+// Three parts are written by hand, because the design has no markup for them, and must be kept
+// if this file is generated again: the top bar's four controls (vm.top), the search dialog, the
+// «حسابي» dialog behind the user card, and the page a trial account sees for a feature it is
+// exploring (vm.pv.feat / vm.ft).
 import { Fragment } from "react";
 
 /** "--p:50%; --i:2" → a style object (the design passes CSS variables as strings). */
@@ -64,7 +69,7 @@ export function PlatformView({ vm }: { vm: any }) {
             <button type="button" className={vm.nv.help.cls} style={sv("--i:13")} onClick={vm.nv.help.go}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 6.5C10.5 5 8 4.5 4 4.5v13c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-13c-4 0-6.5.5-8 2zM12 6.5v13"></path></svg><span className="t">مركز المساعدة</span></button>
           </nav>
           <div className="pf-plan"><b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.3-4.1 5.9-.9z"></path></svg><span>{vm.chip.t}</span></b><span className="pa">{vm.chip.a}</span><small>{vm.chip.b}</small><span className="pc">{vm.chip.c}</span></div>
-          <div className="pf-user"><span className="pf-av">{vm.pf.ini}</span><span className="pf-ut"><b>{vm.pf.uname}</b><small>مالك الحساب</small></span><a className="pf-out" href="/login" onClick={vm.pf.logout} aria-label="تسجيل الخروج"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4M10 16l-4-4 4-4M6 12h10"></path></svg></a></div>
+          <div className="pf-user"><button type="button" className="pf-me" onClick={vm.top.meOpen} aria-label="حسابي"><span className="pf-av">{vm.pf.ini}</span><span className="pf-ut"><b>{vm.pf.uname}</b><small>مالك الحساب</small></span></button><a className="pf-out" href="/login" onClick={vm.pf.logout} aria-label="تسجيل الخروج"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4M10 16l-4-4 4-4M6 12h10"></path></svg></a></div>
         </div>
       </aside>
       <div className="pf-scrim" onClick={vm.pf.navClose} aria-hidden="true"></div>
@@ -75,10 +80,23 @@ export function PlatformView({ vm }: { vm: any }) {
           <span className="pf-ttl">{vm.pf.title}</span>
           
           <span className="pf-sp"></span>
-          <span className="pf-srch" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="M20 20l-4.2-4.2"></path></svg><span>بحث...</span><kbd>⌘K</kbd></span>
-          <span className="pf-tic" aria-hidden="true">EN <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M3.5 12h17M12 3.5c2.5 2.6 3.6 5.4 3.6 8.5s-1.1 5.9-3.6 8.5c-2.5-2.6-3.6-5.4-3.6-8.5s1.1-5.9 3.6-8.5z"></path></svg></span>
-          <span className="pf-tic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"></path></svg></span>
-          <span className="pf-tic pf-bell" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"></path></svg><i>1</i></span>
+          {/* hand-wired (the design draws these four as decoration): search, language, light/dark, bell */}
+          <button type="button" className="pf-srch" onClick={vm.top.srchOpen} aria-label="بحث"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="M20 20l-4.2-4.2"></path></svg><span>بحث...</span><kbd>⌘K</kbd></button>
+          <button type="button" className="pf-tic" onClick={vm.top.lang} aria-label="تغيير اللغة">{vm.top.langLbl} <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M3.5 12h17M12 3.5c2.5 2.6 3.6 5.4 3.6 8.5s-1.1 5.9-3.6 8.5c-2.5-2.6-3.6-5.4-3.6-8.5s1.1-5.9 3.6-8.5z"></path></svg></button>
+          <button type="button" className="pf-tic" onClick={vm.top.theme} aria-label={vm.top.themeAria}>
+            {!!vm.top.dark && (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"></path></svg>)}
+            {!vm.top.dark && (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"></path></svg>)}
+          </button>
+          <span className="pf-bw2">
+            <button type="button" className="pf-tic pf-bell" onClick={vm.top.bell} aria-label="الإشعارات" aria-expanded={vm.top.bellExp}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"></path></svg>{!!vm.top.n && (<i>{vm.top.n}</i>)}</button>
+            {!!vm.top.bellOn && (
+              <div className="pf-pop" role="dialog" aria-label="الإشعارات">
+                <b className="pop-h">الإشعارات</b>
+                <ul className="pop-ul">{(vm.top.notes || []).map((x: any, i: number) => (<Fragment key={i}><li><button type="button" className={x.cls} onClick={x.go}><b>{x.t}</b>{!!x.s && (<small>{x.s}</small>)}</button></li></Fragment>))}</ul>
+                {!!vm.top.noNotes && (<p className="pop-0">لا توجد إشعارات.</p>)}
+              </div>
+            )}
+          </span>
         </header>
 
         {!!vm.pf.isTrial && (<>
@@ -244,6 +262,26 @@ export function PlatformView({ vm }: { vm: any }) {
               </div>
             </>)}
 
+            {/* hand-written: a feature the trial account is exploring */}
+            {!!vm.pv.feat && (<>
+              <div className="pf-view">
+                <div className="pf-vh"><h1 tabIndex={-1}>{vm.ft.t}</h1><p>{vm.ft.s}</p></div>
+                <div className="pf-g">
+                  <section className="pf-card" aria-labelledby="ft-h">
+                    <div className="pf-ch sm"><h2 id="ft-h">ماذا تقدّم لك هذه الميزة</h2><span className="tp-chip">تستكشفها الآن</span></div>
+                    <ul className="ft-list">{(vm.ft.pts || []).map((p: any, i: number) => (<Fragment key={i}><li><span className="ft-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></span><span className="ft-tx"><b>{p.t}</b><small>{p.d}</small></span></li></Fragment>))}</ul>
+                  </section>
+                  <div className="pf-col">
+                    <section className="pf-card ft-cta"><span className="ft-k">{vm.ft.k}</span><h2>{vm.ft.ct}</h2><p>{vm.ft.cs}</p><button type="button" className="pf-btn pf-grad" onClick={vm.ft.go}>{vm.ft.goLbl}</button></section>
+                    <section className="pf-card" aria-labelledby="ft-s-h">
+                      <div className="pf-ch sm"><h2 id="ft-s-h">كيف تبدأ</h2></div>
+                      <ol className="ft-steps">{(vm.ft.steps || []).map((s: string, i: number) => (<Fragment key={i}><li><span className="ft-n">{i + 1}</span><span>{s}</span></li></Fragment>))}</ol>
+                    </section>
+                  </div>
+                </div>
+              </div>
+            </>)}
+
           </div>
         </div>
 
@@ -338,6 +376,38 @@ export function PlatformView({ vm }: { vm: any }) {
               <label className={vm.mt.nCls}><input type="radio" className="sr" name="pf-mt" checked={!!vm.mt.neu} onChange={vm.mt.toNew} /><span className="rd2" aria-hidden="true"></span><span className="o-t"><b>إنشاء حساب أعمال جديد</b><small>باسم {vm.mt.biz}</small></span></label>
             </div>
             <div className="dlg-ft"><span className="pf-sp"></span><button type="button" className="pf-btn pf-ghost" onClick={vm.md.close}>إلغاء</button><button type="button" className="pf-btn pf-pri" onClick={vm.mt.ok}>متابعة</button></div>
+          </div>
+        </div>
+      </>)}
+
+      {/* hand-written: the account behind the user card */}
+      {!!vm.top.meOn && (<>
+        <div className="pf-md">
+          <div className="pf-mscrim" onClick={vm.top.meClose} aria-hidden="true"></div>
+          <div className="pf-dlg" role="dialog" aria-modal="true" aria-labelledby="me-h">
+            <div className="dlg-hd"><div><h2 id="me-h" tabIndex={-1}>حسابي</h2><p>بيانات حسابك في WhatsBit.</p></div><button type="button" className="pf-ix" onClick={vm.top.meClose} aria-label="إغلاق"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div>
+            <dl className="me-dl">{(vm.top.meRows || []).map((r: any, i: number) => (<Fragment key={i}><div><dt>{r.l}</dt><dd><bdi dir={r.dir}>{r.v}</bdi></dd></div></Fragment>))}</dl>
+            <fieldset className="sd-fs me-pw"><legend>تغيير كلمة المرور</legend>
+              <div className="sd-vars">
+                <div className="pfld"><label htmlFor="me-cur">كلمة المرور الحالية</label><div className="pctrl ltrc"><input id="me-cur" type="password" autoComplete="current-password" value={vm.top.pwCur} onChange={vm.top.onPwCur} /></div></div>
+                <div className="pfld"><label htmlFor="me-new">كلمة المرور الجديدة</label><div className="pctrl ltrc"><input id="me-new" type="password" autoComplete="new-password" value={vm.top.pwNew} onChange={vm.top.onPwNew} onKeyDown={vm.top.pwKey} /></div></div>
+              </div>
+              {!!vm.top.pwErr && (<p className="err-l me-msg" role="alert">{vm.top.pwErr}</p>)}
+              {!!vm.top.pwOk && (<p className="me-ok me-msg" role="status">{vm.top.pwOk}</p>)}
+            </fieldset>
+            <div className="dlg-ft"><span className="pf-sp"></span><button type="button" className="pf-btn pf-ghost" onClick={vm.top.meClose}>إغلاق</button><button type="button" className={vm.top.pwBtnCls} onClick={vm.top.pwSave} disabled={!!vm.top.pwDis} aria-busy={vm.top.pwBusy}><span>حفظ كلمة المرور</span><span className="spin" aria-hidden="true"></span></button></div>
+          </div>
+        </div>
+      </>)}
+
+      {/* hand-written: search */}
+      {!!vm.top.srchOn && (<>
+        <div className="pf-md sr-md">
+          <div className="pf-mscrim" onClick={vm.top.srchClose} aria-hidden="true"></div>
+          <div className="pf-dlg sr-dlg" role="dialog" aria-modal="true" aria-label="بحث">
+            <div className="sr-in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="M20 20l-4.2-4.2"></path></svg><input autoFocus autoComplete="off" placeholder="ابحث في المنصة..." aria-label="بحث" value={vm.top.q} onChange={vm.top.onQ} onKeyDown={vm.top.srchKey} /><kbd>Esc</kbd></div>
+            <ul className="sr-ul">{(vm.top.found || []).map((x: any, i: number) => (<Fragment key={i}><li><button type="button" className={x.cls} onClick={x.go} onMouseEnter={x.over}><b>{x.t}</b><small>{x.s}</small></button></li></Fragment>))}</ul>
+            {!!vm.top.none && (<p className="sr-0">لا توجد نتائج.</p>)}
           </div>
         </div>
       </>)}

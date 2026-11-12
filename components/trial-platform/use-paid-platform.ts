@@ -55,6 +55,10 @@ const ROUTE: Record<string, string> = {
   aig: "/ai-agents", ana: "/analytics", api: "/integrations", team: "/teams", bill: "/billing",
 };
 const VIEW_TITLE: Record<View, string> = { home: "لوحة التحكم", tpl: "القوالب" };
+const NAV_T: Record<string, string> = {
+  home: "لوحة التحكم", inbox: "صندوق الوارد", camp: "الحملات", ct: "جهات الاتصال", pipe: "مسار المبيعات", tpl: "القوالب", bot: "بناء البوت",
+  aic: "مركز الذكاء", aig: "وكلاء الذكاء", ana: "التحليلات", api: "التطبيقات", team: "الفرق", bill: "الفوترة", help: "مركز المساعدة",
+};
 const HEALTH = [
   ["تقييم Meta للجودة", "يظهر بعد ربط الرقم"], ["نسبة الحظر (Block Rate)", "بعد بدء الإرسال"], ["القوالب المرفوضة (30 يوم)", "بعد اعتماد قوالبك"],
   ["معدّل إلغاء الاشتراك", "بعد بدء الإرسال"], ["معدّل القراءة (آخر 7 أيام)", "بعد بدء الإرسال"], ["معدّل الرد (آخر 7 أيام)", "بعد أول محادثة"],
@@ -285,7 +289,17 @@ export function usePaidPlatform(initial: PaidSummary) {
         })),
       },
       md: { send: false, lock: false, ach: false, meta: false, close: () => {} },
-      pv: { homeT: false, homeP: pv === "home", tpl: pv === "tpl", ct: false, inbox: false },
+      pv: { homeT: false, homeP: pv === "home", tpl: pv === "tpl", ct: false, inbox: false, feat: false },
+      ft: { t: "", s: "", pts: [], k: "", ct: "", cs: "", goLbl: "", go: () => {}, steps: [] },
+      srch: [
+        ...NAV.map((k) => ({ t: NAV_T[k], s: "قسم", go: () => go(k) })),
+        ...data.templates.map((t) => ({ t: t.name, s: "قالب", go: () => { setNav(false); setPv("tpl"); } })),
+      ],
+      notes: [
+        ...(W >= 5 ? [{ id: "wz:done", t: "أنهيت ما عليك", s: "تراجع Meta طلبك وسنبلغك فور اكتمال المراجعة" }]
+          : [{ id: `wz:${W}`, t: W <= 2 ? "الخطوة التالية: ربط حساب Meta للأعمال" : W === 3 ? "الخطوة التالية: الاسم الظاهر للعملاء" : "الخطوة التالية: توثيق المنشأة", s: "من لوحة «اربط رقم واتساب الأعمال»", go: () => { setNav(false); setPv("home"); } }]),
+        ...(rc ? [{ id: `paid:${rc.orderNo}`, t: `تم الدفع بنجاح · باقة ${P.n}`, s: `رقم الطلب ${rc.orderNo}` }] : []),
+      ],
       // trial-only parts of the shell
       tb: { cls: "pf-tb", live: false, frozen: false, frzT: "", left: "", total: "", today: "", day: "", days: "", barSt: "", advOn: false, advLbl: "", adv: () => {} },
       tk: { n: "0", aria: "", ringSt: "", ext: false, extN: "", sub: "", list: [] },

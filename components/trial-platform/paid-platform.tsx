@@ -1,8 +1,6 @@
 "use client";
 
-import "@/app/register/register.css";
-import "./platform.css";
-import { PlatformView } from "./platform-view";
+import { PlatformFrame } from "./platform-frame";
 import { usePaidPlatform, type PaidSummary } from "./use-paid-platform";
 
 /**
@@ -13,9 +11,5 @@ import { usePaidPlatform, type PaidSummary } from "./use-paid-platform";
 export function PaidPlatform({ summary }: { summary: PaidSummary }) {
   const vm = usePaidPlatform(summary);
 
-  return (
-    <div className="wr pfm" dir="rtl" lang="ar" style={{ position: "fixed", inset: 0, zIndex: 60, height: "100dvh" }}>
-      <PlatformView vm={vm} />
-    </div>
-  );
+  return <PlatformFrame vm={vm} />;
 }

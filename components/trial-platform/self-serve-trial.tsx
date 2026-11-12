@@ -1,8 +1,6 @@
 "use client";
 
-import "@/app/register/register.css";
-import "./platform.css";
-import { PlatformView } from "./platform-view";
+import { PlatformFrame } from "./platform-frame";
 import { useTrialPlatform, type TrialSummary } from "./use-trial-platform";
 
 /**
@@ -16,9 +14,5 @@ import { useTrialPlatform, type TrialSummary } from "./use-trial-platform";
 export function SelfServeTrial({ summary }: { summary: TrialSummary }) {
   const vm = useTrialPlatform(summary);
 
-  return (
-    <div className="wr pfm" dir="rtl" lang="ar" style={{ position: "fixed", inset: 0, zIndex: 60, height: "100dvh" }}>
-      <PlatformView vm={vm} />
-    </div>
-  );
+  return <PlatformFrame vm={vm} />;
 }
