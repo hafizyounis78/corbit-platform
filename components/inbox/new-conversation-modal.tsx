@@ -55,7 +55,7 @@ export function NewConversationModal({
   const { colors: C } = useTheme();
   const { isAr } = useLocale();
   const { showToast } = useToast();
-  const { data: templatesData } = useTemplates();
+  const { data: templatesData } = useTemplates({ status: "approved", limit: 200 });
   const templates: Template[] = (Array.isArray(templatesData) ? templatesData : []).filter(
     (t: Template) => t.st === "approved",
   );

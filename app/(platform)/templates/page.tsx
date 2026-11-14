@@ -58,6 +58,8 @@ export default function TemplatesPage() {
   const [serverSearch, setServerSearch] = useState("");
   const [page, setPage] = useState(1);
   const [activeTab, setActiveTab] = useState("all");
+  // Status filter, driven by the count cards above the list.
+  const [statusFilter, setStatusFilter] = useState<"all" | "approved" | "pending" | "rejected">("all");
   const [selected, setSelected] = useState<Template | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Template | null>(null);
@@ -176,8 +178,11 @@ export default function TemplatesPage() {
     : (activeTab === "auth" ? "authentication" : activeTab);
   const { data: apiResponse, isLoading, mutate } = useTemplates({
     category: tabCategory,
+    status: statusFilter === "all" ? undefined : statusFilter,
     search: serverSearch || undefined,
     page,
+    limit: PAGE_SIZE,
+    withMeta: true,
   });
   // Extract data and pagination meta
   const apiTemplates = apiResponse?.data || apiResponse;
@@ -220,7 +225,7 @@ export default function TemplatesPage() {
   }, [pageTemplates, search, serverSearch]);
 
   // When tab changes, reset to page 1
-  useEffect(() => { setPage(1); }, [activeTab]);
+  useEffect(() => { setPage(1); }, [activeTab, statusFilter]);
 
   // Auto-sync with 360dialog on mount + every 60s while the page is open.
   // Silent (no toast) — keeps the list fresh without nagging the user.
@@ -278,10 +283,10 @@ export default function TemplatesPage() {
     const pending = apiStats?.pending ?? pendingCount;
     const rejected = apiStats?.rejected ?? rejectedCount;
     return [
-      { label: isAr ? "\u0627\u0644\u0625\u062C\u0645\u0627\u0644\u064A" : "Total", value: total, color: C.pri, icon: "file" },
-      { label: t("approved"), value: approved, color: COLORS.ok, icon: "check" },
-      { label: t("pending"), value: pending, color: COLORS.warn, icon: "timer" },
-      { label: t("rejected"), value: rejected, color: COLORS.err, icon: "x" },
+      { label: isAr ? "\u0627\u0644\u0625\u062C\u0645\u0627\u0644\u064A" : "Total", value: total, color: C.pri, icon: "file", key: "all" },
+      { key: "approved", label: t("approved"), value: approved, color: COLORS.ok, icon: "check" },
+      { key: "pending", label: t("pending"), value: pending, color: COLORS.warn, icon: "timer" },
+      { key: "rejected", label: t("rejected"), value: rejected, color: COLORS.err, icon: "x" },
     ];
   }, [apiStats, totalCount, approvedCount, pendingCount, rejectedCount, isAr, C.pri, t]);
 
@@ -332,7 +337,10 @@ export default function TemplatesPage() {
         header_upload_status: detail.header_upload_status ?? "",
         header_upload_error: detail.header_upload_error ?? "",
         body: raw.body ?? "",
-        body_ar: raw.body_ar ?? "",
+        // An Arabic-only template keeps its text in `body` (`body_ar` is
+        // only filled for two-language templates), while the form reads
+        // the Arabic box — without this it opened empty.
+        body_ar: raw.body_ar ?? ((detail.ln ?? detail.language) === "ar" ? raw.body ?? "" : ""),
         footer: raw.footer ?? "",
         buttons: detail.buttons ?? [],
         body_examples: [],
@@ -748,7 +756,15 @@ export default function TemplatesPage() {
       {/* Stats Cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 20 }}>
         {(stats as any[]).map((s: any, i: number) => (
-          <Card key={i} style={{ padding: "18px 20px" }}>
+          <Card
+            key={i}
+            onClick={() => setStatusFilter(s.key)}
+            style={{
+              padding: "18px 20px",
+              cursor: "pointer",
+              ...(statusFilter === s.key ? { border: `2px solid ${s.color}` } : {}),
+            }}
+          >
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div
                 style={{
@@ -1355,8 +1371,20 @@ export default function TemplatesPage() {
               return;
             }
 
-            await api.post("/templates", payload);
-            showToast(isAr ? "تم إنشاء القالب بنجاح" : "Template created successfully");
+            const created = await api.post("/templates", payload);
+            const saved = created.data?.data ?? {};
+            // A template Meta refused is still saved (as rejected) and the
+            // request still succeeds — say so instead of "created".
+            if ((saved.st ?? saved.status) === "rejected") {
+              showToast(
+                isAr
+                  ? "حُفظ القالب لكن Meta رفضته — افتح تفاصيل الرفض على بطاقته لمعرفة السبب"
+                  : "The template was saved but Meta rejected it — open the rejection details on its card",
+                "error",
+              );
+            } else {
+              showToast(isAr ? "تم إنشاء القالب بنجاح" : "Template created successfully");
+            }
             setShowCreateModal(false);
             setNewTemplate({ name: "", category: "utility", language: "ar", header: "", header_format: "none", header_media_url: "", header_media_disk: "", header_media_path: "", header_media_filename: "", header_meta_handle: "", header_upload_status: "", header_upload_error: "", body: "", body_ar: "", footer: "", buttons: [], body_examples: [] });
             mutate();

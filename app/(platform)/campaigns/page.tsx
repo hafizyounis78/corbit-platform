@@ -249,7 +249,9 @@ export default function CampaignsPage() {
     }
   };
 
-  const { data: templatesApiResponse } = useTemplatesApi();
+  // The whole list, not the first page of 20: a template past the 20
+  // newest could not be picked for a campaign.
+  const { data: templatesApiResponse } = useTemplatesApi({ limit: 200 });
   const templates = useMemo(() => {
     const list = templatesApiResponse?.data || templatesApiResponse;
     return Array.isArray(list) ? list : [];
@@ -1854,10 +1856,14 @@ function DetailView({ campaign: c, onBack, onRefresh }: { campaign: Campaign; on
                   : (isAr ? "\u0627\u0633\u062A\u0626\u0646\u0627\u0641" : "Resume")}
               </Button>
             )}
-            <Button outline onClick={() => showToast(isAr ? "\u062A\u0639\u062F\u064A\u0644 \u0627\u0644\u062D\u0645\u0644\u0629" : "Edit campaign")}>
-              <Icon name="pencil" size={13} />
-              {isAr ? "\u062A\u0639\u062F\u064A\u0644" : "Edit"}
-            </Button>
+            {/* Same rule as the list: a campaign that has started sending
+                cannot be edited, so the button is not offered. */}
+            {(c.st === 'draft' || c.st === 'scheduled') && (
+              <Button outline onClick={() => showToast(isAr ? "\u062A\u0639\u062F\u064A\u0644 \u0627\u0644\u062D\u0645\u0644\u0629" : "Edit campaign")}>
+                <Icon name="pencil" size={13} />
+                {isAr ? "\u062A\u0639\u062F\u064A\u0644" : "Edit"}
+              </Button>
+            )}
             {/* Retarget non-openers \u2014 only meaningful for completed
                 campaigns where Sent > 0 and there's a real "non-openers"
                 set to chase. Hidden on drafts/scheduled because the
