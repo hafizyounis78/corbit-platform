@@ -62,7 +62,7 @@ export function QuickRepliesPanel() {
     try {
       if (form.id) {
         await api.patch(`/quick-replies/${form.id}`, {
-          text: en,
+          text: en || ar,  // same fallback as create: the backend refuses an empty text
           text_ar: ar,
           category: form.category,
         });

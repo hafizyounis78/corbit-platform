@@ -140,7 +140,9 @@ export default function InboxPage() {
   // API: fetch conversations
   const [apiFilterTab, setApiFilterTab] = useState<string | undefined>(undefined);
   const { data: apiConvosRaw, isLoading: convosLoading, mutate: mutateConvos } = useConversations(
-    apiFilterTab ? { status: apiFilterTab } : undefined
+    // "unread" is not a conversation status: sent as `status` it matched
+    // no row and the tab was always empty.
+    apiFilterTab === "unread" ? { filter: "unread" } : apiFilterTab ? { status: apiFilterTab } : undefined
   );
 
   const rawItems = Array.isArray(apiConvosRaw)
@@ -376,7 +378,17 @@ export default function InboxPage() {
   const requestCsat = useCallback(async () => {
     if (!selectedId) return;
     try {
-      await api.post(`/conversations/${selectedId}/csat-request`);
+      const res = await api.post(`/conversations/${selectedId}/csat-request`);
+      const result = res.data?.data ?? {};
+      // The backend answers 200 when it skips the send (feature off, no
+      // template, one already pending) and says why in the message.
+      if (result.skipped || !result.sent) {
+        showToast(
+          res.data?.message || (isAr ? "لم يُرسل طلب التقييم" : "The CSAT request was not sent"),
+          "error",
+        );
+        return;
+      }
       showToast(isAr ? "تم إرسال طلب التقييم ⭐" : "CSAT request sent ⭐");
     } catch (err: any) {
       if (err?.response?.status === 404) {
@@ -1840,23 +1852,11 @@ export default function InboxPage() {
     );
   }
 
-  // ===================== LAYOUT =====================
-  if (isMobile) {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", minHeight: 0, flex: 1 }}>
-        {mobileView === "list" && renderConversationList()}
-        {mobileView === "chat" && renderChatPanel()}
-        {mobileView === "detail" && renderDetailPanel()}
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ display: "flex", flex: 1, overflow: "hidden", minHeight: 0 }}>
-      {renderConversationList()}
-      {renderChatPanel()}
-      {showDetail && !isTablet && renderDetailPanel()}
-
+  // The modals are shared by the phone and desktop layouts. They used to
+  // sit in the desktop tree only, so on a phone the report flag, the tags
+  // button and "New" set their state and nothing opened.
+  const modals = (
+    <>
       {/* Per-message report-issue modal. Mounted once for the whole
           inbox; the row buttons just feed it a fresh IssueContext. */}
       <ReportIssueModal
@@ -1896,6 +1896,28 @@ export default function InboxPage() {
           if (idx >= 0) setSelectedIdx(idx);
         }}
       />
+    </>
+  );
+
+  // ===================== LAYOUT =====================
+  if (isMobile) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", minHeight: 0, flex: 1 }}>
+        {mobileView === "list" && renderConversationList()}
+        {mobileView === "chat" && renderChatPanel()}
+        {mobileView === "detail" && renderDetailPanel()}
+        {modals}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flex: 1, overflow: "hidden", minHeight: 0 }}>
+      {renderConversationList()}
+      {renderChatPanel()}
+      {showDetail && !isTablet && renderDetailPanel()}
+
+      {modals}
     </div>
   );
 }

@@ -27,7 +27,7 @@ export function TemplatePicker({ open, onClose, onSend, sending, contactName }: 
   const { colors: C } = useTheme();
   const { isAr } = useLocale();
 
-  const { data: apiTemplates, isLoading } = useTemplates({ status: "approved" });
+  const { data: apiTemplates, isLoading } = useTemplates({ status: "approved", limit: 200 });
   const templates = useMemo(() => {
     const list = apiTemplates?.items || apiTemplates || [];
     return Array.isArray(list) ? list : [];
@@ -60,7 +60,8 @@ export function TemplatePicker({ open, onClose, onSend, sending, contactName }: 
     if (!selected) return "";
     let body = selected.body || "";
     variables.forEach((val, i) => {
-      body = body.replace(`{{${i + 1}}}`, val || `{{${i + 1}}}`);
+      // split/join: a variable used twice in the body is filled in both places.
+      body = body.split(`{{${i + 1}}}`).join(val || `{{${i + 1}}}`);
     });
     return body;
   };

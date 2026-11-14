@@ -78,9 +78,12 @@ export function useNavBadges() {
 // updating at the same cadence the customers were used to before
 // real-time was introduced. Zero regression is more important than
 // shaving polling load.
-export function useConversations(params?: { status?: string; search?: string; page?: number }) {
+export function useConversations(params?: { status?: string; filter?: string; search?: string; page?: number }) {
   const qs = new URLSearchParams();
   if (params?.status) qs.set('status', params.status);
+  // `filter` is the backend's shortcut for things that are not a status
+  // value — "unread" is a count, not a status.
+  if (params?.filter) qs.set('filter', params.filter);
   if (params?.search) qs.set('search', params.search);
   if (params?.page) qs.set('page', String(params.page));
   const q = qs.toString();
@@ -293,12 +296,17 @@ export function useCampaignBuilderPresets() {
 }
 
 // ─── Templates ────────────────────────────────────────────
-export function useTemplates(params?: { status?: string; category?: string; search?: string; page?: number }) {
+// `limit`: the backend pages at 20 by default, so a picker that must show
+// every approved template asks for more. `withMeta`: returns
+// `{ data, meta }` so a paged screen knows how many pages there are.
+export function useTemplates(params?: { status?: string; category?: string; search?: string; page?: number; limit?: number; withMeta?: boolean }) {
   const qs = new URLSearchParams();
   if (params?.status) qs.set('status', params.status);
   if (params?.category) qs.set('category', params.category);
   if (params?.search) qs.set('search', params.search);
   if (params?.page) qs.set('page', String(params.page));
+  if (params?.limit) qs.set('limit', String(params.limit));
+  if (params?.withMeta) qs.set('with_meta', '1');
   const q = qs.toString();
   return useApi(`/templates${q ? '?' + q : ''}`, [q]);
 }
